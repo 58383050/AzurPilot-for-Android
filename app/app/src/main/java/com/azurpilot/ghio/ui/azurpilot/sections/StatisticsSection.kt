@@ -71,7 +71,6 @@ import com.azurpilot.ghio.ui.azurpilot.ApErrorState
 import com.azurpilot.ghio.ui.azurpilot.ApMetricCard
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.prettyCell
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
 
@@ -227,13 +226,13 @@ fun StatisticsSection(repository: AzurPilotRepository) {
                     if (charted.isNotEmpty()) {
                         AppCard(
                             title = stringResource(R.string.ap_stats_trend),
-                            modifier = Modifier.apEnter(2),
+                            modifier = Modifier,
                         ) {
                             ApLineChart(charted)
                         }
                     }
                     data.tables.forEachIndexed { index, table ->
-                        StatTableCard(table, Modifier.apEnter(index + 3))
+                        StatTableCard(table, Modifier)
                     }
                     data.notes.forEach { note ->
                         AppCard { Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -259,7 +258,7 @@ private enum class StatsStage { NoInstance, Loading, Error, Content }
 private fun MetricsGrid(report: AzurPilotStatisticsReport) {
     AppCard(
         title = stringResource(R.string.ap_stats_summary),
-        modifier = Modifier.apEnter(1),
+        modifier = Modifier,
     ) {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -325,7 +324,7 @@ private fun CategoryControls(
     val showsTask = category == AzurPilotStatCategory.Loot && taskOptions.isNotEmpty()
     if (!showsDays && !showsPeriod && !showsScope && !showsTask && onRefresh == null) return
 
-    AppCard(modifier = Modifier.apEnter(0)) {
+    AppCard(modifier = Modifier) {
         if (showsDays) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
                 DAY_CHOICES.forEach { choice ->

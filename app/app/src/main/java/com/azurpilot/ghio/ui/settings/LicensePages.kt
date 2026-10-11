@@ -1,13 +1,11 @@
 package com.azurpilot.ghio.ui.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Search
@@ -63,14 +60,13 @@ import org.koin.compose.koinInject
 /**
  * 渲染开源组件与许可证列表页
  *
- * 展示应用内收录的所有核心内置组件与 Android 运行时依赖项，支持按关键字搜索和按类别筛选；
- * 点击任意条目推入该组件的协议原文详情页。
+ * 展示应用内收录的所有核心内置组件与 Android 运行时依赖项，支持按关键字搜索和按类别筛选； 点击任意条目推入该组件的协议原文详情页。
  *
  * Renders the open-source components and licenses list page.
  *
- * Displays all core bundled components and Android runtime dependencies included
- * in the application, supporting keyword search and category filtering; tapping any
- * entry navigates to its full license text detail page.
+ * Displays all core bundled components and Android runtime dependencies included in the
+ * application, supporting keyword search and category filtering; tapping any entry navigates to its
+ * full license text detail page.
  *
  * @param onOpenDetail 导航到特定组件协议详情页的回调 / Callback navigating to component license detail
  * @param onBack 返回上一级回调 / Back callback
@@ -87,25 +83,27 @@ fun OpenSourceLicensesPage(
     var filterIndex by rememberSaveable { mutableIntStateOf(0) }
 
     val allComponents = remember { repository.getAllComponents() }
-    val filteredComponents = remember(searchQuery, filterIndex, allComponents) {
-        val base = when (filterIndex) {
-            1 -> allComponents.filter { it.isCore }
-            2 -> allComponents.filter { !it.isCore }
-            else -> allComponents
-        }
-        if (searchQuery.isBlank()) {
-            base
-        } else {
-            val q = searchQuery.trim()
-            base.filter {
-                it.name.contains(q, ignoreCase = true) ||
-                    it.group.contains(q, ignoreCase = true) ||
-                    it.artifact.contains(q, ignoreCase = true) ||
-                    it.licenseId.contains(q, ignoreCase = true) ||
-                    it.description.contains(q, ignoreCase = true)
+    val filteredComponents =
+        remember(searchQuery, filterIndex, allComponents) {
+            val base =
+                when (filterIndex) {
+                    1 -> allComponents.filter { it.isCore }
+                    2 -> allComponents.filter { !it.isCore }
+                    else -> allComponents
+                }
+            if (searchQuery.isBlank()) {
+                base
+            } else {
+                val q = searchQuery.trim()
+                base.filter {
+                    it.name.contains(q, ignoreCase = true) ||
+                        it.group.contains(q, ignoreCase = true) ||
+                        it.artifact.contains(q, ignoreCase = true) ||
+                        it.licenseId.contains(q, ignoreCase = true) ||
+                        it.description.contains(q, ignoreCase = true)
+                }
             }
         }
-    }
 
     SettingsSubPage(
         titleRes = R.string.settings_open_source_licenses,
@@ -138,10 +136,11 @@ fun OpenSourceLicensesPage(
             },
             singleLine = true,
             shape = MaterialTheme.shapes.medium,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            ),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                ),
         )
 
         Spacer(modifier = Modifier.height(AppTokens.Spacing.sm))
@@ -172,12 +171,12 @@ fun OpenSourceLicensesPage(
 
         if (filteredComponents.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    // 占满剩余空间而不是 fillMaxSize：普通 Column 会按完整剩余高量它，
-                    // 叠上搜索框与筛选行后中心点会沉到屏幕外
-                    .weight(1f)
-                    .padding(AppTokens.Spacing.xl),
+                modifier =
+                    Modifier.fillMaxWidth()
+                        // 占满剩余空间而不是 fillMaxSize：普通 Column 会按完整剩余高量它，
+                        // 叠上搜索框与筛选行后中心点会沉到屏幕外
+                        .weight(1f)
+                        .padding(AppTokens.Spacing.xl),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -204,18 +203,14 @@ fun OpenSourceLicensesPage(
     }
 }
 
-/**
- * 列表中的单项开源组件卡片行
- */
+/** 列表中的单项开源组件卡片行 */
 @Composable
 private fun OpenSourceComponentCardRow(
     component: OpenSourceComponent,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AppCard(
-        modifier = modifier.clickable(onClick = onClick),
-    ) {
+    AppCard(modifier = modifier.clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -263,16 +258,18 @@ private fun OpenSourceComponentCardRow(
             // 许可证 Badge
             Surface(
                 shape = MaterialTheme.shapes.small,
-                color = if (component.isCore) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.secondaryContainer
-                },
-                contentColor = if (component.isCore) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                },
+                color =
+                    if (component.isCore) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    },
+                contentColor =
+                    if (component.isCore) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    },
             ) {
                 Text(
                     text = component.licenseId,
@@ -299,8 +296,8 @@ private fun OpenSourceComponentCardRow(
  *
  * Renders the detail page for one open-source component.
  *
- * Displays full component metadata, official project URL, and the complete legal
- * license text (with copy-to-clipboard action and free text selection).
+ * Displays full component metadata, official project URL, and the complete legal license text (with
+ * copy-to-clipboard action and free text selection).
  *
  * @param componentId 组件唯一标识 / Unique component identifier
  * @param onBack 返回上一级回调 / Back callback
@@ -351,8 +348,14 @@ fun LicenseDetailPage(
                 fontWeight = FontWeight.Bold,
             )
             AppInfoRow(stringResource(R.string.settings_version), component.version)
-            AppInfoRow(stringResource(R.string.settings_project), "${component.group}:${component.artifact}")
-            AppInfoRow(stringResource(R.string.settings_license_spdx), "${license.name} (${component.licenseId})")
+            AppInfoRow(
+                stringResource(R.string.settings_project),
+                "${component.group}:${component.artifact}",
+            )
+            AppInfoRow(
+                stringResource(R.string.settings_license_spdx),
+                "${license.name} (${component.licenseId})",
+            )
             if (component.description.isNotBlank()) {
                 Text(
                     text = component.description,
@@ -386,7 +389,7 @@ fun LicenseDetailPage(
                         snackbarHostState?.let { host ->
                             scope.launch { host.showSnackbar(copiedText) }
                         }
-                    },
+                    }
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
@@ -405,10 +408,11 @@ fun LicenseDetailPage(
                     Text(
                         text = license.text,
                         modifier = Modifier.padding(AppTokens.Spacing.md),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = MaterialTheme.typography.bodySmall.lineHeight * 1.3f,
-                        ),
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                lineHeight = MaterialTheme.typography.bodySmall.lineHeight * 1.3f,
+                            ),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }

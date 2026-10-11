@@ -52,7 +52,6 @@ import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApStatusPill
 import com.azurpilot.ghio.ui.azurpilot.instanceStatusColor
 import com.azurpilot.ghio.ui.azurpilot.instanceStatusText
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -169,7 +168,7 @@ fun InstancesPage(repository: AzurPilotRepository) {
     ApSectionColumn {
         if (creating) {
             CreateInstanceCard(
-                modifier = Modifier.apEnter(0),
+                modifier = Modifier,
                 sources = instances.map { it.name },
                 onCreate = { name, source ->
                     repository.createInstance(name, source)
@@ -181,7 +180,7 @@ fun InstancesPage(repository: AzurPilotRepository) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .apEnter(0),
+                    ,
                 horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
             ) {
                 Button(
@@ -213,7 +212,7 @@ fun InstancesPage(repository: AzurPilotRepository) {
 
         AppCard(
             title = stringResource(R.string.ap_settings_instances_count, instances.size),
-            modifier = Modifier.apEnter(1),
+            modifier = Modifier,
         ) {
             if (instances.isEmpty()) {
                 ApEmptyState(

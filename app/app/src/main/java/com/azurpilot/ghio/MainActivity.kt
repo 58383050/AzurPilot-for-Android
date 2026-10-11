@@ -109,14 +109,14 @@ class MainActivity : AppCompatActivity() {
      *
      * 一键启停原样复用小组件的广播链：广播接收窗口内拉 FGS 享后台启动豁免，
      * 与桌面小组件行为完全一致；跳转型目的地经 [ShortcutRequests] 转交
-     * [AppRoot]——pager 与 NavHost 都在组合里，Activity 摸不到。
+     * [AppRoot]——主页面与导航栈 都在组合里，Activity 摸不到。
      *
      * Dispatches launcher long-press shortcuts (implicit action in [ShortcutIntents]).
      *
      * The toggle reuses the widget's broadcast chain as-is: the FGS raised inside
      * the broadcast window keeps its background-start exemption, matching the
      * widget behavior exactly; navigation-type destinations go through
-     * [ShortcutRequests] to [AppRoot], since the pager and the NavHost both live
+     * [ShortcutRequests] to [AppRoot], since main pages and navigation stack both live
      * in composition, out of the Activity's reach.
      */
     private fun handleShortcutIntent(intent: Intent?) {

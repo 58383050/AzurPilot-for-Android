@@ -65,7 +65,6 @@ import com.azurpilot.ghio.ui.azurpilot.ApErrorState
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApTopBarAction
 import com.azurpilot.ghio.ui.azurpilot.apContentWidth
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.components.AppNavigationRow
@@ -148,7 +147,7 @@ fun ConfigSection(repository: AzurPilotRepository, onOpenTask: (String) -> Unit)
                     AppCard(
                         title = data.menuTitle(group.key),
                         collapsible = true,
-                        modifier = Modifier.apEnter(index),
+                        modifier = Modifier,
                     ) {
                         group.tasks.forEachIndexed { taskIndex, task ->
                             if (taskIndex > 0) {

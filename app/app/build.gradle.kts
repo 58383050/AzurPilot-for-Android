@@ -15,6 +15,15 @@ android {
     namespace = "com.azurpilot.ghio"
 
     sourceSets {
+        named("androidTest") {
+            // 导航回归可独立编译，避免旧运行时测试引用已删除的 PiPackage。
+            if (providers.gradleProperty("navigationTestsOnly").orNull == "true") {
+                kotlin.directories.clear()
+                kotlin.directories.add("src/navigationTest/java")
+            } else {
+                kotlin.directories.add("src/navigationTest/java")
+            }
+        }
         named("main") {
             // proot 九件套（libproot/libproot-loader/libtalloc/busybox/shim 等，Spike A 钉版产物）；
             // 与 src/main/jniLibs/（上游框架的拉取件，gitignore）分开放，本目录是构建输入要入库
@@ -299,7 +308,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.core)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.androidx.navigation.compose)
+    implementation(project(":navigation-runtime"))
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.window)

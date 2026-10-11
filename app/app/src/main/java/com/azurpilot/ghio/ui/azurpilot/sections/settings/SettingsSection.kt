@@ -16,7 +16,6 @@ import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.ui.azurpilot.ApKeyValueRow
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.instanceStatusText
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppNavigationRow
 
@@ -59,7 +58,7 @@ fun SettingsSection(
     ApSectionColumn {
         AppCard(
             title = stringResource(R.string.ap_title_instances),
-            modifier = Modifier.apEnter(0),
+            modifier = Modifier,
         ) {
             AppNavigationRow(
                 label = stringResource(R.string.ap_settings_instances_manage),
@@ -77,7 +76,7 @@ fun SettingsSection(
             }
         }
 
-        AppCard(modifier = Modifier.apEnter(1)) {
+        AppCard(modifier = Modifier) {
             AppNavigationRow(
                 label = stringResource(R.string.ap_title_announcement),
                 description = announcement?.title ?: stringResource(R.string.ap_settings_announcement_empty),
@@ -93,7 +92,7 @@ fun SettingsSection(
 
         AppCard(
             title = stringResource(R.string.ap_title_updater),
-            modifier = Modifier.apEnter(2),
+            modifier = Modifier,
         ) {
             AppNavigationRow(
                 label = updater?.let { it.localHead?.take(10) ?: it.state } ?: stringResource(R.string.ap_waiting_data),
@@ -109,7 +108,7 @@ fun SettingsSection(
 
         AppCard(
             title = stringResource(R.string.ap_title_deploy),
-            modifier = Modifier.apEnter(3),
+            modifier = Modifier,
         ) {
             if (deploy == null) {
                 Row(

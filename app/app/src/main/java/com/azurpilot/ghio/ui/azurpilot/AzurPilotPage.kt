@@ -1,23 +1,31 @@
 package com.azurpilot.ghio.ui.azurpilot
 
-
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -27,24 +35,23 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.azurpilot.ghio.R
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotRunController
@@ -52,7 +59,6 @@ import com.azurpilot.ghio.proot.ProotHost
 import com.azurpilot.ghio.proot.ProotPhase
 import com.azurpilot.ghio.service.HostState
 import com.azurpilot.ghio.theme.AppTokens
-import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
 import com.azurpilot.ghio.ui.azurpilot.sections.ConfigSection
 import com.azurpilot.ghio.ui.azurpilot.sections.LogsSection
 import com.azurpilot.ghio.ui.azurpilot.sections.OverviewSection
@@ -64,41 +70,45 @@ import com.azurpilot.ghio.ui.azurpilot.sections.settings.InstancesPage
 import com.azurpilot.ghio.ui.azurpilot.sections.settings.MeowfficerPage
 import com.azurpilot.ghio.ui.azurpilot.sections.settings.SettingsSection
 import com.azurpilot.ghio.ui.azurpilot.sections.settings.UpdaterPage
+import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.motion.peerContentTransform
+import com.azurpilot.ghio.ui.navigation.AppRoute
 import org.koin.compose.koinInject
 
 /**
- * AzurPilot 页：原生实现的 WebUI
+ * 渲染控制台的平级分区，详情通过宿主唯一导航栈打开。
  *
- * WebUI 的前端本身也是拿 `schema.get` 下发的定义现渲染的，所以这里照同一份定义渲染，
- * 功能面就不会有偏差——菜单、任务、参数、翻译全部来自运行时，App 侧不硬编码任何一项。
+ * Renders peer console sections, opening details through the host's single navigation stack.
  *
- * 进程的启停**不在这里**：宿主只保留一条控制面（主页控制面板 / 悬浮窗走 `/android/…`），
- * 多一条控制面会和它在设备上抢。这里管的是内容面（总览 / 配置 / 日志 / 统计 / 部署设置）。
- *
- * The AzurPilot page: a native re-implementation of the runtime's WebUI.
- *
- * The WebUI front end itself renders live from the definitions shipped by
- * `schema.get`, so rendering the same definitions here keeps the feature set
- * aligned — menus, tasks, parameters, and translations all come from the
- * runtime; the app side hard-codes none of them.
- *
- * Process start/stop is **not** here: the host keeps a single control plane
- * (the home control panel / floating window drive it through `/android/…`),
- * and a second one would fight it for the device. This page owns the content
- * plane (overview / config / logs / statistics / deploy settings).
- *
- * @param active 页面当前是否可见；仅可见时才补环境拉起并保留截图帧订阅 / whether the
- *   page is currently visible; the environment warm-up and the screenshot-frame
- *   subscription only stay alive while it is
+ * @param active 是否允许补充启动运行环境。 / Whether environment warm-up is allowed.
+ * @param onNavigate 向宿主推入类型目的地。 / Pushes typed destinations into the host stack.
  */
 @Composable
 fun AzurPilotPage(
+    active: Boolean,
+    onNavigate: (AppRoute) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AzurPilotRuntimeSurface(active = active, modifier = modifier) { repository ->
+        AzurPilotContent(repository, onNavigate)
+    }
+}
+
+/**
+ * 保持运行时内容与保存状态，断连时用遮罩提示；运行控制仍由主页与悬浮窗负责。
+ *
+ * Retains runtime content and saved state under a connection gate. Runtime control stays with the
+ * home page and overlay.
+ */
+@Composable
+private fun AzurPilotRuntimeSurface(
     active: Boolean,
     modifier: Modifier = Modifier,
     repository: AzurPilotRepository = koinInject(),
     hostState: HostState = koinInject(),
     prootHost: ProotHost = koinInject(),
     runController: AzurPilotRunController = koinInject(),
+    content: @Composable (AzurPilotRepository) -> Unit,
 ) {
     val connected by repository.connected.collectAsStateWithLifecycle()
     val hostSnapshot by hostState.snapshot.collectAsStateWithLifecycle()
@@ -112,9 +122,6 @@ fun AzurPilotPage(
         if (active && hostSnapshot.privilegedConnected) hostState.ensureEnvironmentStarted()
     }
 
-    // 网关只在被订阅时才推截图帧，离开前台就把带大帧的订阅放掉
-    LaunchedEffect(active) { repository.setForeground(active) }
-
     LaunchedEffect(message) {
         message?.let {
             snackbarHostState.showSnackbar(it)
@@ -123,20 +130,44 @@ fun AzurPilotPage(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        if (connected) {
-            AzurPilotContent(repository = repository)
-        } else {
-            RuntimeGate(
-                reachable = runState.reachable,
-                phase = prootState.phase,
-                detail = prootState.detail,
-            )
+        // 底层页面与导航栈保持常驻，断连或服务重启时不暴力卸载，保护用户输入与回退状态
+        content(repository)
+
+        // 运行时未就绪或断连时使用悬浮遮罩平滑覆盖，避免破坏底层视图树
+        AnimatedVisibility(
+            visible = !connected,
+            enter =
+                fadeIn(
+                    animationSpec =
+                        tween(
+                            durationMillis = ApMotion.Medium2,
+                            easing = ApMotion.EmphasizedDecelerate,
+                        )
+                ),
+            exit =
+                fadeOut(
+                    animationSpec =
+                        tween(
+                            durationMillis = ApMotion.Short4,
+                            easing = ApMotion.EmphasizedAccelerate,
+                        )
+                ),
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background,
+            ) {
+                RuntimeGate(
+                    reachable = runState.reachable,
+                    phase = prootState.phase,
+                    detail = prootState.detail,
+                )
+            }
         }
+
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(AppTokens.Spacing.lg),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(AppTokens.Spacing.lg),
         )
     }
 }
@@ -148,33 +179,32 @@ fun AzurPilotPage(
  *
  * The takeover screen shown while the gateway is not connected yet.
  *
- * "Not ready" and "environment coming up" must be told apart: the preparation
- * chain takes minutes, and a bare "not ready" would read as something broken.
+ * "Not ready" and "environment coming up" must be told apart: the preparation chain takes minutes,
+ * and a bare "not ready" would read as something broken.
  *
- * @param reachable 运行时 HTTP 端口是否可达 / whether the runtime's HTTP port is
- *   reachable
+ * @param reachable 运行时 HTTP 端口是否可达 / whether the runtime's HTTP port is reachable
  * @param phase PRoot 会话阶段 / the PRoot session phase
  * @param detail 失败阶段的详情文案 / the failure-phase detail text
  */
 @Composable
 private fun RuntimeGate(reachable: Boolean, phase: ProotPhase, detail: String) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(AppTokens.Spacing.xl),
+        modifier = Modifier.fillMaxSize().padding(AppTokens.Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         ExpressiveLoadingIndicator()
         Text(
-            text = when {
-                phase == ProotPhase.FAILED -> stringResource(R.string.proot_phase_failed, detail)
-                phase == ProotPhase.PREPARING -> stringResource(R.string.proot_phase_preparing)
-                phase == ProotPhase.UPDATING -> stringResource(R.string.proot_phase_updating)
-                phase == ProotPhase.STARTING -> stringResource(R.string.proot_phase_starting)
-                reachable -> stringResource(R.string.ap_connecting)
-                else -> stringResource(R.string.ap_runtime_idle)
-            },
+            text =
+                when {
+                    phase == ProotPhase.FAILED ->
+                        stringResource(R.string.proot_phase_failed, detail)
+                    phase == ProotPhase.PREPARING -> stringResource(R.string.proot_phase_preparing)
+                    phase == ProotPhase.UPDATING -> stringResource(R.string.proot_phase_updating)
+                    phase == ProotPhase.STARTING -> stringResource(R.string.proot_phase_starting)
+                    reachable -> stringResource(R.string.ap_connecting)
+                    else -> stringResource(R.string.ap_runtime_idle)
+                },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = AppTokens.Spacing.lg),
@@ -183,96 +213,102 @@ private fun RuntimeGate(reachable: Boolean, phase: ProotPhase, detail: String) {
 }
 
 /**
- * 主控制台骨架：顶栏 + 分区标签 + 实例选择条 + [NavHost]
+ * AzurPilot 详情页标准容器：拥有独立的 TopAppBar 与返回导航
  *
- * 分区（总览 / 配置 / 日志 / 统计 / 设置）是平级标签；任务配置与各管理页作为详情路由推进，
- * 顶栏随之换成返回键并显示详情标题。任务配置页会借 [ApTopBarAction] 在顶栏放找回搜索的入口。
+ * 遵循 MD3 规范：各详情页拥有独立的 TopAppBar，进入详情页时整体推入（不保留顶层 TabRow 与 ChipRow）， 退出时向右滑出返回上层，维持层级与空间连续。
  *
- * The main console skeleton: top bar + section tabs + instance chip row +
- * [NavHost].
+ * Standard container for AzurPilot detail pages: owns an independent TopAppBar and back navigation.
+ * Adheres to MD3: detail pages have independent TopAppBars and transition as whole screens without
+ * retaining the top-level section tabs or instance chip row.
  *
- * Sections (overview / config / logs / statistics / settings) are peer tabs;
- * the task-config page and the management pages push as detail routes, and the
- * top bar swaps to a back button showing the detail title. The task-config
- * page borrows [ApTopBarAction] to keep a search-recovery entry in the bar.
+ * @param title 顶栏标题 / Top app bar title
+ * @param onBack 返回上一级回调 / Back callback
+ * @param modifier 修饰符 / Modifier
+ * @param actions 顶栏右侧动作插槽 / Top app bar actions slot
+ * @param content 详情页内容主体 / Detail page content body
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AzurPilotContent(repository: AzurPilotRepository) {
-    val navController = rememberNavController()
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val route = backStackEntry?.destination?.route
-    val section = AzurPilotSection.parentOfRoute(route)
-    val isDetail = route != null && route in AzurPilotSection.DETAILS
+fun ApDetailPage(
+    title: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {},
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.ap_back),
+                        )
+                    }
+                },
+                actions = actions,
+            )
+        },
+    ) { padding ->
+        Box(
+            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
+            content = content,
+        )
+    }
+}
+
+/**
+ * 在主线程组合平级分区，并保存每个分区的滚动位置与输入状态。
+ *
+ * Composes peer sections on the main thread and saves each section's scroll and input state.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AzurPilotContent(
+    repository: AzurPilotRepository,
+    onNavigate: (AppRoute) -> Unit,
+) {
     val instances by repository.instances.collectAsStateWithLifecycle()
     val selected by repository.selectedInstance.collectAsStateWithLifecycle()
-    // 任务配置页借顶栏放一个「找回搜索」的图标；离开任务页就收掉
-    val topBarAction = remember { ApTopBarAction() }
-    LaunchedEffect(route) {
-        if (route == null || !route.startsWith("ap/task/")) topBarAction.visible = false
-    }
-
-    fun openSection(target: AzurPilotSection) {
-        navController.navigate(target.route) {
-            // 分区之间是平级切换：不留历史，否则返回键会在标签之间来回跳
-            popUpTo(AzurPilotSection.Overview.route) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
-        }
-    }
+    var currentSection by rememberSaveable { mutableStateOf(AzurPilotSection.Overview) }
+    val saveableStateHolder = rememberSaveableStateHolder()
+    val peerTransition = peerContentTransform()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        // AppRoot 的 Scaffold 已经处理过系统栏，这里不能再吃掉一遍
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = if (isDetail) detailTitle(route.orEmpty()) else stringResource(section.labelRes),
+                        text = stringResource(currentSection.labelRes),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0),
-                navigationIcon = {
-                    if (isDetail) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.ap_back),
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    // 搜索条滚走之后，这里出现找回它的入口
-                    AnimatedVisibility(visible = topBarAction.visible) {
-                        IconButton(onClick = { topBarAction.onClick?.invoke() }) {
-                            Icon(
-                                imageVector = Icons.Filled.Search,
-                                contentDescription = stringResource(R.string.ap_bar_search),
-                            )
-                        }
-                    }
-                },
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .consumeWindowInsets(padding),
-        ) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             PrimaryTabRow(
-                selectedTabIndex = section.ordinal,
+                selectedTabIndex = currentSection.ordinal,
                 containerColor = MaterialTheme.colorScheme.surface,
             ) {
                 AzurPilotSection.entries.forEach { entry ->
                     Tab(
-                        selected = entry == section,
-                        onClick = { openSection(entry) },
+                        selected = entry == currentSection,
+                        onClick = { currentSection = entry },
                         text = { Text(stringResource(entry.labelRes), maxLines = 1) },
                         selectedContentColor = MaterialTheme.colorScheme.primary,
                         unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -283,95 +319,104 @@ private fun AzurPilotContent(repository: AzurPilotRepository) {
                 instances = instances.map { it.name },
                 selected = selected,
                 onSelect = repository::selectInstance,
-                onManage = { navController.navigate(AzurPilotSection.INSTANCES) },
+                onManage = { onNavigate(AppRoute.Instances) },
             )
-            NavHost(
-                navController = navController,
-                startDestination = AzurPilotSection.Overview.route,
-                modifier = Modifier.fillMaxSize(),
-                // 分区之间是平级淡入淡出；进详情才是推进，走共享轴。方向按目标页判定：
-                // 用 initialState/targetState 的 route 区分「切标签」与「进任务页」
-                enterTransition = {
-                    if (AzurPilotSection.isDetailRoute(targetState.destination.route)) {
-                        detailEnterTransition()
-                    } else {
-                        sectionEnterTransition()
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                AnimatedContent(
+                    targetState = currentSection,
+                    transitionSpec = {
+                        peerTransition
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    label = "ApSections",
+                ) { section ->
+                    saveableStateHolder.SaveableStateProvider(key = section.name) {
+                        when (section) {
+                            AzurPilotSection.Overview -> OverviewSection(repository)
+                            AzurPilotSection.Config ->
+                                ConfigSection(
+                                    repository = repository,
+                                    onOpenTask = { task -> onNavigate(AppRoute.Task(task)) },
+                                )
+                            AzurPilotSection.Logs -> LogsSection(repository)
+                            AzurPilotSection.Statistics -> StatisticsSection(repository)
+                            AzurPilotSection.Settings ->
+                                SettingsSection(
+                                    repository = repository,
+                                    onOpenInstances = { onNavigate(AppRoute.Instances) },
+                                    onOpenAnnouncement = { onNavigate(AppRoute.Announcement) },
+                                    onOpenMeowfficer = { onNavigate(AppRoute.Meowfficer) },
+                                    onOpenUpdater = { onNavigate(AppRoute.Updater) },
+                                    onOpenDeploy = { onNavigate(AppRoute.Deploy) },
+                                )
+                        }
                     }
-                },
-                exitTransition = {
-                    if (AzurPilotSection.isDetailRoute(targetState.destination.route)) {
-                        detailExitTransition()
-                    } else {
-                        sectionExitTransition()
-                    }
-                },
-                popEnterTransition = { detailPopEnterTransition() },
-                popExitTransition = { detailPopExitTransition() },
-            ) {
-                composable(AzurPilotSection.Overview.route) { OverviewSection(repository) }
-                composable(AzurPilotSection.Config.route) {
-                    ConfigSection(repository, onOpenTask = { navController.navigate(AzurPilotSection.task(it)) })
                 }
-                composable(AzurPilotSection.Logs.route) { LogsSection(repository) }
-                composable(AzurPilotSection.Statistics.route) { StatisticsSection(repository) }
-                composable(AzurPilotSection.Settings.route) {
-                    SettingsSection(
-                        repository = repository,
-                        onOpenInstances = { navController.navigate(AzurPilotSection.INSTANCES) },
-                        onOpenAnnouncement = { navController.navigate(AzurPilotSection.ANNOUNCEMENT) },
-                        onOpenMeowfficer = { navController.navigate(AzurPilotSection.MEOWFFICER) },
-                        onOpenUpdater = { navController.navigate(AzurPilotSection.UPDATER) },
-                        onOpenDeploy = { navController.navigate(AzurPilotSection.DEPLOY) },
-                    )
-                }
-                composable(
-                    route = AzurPilotSection.TASK,
-                    arguments = listOf(
-                        navArgument(AzurPilotSection.TASK_ARG) { type = NavType.StringType },
-                    ),
-                ) { entry ->
-                    TaskConfigPage(
-                        repository = repository,
-                        task = entry.arguments?.getString(AzurPilotSection.TASK_ARG).orEmpty(),
-                        topBarAction = topBarAction,
-                    )
-                }
-                composable(AzurPilotSection.INSTANCES) { InstancesPage(repository) }
-                composable(AzurPilotSection.ANNOUNCEMENT) { AnnouncementPage(repository) }
-                composable(AzurPilotSection.MEOWFFICER) { MeowfficerPage(repository) }
-                composable(AzurPilotSection.UPDATER) { UpdaterPage(repository) }
-                composable(AzurPilotSection.DEPLOY) { DeploySettingsPage(repository) }
             }
         }
     }
 }
 
-/** 详情路由的顶栏标题；普通分区标题由 [AzurPilotSection.labelRes] 提供 / The top-bar title for detail routes; section titles come from [AzurPilotSection.labelRes]. */
+/**
+ * 渲染宿主栈中的运行时详情；每页拥有独立标题栏和任务搜索动作。
+ *
+ * Renders runtime details in the host stack, with a dedicated title bar and task search action.
+ */
 @Composable
-private fun detailTitle(route: String): String = when {
-    route.startsWith("ap/task/") -> stringResource(R.string.ap_title_task_config)
-    route == AzurPilotSection.INSTANCES -> stringResource(R.string.ap_title_instances)
-    route == AzurPilotSection.ANNOUNCEMENT -> stringResource(R.string.ap_title_announcement)
-    route == AzurPilotSection.MEOWFFICER -> stringResource(R.string.ap_title_meowfficer)
-    route == AzurPilotSection.UPDATER -> stringResource(R.string.ap_title_updater)
-    else -> stringResource(R.string.ap_title_deploy)
+fun AzurPilotDetailPage(route: AppRoute.Console, onBack: () -> Unit) {
+    AzurPilotRuntimeSurface(active = true) { repository ->
+        val topBarAction = remember { ApTopBarAction() }
+        val titleRes =
+            when (route) {
+                is AppRoute.Task -> R.string.ap_title_task_config
+                AppRoute.Instances -> R.string.ap_title_instances
+                AppRoute.Announcement -> R.string.ap_title_announcement
+                AppRoute.Meowfficer -> R.string.ap_title_meowfficer
+                AppRoute.Updater -> R.string.ap_title_updater
+                AppRoute.Deploy -> R.string.ap_title_deploy
+            }
+        ApDetailPage(
+            title = stringResource(titleRes),
+            onBack = onBack,
+            actions = {
+                if (route is AppRoute.Task) {
+                    AnimatedVisibility(visible = topBarAction.visible) {
+                        IconButton(onClick = { topBarAction.onClick?.invoke() }) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = stringResource(R.string.ap_bar_search),
+                            )
+                        }
+                    }
+                }
+            },
+        ) {
+            when (route) {
+                is AppRoute.Task ->
+                    TaskConfigPage(repository, route.taskName, topBarAction = topBarAction)
+                AppRoute.Instances -> InstancesPage(repository)
+                AppRoute.Announcement -> AnnouncementPage(repository)
+                AppRoute.Meowfficer -> MeowfficerPage(repository)
+                AppRoute.Updater -> UpdaterPage(repository)
+                AppRoute.Deploy -> DeploySettingsPage(repository)
+            }
+        }
+    }
 }
 
 /**
  * 实例选择条
  *
- * 常显而不是藏进顶栏菜单：实例是这一页的**上下文**，所有分区的内容都随它变。
- * 藏起来会出现「看了半天才发现看的是另一个实例」。
+ * 常显而不是藏进顶栏菜单：实例是这一页的**上下文**，所有分区的内容都随它变。 藏起来会出现「看了半天才发现看的是另一个实例」。
  *
  * The instance selection chip row.
  *
- * Always visible rather than tucked into a top-bar menu: the instance is the
- * page's **context** — every section's content changes with it. Hiding it
- * leads to "reading a whole screen before noticing it was another instance".
+ * Always visible rather than tucked into a top-bar menu: the instance is the page's **context** —
+ * every section's content changes with it. Hiding it leads to "reading a whole screen before
+ * noticing it was another instance".
  *
  * @param instances 实例名列表 / the instance names
- * @param selected 当前选中的实例名；无实例时为 null / the selected instance name;
- *   null when no instance exists
+ * @param selected 当前选中的实例名；无实例时为 null / the selected instance name; null when no instance exists
  * @param onSelect 选中某实例 / invoked when an instance is selected
  * @param onManage 打开实例管理页 / invoked to open the instance-management page
  */
@@ -383,10 +428,10 @@ private fun InstanceChipRow(
     onManage: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = AppTokens.Spacing.lg, vertical = AppTokens.Spacing.xs),
+        modifier =
+            Modifier.fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = AppTokens.Spacing.lg, vertical = AppTokens.Spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -409,7 +454,11 @@ private fun InstanceChipRow(
             onClick = onManage,
             label = { Text(stringResource(R.string.ap_instance_manage)) },
             leadingIcon = {
-                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(AppTokens.IconSize.sm))
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(AppTokens.IconSize.sm),
+                )
             },
         )
     }

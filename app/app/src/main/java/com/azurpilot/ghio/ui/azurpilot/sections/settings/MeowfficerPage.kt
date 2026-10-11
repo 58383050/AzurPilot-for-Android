@@ -34,7 +34,6 @@ import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.azurpilot.ApEmptyState
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApStatusPill
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
 import kotlinx.coroutines.delay
@@ -104,7 +103,7 @@ fun MeowfficerPage(repository: AzurPilotRepository) {
     ApSectionColumn {
         AppCard(
             title = stringResource(R.string.ap_title_meowfficer),
-            modifier = Modifier.apEnter(0),
+            modifier = Modifier,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -150,7 +149,7 @@ fun MeowfficerPage(repository: AzurPilotRepository) {
                 )
             }
 
-            else -> cats.forEachIndexed { index, cat -> CatCard(cat, Modifier.apEnter(index + 1)) }
+            else -> cats.forEachIndexed { index, cat -> CatCard(cat, Modifier) }
         }
     }
 }

@@ -35,7 +35,6 @@ import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.azurpilot.ApKeyValueRow
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApStatusPill
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
 
@@ -79,7 +78,7 @@ fun UpdaterPage(repository: AzurPilotRepository) {
     ApSectionColumn {
         AppCard(
             title = stringResource(R.string.ap_updater_status),
-            modifier = Modifier.apEnter(0),
+            modifier = Modifier,
         ) {
             val data = updater
             if (data == null) {
@@ -157,7 +156,7 @@ fun UpdaterPage(repository: AzurPilotRepository) {
         if (commits.isNotEmpty()) {
             AppCard(
                 title = stringResource(R.string.ap_updater_commits, total),
-                modifier = Modifier.apEnter(1),
+                modifier = Modifier,
             ) {
                 commits.forEachIndexed { index, commit ->
                     if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

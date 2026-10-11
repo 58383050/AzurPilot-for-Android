@@ -49,7 +49,6 @@ import com.azurpilot.ghio.proot.AzurPilotStatus
 import com.azurpilot.ghio.proot.AzurPilotTask
 import com.azurpilot.ghio.proot.AzurPilotTaskState
 import com.azurpilot.ghio.theme.AppTokens
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.azurpilot.ApEmptyState
 import com.azurpilot.ghio.ui.azurpilot.ApKeyValueRow
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
@@ -93,7 +92,7 @@ fun OverviewSection(repository: AzurPilotRepository) {
         val data = overview
         AppCard(
             title = stringResource(R.string.ap_overview_scheduler),
-            modifier = Modifier.apEnter(0),
+            modifier = Modifier,
         ) {
             if (data == null) {
                 ApEmptyState(Icons.Filled.Schedule, stringResource(R.string.ap_waiting_data))
@@ -137,18 +136,18 @@ fun OverviewSection(repository: AzurPilotRepository) {
         if (data != null && data.resources.isNotEmpty()) {
             AppCard(
                 title = stringResource(R.string.ap_overview_resources),
-                modifier = Modifier.apEnter(1),
+                modifier = Modifier,
             ) {
                 ResourceGrid(data.resources)
             }
         }
 
-        PreviewCard(repository, Modifier.apEnter(2))
+        PreviewCard(repository, Modifier)
 
         if (data != null) {
             AppCard(
                 title = stringResource(R.string.ap_overview_tasks),
-                modifier = Modifier.apEnter(3),
+                modifier = Modifier,
             ) {
                 if (data.tasks.isEmpty()) {
                     ApEmptyState(

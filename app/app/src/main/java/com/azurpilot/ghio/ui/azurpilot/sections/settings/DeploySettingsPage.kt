@@ -56,7 +56,6 @@ import com.azurpilot.ghio.proot.sameValueAs
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.azurpilot.ApErrorState
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
 
@@ -95,7 +94,7 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
     Box(modifier = Modifier.fillMaxSize()) {
         ApSectionColumn {
             if (loading) {
-                AppCard(modifier = Modifier.apEnter(0)) {
+                AppCard(modifier = Modifier) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                         ExpressiveLoadingIndicator()
                     }
@@ -128,7 +127,7 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                 AppCard(
                     title = group.label,
                     collapsible = true,
-                    modifier = Modifier.apEnter(index + 1),
+                    modifier = Modifier,
                 ) {
                     group.fields.forEach { field ->
                         DeployFieldRow(
