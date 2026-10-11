@@ -73,10 +73,10 @@ object AzurPilotTheme {
 /**
  * 提供全 App 的 Material 3 Expressive 主题，组件统一使用原生运动方案。
  *
- * 外观设置和组件均沿用 KernelSU 两套主题；旧明暗偏好只作为迁移回落。
+ * 外观设置支持 Material 与 Miuix 两套主题；旧明暗偏好只作为迁移回落。
  *
  * Provides the app-wide Material 3 Expressive theme with native component motion. Appearance
- * settings and components follow both KernelSU themes; legacy dark mode is a migration fallback.
+ * settings and components support Material and Miuix themes; legacy dark mode is a migration fallback.
  */
 @Composable
 fun AzurPilotTheme(
@@ -124,8 +124,6 @@ fun AzurPilotTheme(
             appearance.enableFloatingBottomBar.toBoolean(),
         com.azurpilot.ghio.theme.ksu.LocalEnableFloatingBottomBarBlur provides
             appearance.enableFloatingBottomBarBlur.toBoolean(),
-        com.azurpilot.ghio.theme.ksu.LocalEnableNavigationBadge provides
-            appearance.enableNavigationBadge.toBoolean(),
         LocalAppPalette provides if (darkTheme) DarkPalette else LightPalette,
         com.azurpilot.ghio.theme.ksu.LocalUiMode provides uiMode,
         com.azurpilot.ghio.theme.ksu.LocalColorMode provides colorMode.value,

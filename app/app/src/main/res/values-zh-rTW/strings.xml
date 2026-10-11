@@ -137,7 +137,8 @@
     <string name="screensaver_swipe_to_unlock">拖到最右側解鎖</string>
     <string name="screensaver_title">息屏執行</string>
     <string name="screensaver_auto">任務啟動時自動進入</string>
-    <string name="screensaver_description">下次啟動任務時，以最低亮度全螢幕黑色遮罩防止誤觸並隱藏導覽列。時間和任務狀態在閒置時每 30 秒微移，觸控時暫停，拖動滑塊解鎖。</string>
+    <string name="screensaver_brightness">息屏亮度：%1$d%%</string>
+    <string name="screensaver_description">息屏執行使用黑色背景與可調亮度，防止誤觸並隱藏導覽列。時間和任務狀態在閒置時每 30 秒微移，觸控時暫停，拖動滑塊解鎖。</string>
     <string name="screensaver_running">正在執行</string>
     <string name="screensaver_connecting">正在連線執行環境</string>
     <string name="screensaver_battery">%1$d%%</string>
@@ -760,11 +761,7 @@
 <string name="ksu_settings_floating_bottom_bar_summary">Use Apple style floating bottom bar.</string>
 <string name="ksu_settings_key_color">Key color</string>
 <string name="ksu_settings_key_color_default">Default</string>
-<string name="ksu_settings_module_description_max_lines">Module description max lines</string>
-<string name="ksu_settings_module_description_max_lines_summary">Descriptions exceeding this line count will be folded automatically.</string>
 <string name="ksu_settings_monet">Enable Monet</string>
-<string name="ksu_settings_navigation_badge">Navigation badge</string>
-<string name="ksu_settings_navigation_badge_summary">Show granted app and enabled module counts on the navigation bar</string>
 <string name="ksu_settings_page_scale">Page Scale</string>
 <string name="ksu_settings_page_scale_summary">Adjust the global display scale.</string>
 <string name="ksu_settings_pager_gesture_cross_axis">跨軸攔截</string>
@@ -775,7 +772,6 @@
 <string name="ksu_settings_theme_mode_dark">深色</string>
 <string name="ksu_settings_theme_mode_light">淺色</string>
 <string name="ksu_settings_theme_mode_system">跟隨系統</string>
-<string name="ksu_unit_lines">Lines</string>
 <string name="ksu_settings_ui_mode">介面風格</string>
     <string name="home_status_label">目前狀態</string>
     <string name="home_ready_title">準備就緒</string>

@@ -12,7 +12,10 @@ import androidx.compose.material.icons.outlined.NightsStay
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -21,12 +24,15 @@ import com.azurpilot.ghio.R
 import com.azurpilot.ghio.domain.RunMode
 import com.azurpilot.ghio.overlay.screensaver.ScreenSaverOverlayManager
 import com.azurpilot.ghio.settings.AppSettingsManager
+import com.azurpilot.ghio.settings.ScreenSaverBrightness
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
 import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
+import com.azurpilot.ghio.ui.ksu.AppSlider as Slider
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 import com.azurpilot.ghio.ui.ksu.AppTonalButton as FilledTonalButton
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import org.koin.compose.koinInject
 
 /**
@@ -93,6 +99,8 @@ fun ScreenSaverSettingsCard(settings: AppSettingsManager = koinInject()) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val enabled by settings.screenSaverEnabled.collectAsStateWithLifecycle()
+    val brightness by settings.screenSaverBrightness.collectAsStateWithLifecycle()
+    var selectedBrightness by remember(brightness) { mutableFloatStateOf(brightness) }
     val mode by settings.runMode.collectAsStateWithLifecycle()
     if (mode != RunMode.BACKGROUND) return
 
@@ -114,6 +122,22 @@ fun ScreenSaverSettingsCard(settings: AppSettingsManager = koinInject()) {
                 },
             )
         }
+        Text(
+            text = stringResource(
+                R.string.screensaver_brightness,
+                (selectedBrightness * 100).roundToInt(),
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Slider(
+            value = selectedBrightness,
+            onValueChange = { selectedBrightness = it },
+            onValueChangeFinished = {
+                scope.launch { settings.setScreenSaverBrightness(selectedBrightness) }
+            },
+            valueRange = ScreenSaverBrightness.MIN..ScreenSaverBrightness.MAX,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Text(
             text = stringResource(R.string.screensaver_description),
             style = MaterialTheme.typography.bodySmall,

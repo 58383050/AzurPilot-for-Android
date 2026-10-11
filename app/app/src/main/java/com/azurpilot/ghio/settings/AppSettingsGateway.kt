@@ -38,6 +38,12 @@ interface AppSettingsGateway {
     /** 写入屏保开关 / Writes the screensaver switch. */
     suspend fun setScreenSaverEnabled(enabled: Boolean)
 
+    /** 息屏运行的亮度（0f–1f 范围中的安全子区间）。 / Screen-off window brightness. */
+    val screenSaverBrightness: StateFlow<Float>
+
+    /** 保存屏保亮度。 / Persists the screen-off window brightness. */
+    suspend fun setScreenSaverBrightness(brightness: Float)
+
     /** 日志自动清理热流 / Hot flow of the auto-log-clean switch. */
     val autoCleanLogs: StateFlow<Boolean>
 

@@ -41,6 +41,9 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -82,9 +85,6 @@ import com.azurpilot.ghio.proot.AzurPilotSchema
 import com.azurpilot.ghio.proot.AzurPilotStatus
 import com.azurpilot.ghio.proot.AzurPilotTaskState
 import com.azurpilot.ghio.theme.AppTokens
-import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
-import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
-import com.azurpilot.ghio.ui.ksu.AppText as Text
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
@@ -207,7 +207,7 @@ fun ScreenSaverView(
                     Text(
                         text = now.format(timeFormatter),
                         style = MaterialTheme.typography.displayLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                        color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                         modifier = Modifier.fillMaxWidth(),
@@ -215,7 +215,7 @@ fun ScreenSaverView(
                     Text(
                         text = now.format(dateFormatter),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Row(
@@ -233,13 +233,13 @@ fun ScreenSaverView(
                             if (battery.isCharging) {
                                 stringResource(R.string.screensaver_charging)
                             } else null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(AppTokens.IconSize.sm),
                     )
                     Text(
                         text = stringResource(R.string.screensaver_battery, battery.level),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 ScreenSaverTask(run, instances, overview, connected, schema)
@@ -301,7 +301,7 @@ private fun ScreenSaverTask(
     Surface(
         shape = MaterialTheme.shapes.large,
         color = Color.Black,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -312,12 +312,12 @@ private fun ScreenSaverTask(
             Surface(
                 shape = CircleShape,
                 color = Color.Black,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(AppTokens.Spacing.sm).size(AppTokens.IconSize.md),
                 )
             }
@@ -325,14 +325,14 @@ private fun ScreenSaverTask(
                 Text(
                     text = label,
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = run.runningConfig ?: stringResource(R.string.screensaver_title),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -404,13 +404,13 @@ private fun SlideToUnlockBar(
                 },
         shape = CircleShape,
         color = Color.Black,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Box {
             Text(
                 text = unlockLabel,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 modifier =
@@ -428,7 +428,7 @@ private fun SlideToUnlockBar(
                         .background(Color.Black)
                         .border(
                             1.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            MaterialTheme.colorScheme.primary,
                             CircleShape,
                         )
                         .pointerInput(maxOffset) {
@@ -457,7 +457,7 @@ private fun SlideToUnlockBar(
                             Icons.AutoMirrored.Filled.KeyboardArrowRight
                         } else Icons.Outlined.Lock,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(AppTokens.IconSize.md),
                 )
             }

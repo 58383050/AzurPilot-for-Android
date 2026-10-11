@@ -10,7 +10,7 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-/** KSU 外观页的本应用存储适配。 / App storage adapter for KSU's appearance screens. */
+/** 外观页的本应用存储适配。 / App storage adapter for appearance screens. */
 @Composable
 fun AppearanceScreen(onBack: () -> Unit, manager: AppSettingsManager = koinInject()) {
     val settings by manager.appearance.collectAsStateWithLifecycle()
@@ -35,7 +35,6 @@ fun AppearanceScreen(onBack: () -> Unit, manager: AppSettingsManager = koinInjec
                     enableBlur = settings.enableBlur.toBoolean(),
                     enableFloatingBottomBar = settings.enableFloatingBottomBar.toBoolean(),
                     enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur.toBoolean(),
-                    enableNavigationBadge = settings.enableNavigationBadge.toBoolean(),
                     pageScale = settings.pageScale.toFloatOrNull() ?: 1f,
                 ),
             currentColorMode =
@@ -63,9 +62,6 @@ fun AppearanceScreen(onBack: () -> Unit, manager: AppSettingsManager = koinInjec
             onSetEnableFloatingBottomBarBlur = { value ->
                 update { it.copy(enableFloatingBottomBarBlur = value.toString()) }
             },
-            onSetEnableNavigationBadge = { value ->
-                update { it.copy(enableNavigationBadge = value.toString()) }
-            },
             onSetEnablePredictiveBack = { value ->
                 scope.launch {
                     manager.setAppearance { it.copy(enablePredictiveBack = value.toString()) }
@@ -85,7 +81,6 @@ fun AppearanceScreen(onBack: () -> Unit, manager: AppSettingsManager = koinInjec
             onSetPageScale = { value ->
                 update { it.copy(pageScale = value.coerceIn(0.8f, 1.1f).toString()) }
             },
-            onSetModuleDescriptionMaxLines = {},
         )
     when (LocalUiMode.current) {
         UiMode.Miuix -> ColorPaletteScreenMiuix(state, actions)

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.azurpilot.ghio.R
 import com.azurpilot.ghio.AppDispatchers
 import com.azurpilot.ghio.domain.license.LicenseRepository
@@ -227,23 +228,13 @@ private fun OpenSourceComponentCardRow(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xxs),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xs),
-                ) {
-                    Text(
-                        text = component.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = "v${component.version}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = component.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     text = "${component.group}:${component.artifact}",
                     style = MaterialTheme.typography.bodySmall,
@@ -283,6 +274,8 @@ private fun OpenSourceComponentCardRow(
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -369,7 +362,6 @@ fun LicenseDetailPage(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                         )
-                        AppInfoRow(stringResource(R.string.settings_version), component.version)
                         AppInfoRow(
                             stringResource(R.string.settings_project),
                             "${component.group}:${component.artifact}",
@@ -442,8 +434,7 @@ fun LicenseDetailPage(
                             style =
                                 MaterialTheme.typography.bodySmall.copy(
                                     fontFamily = FontFamily.Monospace,
-                                    lineHeight =
-                                        MaterialTheme.typography.bodySmall.lineHeight * 1.3f,
+                                    lineHeight = 20.sp,
                                 ),
                             color = MaterialTheme.colorScheme.onSurface,
                         )

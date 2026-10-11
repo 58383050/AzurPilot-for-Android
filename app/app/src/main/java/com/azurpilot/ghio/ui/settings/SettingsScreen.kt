@@ -927,10 +927,6 @@ fun AboutSettingsPage(
                 stringResource(R.string.settings_open_source_licenses) + " (${components.size})",
                 "licenses:",
             ),
-            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
-                "KernelSU",
-                "https://github.com/tiann/KernelSU",
-            ),
         )
     val state =
         com.azurpilot.ghio.ui.ksu.screen.about.AboutUiState(

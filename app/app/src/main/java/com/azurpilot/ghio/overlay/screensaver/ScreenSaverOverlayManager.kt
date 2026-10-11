@@ -6,8 +6,11 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
 import android.view.WindowManager
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -19,7 +22,6 @@ import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotRunController
 import com.azurpilot.ghio.service.HostState
 import com.azurpilot.ghio.settings.AppSettingsGateway
-import com.azurpilot.ghio.theme.AzurPilotTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +50,7 @@ import java.lang.ref.WeakReference
  *
  * Works in [RunMode.BACKGROUND] only: a full-black
  * overlay layer (TYPE_APPLICATION_OVERLAY, requires SYSTEM_ALERT_WINDOW)
- * covers the screen, pairing keep-screen-on with minimum brightness so
+ * covers the screen, pairing keep-screen-on with configured low brightness so
  * background idle looks like the screen is off. A separate immersive host hides system bars so
  * navigation buttons do not stay illuminated. Mount and removal happen on
  * the main thread; after [setup] the manager observes the run mode and the
@@ -82,6 +84,9 @@ class ScreenSaverOverlayManager(
 
     /** 屏保当前是否盖在屏上 / Whether the screensaver currently covers the screen. */
     val isShowing: StateFlow<Boolean> = _isShowing.asStateFlow()
+
+    /** Host and overlay use the same persisted brightness, regardless of theme. */
+    internal val screenBrightness: Float get() = appSettings.screenSaverBrightness.value
 
     /**
      * 开始观察运行模式：后台模式挂环境观察，前台模式撤观察并收起屏保；幂等
@@ -254,8 +259,10 @@ class ScreenSaverOverlayManager(
         setViewTreeViewModelStoreOwner(viewModelOwner)
         setViewTreeSavedStateRegistryOwner(viewModelOwner)
         setContent {
-            // 屏保恒为暗色：整块屏幕本来就该压到最黑
-            AzurPilotTheme(darkTheme = true) {
+            // The overlay must not inherit the user's light mode, AMOLED palette or Miuix
+            // typography: its background is always black, so those foreground colors can
+            // otherwise become invisible. Use independent, high-contrast Material 3 colors.
+            MaterialTheme(colorScheme = screenSaverColors) {
                 val run by runController.state.collectAsState()
                 val instances by repository.instances.collectAsState()
                 val overview by repository.overview.collectAsState()
@@ -275,12 +282,12 @@ class ScreenSaverOverlayManager(
 
     /**
      * 悬浮层不可聚焦，避免抢走全屏宿主的系统栏控制权；按键由宿主与系统处理。
-     * KEEP_SCREEN_ON + screenBrightness 压到最低是这层的核心——真息屏会让
+     * KEEP_SCREEN_ON + 用户配置的低亮度是这层的核心——真息屏会让
      * 后台运行中断，所以只能保持点亮装作熄屏
      *
      * The overlay cannot take focus away from the immersive host's system-bar controls;
      * the host and system handle hardware keys.
-     * KEEP_SCREEN_ON plus the minimum screenBrightness is the core of this
+     * KEEP_SCREEN_ON plus the configured low screenBrightness is the core of this
      * layer — a real screen-off would interrupt the background run, so the
      * display is kept lit and merely dressed as off.
      */
@@ -299,7 +306,7 @@ class ScreenSaverOverlayManager(
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.CENTER
-            screenBrightness = MIN_BRIGHTNESS
+            screenBrightness = this@ScreenSaverOverlayManager.screenBrightness
             // 内容仍避开安全区，但黑色窗口必须铺到系统栏原先占据的区域。
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) setFitInsetsTypes(0)
             layoutInDisplayCutoutMode =
@@ -308,8 +315,14 @@ class ScreenSaverOverlayManager(
     }
 
     private companion object {
-        /** 0f 在部分 ROM 上被当成「跟随系统」，给一个够小但非零的值 / 0f is treated as "follow system" on some ROMs, so a small-but-nonzero value is used. */
-        const val MIN_BRIGHTNESS = 0.01f
+        // Stable, theme-independent OLED palette: black pixels remain off, but foreground
+        // remains readable even when the display brightness is reduced.
+        val screenSaverColors = darkColorScheme(
+            primary = Color(0xFFACC9FF),
+            onSurface = Color.White,
+            onSurfaceVariant = Color(0xFFD8DEEA),
+            outline = Color(0xFFB9C3D4),
+        )
 
         /** 平台拒绝后台启动时及时撤下遮罩。 / Retracts the overlay promptly if a background launch is denied. */
         const val HOST_LAUNCH_TIMEOUT_MS = 3_000L

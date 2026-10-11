@@ -67,10 +67,10 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
     private val defaults = AppSettings()
 
     private val _appearance = MutableStateFlow(AppSettings())
-    /** 已落盘的 KSU 外观设置。 / Persisted KSU appearance settings. */
+    /** 已落盘的应用外观设置。 / Persisted app appearance settings. */
     val appearance: StateFlow<AppSettings> = _appearance.asStateFlow()
 
-    /** 更新 KSU 外观，复用现有 DataStore 事务。 / Updates KSU appearance through DataStore. */
+    /** 更新应用外观，复用现有 DataStore 事务。 / Updates app appearance through DataStore. */
     suspend fun setAppearance(update: (AppSettings) -> AppSettings) {
         with(AppSettingsSchema) {
             context.dataStore.edit { preferences ->
@@ -81,7 +81,6 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
                 preferences[enableBlur] = value.enableBlur
                 preferences[enableFloatingBottomBar] = value.enableFloatingBottomBar
                 preferences[enableFloatingBottomBarBlur] = value.enableFloatingBottomBarBlur
-                preferences[enableNavigationBadge] = value.enableNavigationBadge
                 preferences[pageScale] = value.pageScale
                 preferences[uiMode] = value.uiMode
                 preferences[colorMode] = value.colorMode
@@ -149,6 +148,10 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
 
     private val _screenSaverEnabled = MutableStateFlow(defaults.screenSaverEnabled.toBoolean())
     override val screenSaverEnabled: StateFlow<Boolean> = _screenSaverEnabled.asStateFlow()
+
+    private val _screenSaverBrightness =
+        MutableStateFlow(ScreenSaverBrightness.parse(defaults.screenSaverBrightness))
+    override val screenSaverBrightness: StateFlow<Float> = _screenSaverBrightness.asStateFlow()
 
     private val _autoCleanLogs = MutableStateFlow(defaults.autoCleanLogs.toBoolean())
     override val autoCleanLogs: StateFlow<Boolean> = _autoCleanLogs.asStateFlow()
@@ -220,6 +223,7 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
                 _runMode.value = parseRunMode(s.runMode)
                 _overlayControlMode.value = parseOverlayMode(s.overlayControlMode)
                 _screenSaverEnabled.value = s.screenSaverEnabled.toBoolean()
+                _screenSaverBrightness.value = ScreenSaverBrightness.parse(s.screenSaverBrightness)
                 _autoCleanLogs.value = s.autoCleanLogs.toBoolean()
                 _keepAliveEnabled.value = s.keepAliveEnabled.toBoolean()
                 _appLockEnabled.value = s.appLockEnabled.toBoolean()
@@ -303,6 +307,15 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
     override suspend fun setScreenSaverEnabled(enabled: Boolean): Unit =
         with(AppSettingsSchema) {
             context.dataStore.edit { it[screenSaverEnabled] = enabled.toString() }
+        }
+
+    override suspend fun setScreenSaverBrightness(brightness: Float): Unit =
+        with(AppSettingsSchema) {
+            require(brightness.isFinite()) { "Screen saver brightness must be finite" }
+            context.dataStore.edit {
+                it[screenSaverBrightness] =
+                    brightness.coerceIn(ScreenSaverBrightness.MIN, ScreenSaverBrightness.MAX).toString()
+            }
         }
 
     override suspend fun setAutoCleanLogs(enabled: Boolean): Unit =

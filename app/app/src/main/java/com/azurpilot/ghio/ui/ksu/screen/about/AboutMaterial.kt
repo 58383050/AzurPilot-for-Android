@@ -5,8 +5,6 @@
 package com.azurpilot.ghio.ui.ksu.screen.about
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -29,9 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.FixedScale
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -75,19 +72,14 @@ fun AboutScreenMaterial(
                         .padding(vertical = 48.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
+                    Image(
                         modifier = Modifier
-                            .size(80.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.White)
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.azurpilot_android_logo),
-                            contentDescription = null,
-                            contentScale = FixedScale(1f)
-                        )
-                    }
+                            .size(100.dp)
+                            .clip(RoundedCornerShape(20.dp)),
+                        painter = painterResource(id = R.drawable.azurpilot_android_logo),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                    )
                     Text(
                         modifier = Modifier.padding(top = 12.dp),
                         text = state.appName,

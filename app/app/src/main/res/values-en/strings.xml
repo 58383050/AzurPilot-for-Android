@@ -137,7 +137,8 @@
     <string name="screensaver_swipe_to_unlock">Slide all the way to unlock</string>
     <string name="screensaver_title">Screen-off mode</string>
     <string name="screensaver_auto">Enter automatically when a run starts</string>
-    <string name="screensaver_description">On the next run, a full-screen black overlay at minimum brightness prevents accidental touches and hides navigation. Time and task status shift slightly every 30 idle seconds, pausing on touch. Drag the slider to unlock.</string>
+    <string name="screensaver_brightness">Screen-off brightness: %1$d%%</string>
+    <string name="screensaver_description">Screen-off mode uses a black screen at adjustable brightness to prevent accidental touches and hide navigation. Time and task status shift slightly every 30 idle seconds, pausing on touch. Drag the slider to unlock.</string>
     <string name="screensaver_running">Running</string>
     <string name="screensaver_connecting">Connecting to runtime</string>
     <string name="screensaver_battery">%1$d%%</string>
@@ -770,11 +771,7 @@
 <string name="ksu_settings_floating_bottom_bar_summary">Use Apple style floating bottom bar.</string>
 <string name="ksu_settings_key_color">Key color</string>
 <string name="ksu_settings_key_color_default">Default</string>
-<string name="ksu_settings_module_description_max_lines">Module description max lines</string>
-<string name="ksu_settings_module_description_max_lines_summary">Descriptions exceeding this line count will be folded automatically.</string>
 <string name="ksu_settings_monet">Enable Monet</string>
-<string name="ksu_settings_navigation_badge">Navigation badge</string>
-<string name="ksu_settings_navigation_badge_summary">Show granted app and enabled module counts on the navigation bar</string>
 <string name="ksu_settings_page_scale">Page Scale</string>
 <string name="ksu_settings_page_scale_summary">Adjust the global display scale.</string>
 <string name="ksu_settings_pager_gesture_cross_axis">Cross-axis</string>
@@ -785,7 +782,6 @@
 <string name="ksu_settings_theme_mode_dark">Dark</string>
 <string name="ksu_settings_theme_mode_light">Light</string>
 <string name="ksu_settings_theme_mode_system">Follow system</string>
-<string name="ksu_unit_lines">Lines</string>
 <string name="ksu_settings_ui_mode">UI Style</string>
 
 

@@ -60,9 +60,9 @@ internal enum class TopDestination(
 }
 
 /**
- * 移植 KernelSU Material 主界面；只有业务目的地和消息宿主由本应用提供。
+ * 主导航容器：提供应用页面目的地与消息宿主。
  *
- * Ports the KernelSU Material main screen with app destinations and snackbar hosting.
+ * Main navigation container with app destinations and snackbar hosting.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable

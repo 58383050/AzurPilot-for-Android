@@ -37,32 +37,30 @@ private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
  */
 @PrefSchema
 data class AppSettings(
-    /** KSU enablePredictiveBack。 / KSU enablePredictiveBack. */
+    /** 预测性返回手势开关。 / Predictive back gesture toggle. */
     @PrefKey(default = "true") val enablePredictiveBack: String = "true",
-    /** KSU enableSwipeDismiss。 / KSU enableSwipeDismiss. */
+    /** 横移返回手势开关。 / Swipe-to-dismiss toggle. */
     @PrefKey(default = "true") val enableSwipeDismiss: String = "true",
-    /** KSU pagerInterceptionMode。 / KSU pagerInterceptionMode. */
+    /** 页面切换手势拦截方式。 / Pager gesture interception mode. */
     @PrefKey(default = "1") val pagerInterceptionMode: String = "1",
-    /** KSU enableBlur。 / KSU enableBlur. */
+    /** 顶栏与底栏模糊开关。 / Top and bottom bar blur toggle. */
     @PrefKey(default = "true") val enableBlur: String = "true",
-    /** KSU enableFloatingBottomBar。 / KSU enableFloatingBottomBar. */
+    /** 悬浮底栏开关。 / Floating bottom bar toggle. */
     @PrefKey(default = "false") val enableFloatingBottomBar: String = "false",
-    /** KSU enableFloatingBottomBarBlur。 / KSU enableFloatingBottomBarBlur. */
+    /** 悬浮底栏模糊开关。 / Floating bottom bar blur toggle. */
     @PrefKey(default = "false") val enableFloatingBottomBarBlur: String = "false",
-    /** KSU enableNavigationBadge。 / KSU enableNavigationBadge. */
-    @PrefKey(default = "true") val enableNavigationBadge: String = "true",
-    /** KSU pageScale。 / KSU pageScale. */
+    /** 页面缩放比例。 / Page scale. */
     @PrefKey(default = "1.0") val pageScale: String = "1.0",
 
-    /** KSU 界面模式。 / KSU interface mode. */
+    /** 界面风格。 / UI mode. */
     @PrefKey(default = "miuix") val uiMode: String = "miuix",
-    /** KSU 色彩模式；空值沿用旧明暗设置。 / KSU color mode; empty preserves legacy mode. */
+    /** 色彩模式；空值沿用旧明暗设置。 / Color mode; empty preserves legacy mode. */
     @PrefKey(default = "") val colorMode: String = "",
-    /** KSU 主色；0 表示系统动态色。 / KSU seed color; zero uses system colors. */
+    /** 主题主色；0 表示系统动态色。 / Theme seed color; zero uses system colors. */
     @PrefKey(default = "0") val keyColor: String = "0",
-    /** KSU 色板算法。 / KSU palette algorithm. */
+    /** 色板算法。 / Palette algorithm. */
     @PrefKey(default = "TonalSpot") val colorStyle: String = "TonalSpot",
-    /** KSU Material 色彩规范。 / KSU Material color specification. */
+    /** Material 色彩规范。 / Material color specification. */
     @PrefKey(default = "SPEC_2025") val colorSpec: String = "SPEC_2025",
     /** Miuix 动态色。 / Miuix Monet colors. */
     @PrefKey(default = "false") val miuixMonet: String = "false",
@@ -115,6 +113,9 @@ data class AppSettings(
      * explicit consent first.
      */
     @PrefKey(default = "false") val screenSaverEnabled: String = "false",
+
+    /** 息屏运行时的独立窗口亮度（0.01–0.50）。 / Dedicated screen-off overlay brightness. */
+    @PrefKey(default = "0.01") val screenSaverBrightness: String = "0.01",
 
     /**
      * 冷启动自动清理过期日志（AzurPilot 7 天前日志、过期 session.log 截尾）；默认开 / Auto-clean stale logs on cold start

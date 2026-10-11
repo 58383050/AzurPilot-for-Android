@@ -137,7 +137,8 @@
     <string name="screensaver_swipe_to_unlock">右端までスライドして解除</string>
     <string name="screensaver_title">画面オフモード</string>
     <string name="screensaver_auto">タスク開始時に自動で有効にする</string>
-    <string name="screensaver_description">次のタスク開始時に最低輝度の黒い全画面で誤操作を防ぎ、ナビゲーションバーを隠します。操作がない間は時刻とタスクの状態が30秒ごとに少しずつ移動し、タッチ中は停止します。スライダーで解除できます。</string>
+    <string name="screensaver_brightness">画面オフモードの輝度：%1$d%%</string>
+    <string name="screensaver_description">画面オフモードは黒い画面と調整可能な輝度で誤操作を防ぎ、ナビゲーションバーを隠します。時刻とタスク状態は操作のない30秒ごとに少し移動し、タッチ中は停止します。スライダーで解除できます。</string>
     <string name="screensaver_running">実行中</string>
     <string name="screensaver_connecting">実行環境に接続中</string>
     <string name="screensaver_battery">%1$d%%</string>
@@ -760,11 +761,7 @@
 <string name="ksu_settings_floating_bottom_bar_summary">Use Apple style floating bottom bar.</string>
 <string name="ksu_settings_key_color">キーカラー</string>
 <string name="ksu_settings_key_color_default">デフォルト</string>
-<string name="ksu_settings_module_description_max_lines">Module description max lines</string>
-<string name="ksu_settings_module_description_max_lines_summary">Descriptions exceeding this line count will be folded automatically.</string>
 <string name="ksu_settings_monet">Enable Monet</string>
-<string name="ksu_settings_navigation_badge">Navigation badge</string>
-<string name="ksu_settings_navigation_badge_summary">Show granted app and enabled module counts on the navigation bar</string>
 <string name="ksu_settings_page_scale">Page Scale</string>
 <string name="ksu_settings_page_scale_summary">Adjust the global display scale.</string>
 <string name="ksu_settings_pager_gesture_cross_axis">Cross-axis</string>
@@ -775,7 +772,6 @@
 <string name="ksu_settings_theme_mode_dark">ダーク</string>
 <string name="ksu_settings_theme_mode_light">ライト</string>
 <string name="ksu_settings_theme_mode_system">システムに従う</string>
-<string name="ksu_unit_lines">Lines</string>
 <string name="ksu_settings_ui_mode">UI スタイル</string>
     <string name="home_status_label">現在の状態</string>
     <string name="home_ready_title">開始できます</string>
