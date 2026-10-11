@@ -80,6 +80,9 @@ fun interface NavTransition {
      */
     val dismissDirection: NavSwipeDirection get() = NavSwipeDirection.None
 
+    /** Limit gesture preview only; commit and cancel settle the full route distance. */
+    val predictiveBackPreviewFraction: Float get() = 1f
+
     /**
      * Settle physics for the phases this transition governs (gesture commit / gesture cancel /
      * programmatic full step). The host resolves the motion from the topmost presented entry's

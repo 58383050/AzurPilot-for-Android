@@ -35,16 +35,24 @@ import top.yukonga.miuix.kmp.nav.runtime.snapToFinger
  * @param animatedTop The single shared depth driver.
  * @param topIndex The current top entry index the gesture is peeling away from.
  */
+internal fun previewFingerProgress(progress: Float, fraction: Float): Float =
+    progress.coerceIn(0f, 1f) * fraction.coerceIn(0.05f, 1f)
+
 internal suspend fun drivePredictiveBack(
     events: Flow<NavBackEvent>,
     animatedTop: Animatable<Float, AnimationVector1D>,
     topIndex: Int,
+    previewFraction: Float = 1f,
 ) {
     // Atomic grab: halt the in-flight settle, THEN read the value (spec §3.2). Order matters —
     // sampling before stop() would leave a one-frame window for the spring to advance.
     animatedTop.stop()
     val anchor = topIndex - animatedTop.value
     events.collect { event ->
-        animatedTop.snapToFinger(topIndex = topIndex, progress = event.progress, anchor = anchor)
+        animatedTop.snapToFinger(
+            topIndex = topIndex,
+            progress = previewFingerProgress(event.progress, previewFraction),
+            anchor = anchor,
+        )
     }
 }

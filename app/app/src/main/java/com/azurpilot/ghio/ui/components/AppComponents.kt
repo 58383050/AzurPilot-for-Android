@@ -5,6 +5,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -15,6 +17,8 @@ import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 import com.azurpilot.ghio.ui.ksu.material.SegmentedListItem
 import com.azurpilot.ghio.ui.ksu.material.TonalCard
+
+private val LocalInsideAppCard = compositionLocalOf { false }
 
 /** KSU 卡片的业务内容适配器。 / Business content adapter for KSU cards. */
 @Composable
@@ -32,7 +36,9 @@ fun AppCard(
                 Column(
                     Modifier.padding(contentPadding),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    content = content,
+                    content = {
+                        CompositionLocalProvider(LocalInsideAppCard provides true) { content() }
+                    },
                 )
             }
         } else
@@ -40,7 +46,9 @@ fun AppCard(
                 Column(
                     Modifier.padding(contentPadding),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    content = content,
+                    content = {
+                        CompositionLocalProvider(LocalInsideAppCard provides true) { content() }
+                    },
                 )
             }
     }
@@ -58,6 +66,9 @@ fun AppLabeledControlRow(
     if (LocalUiMode.current == UiMode.Miuix) {
         top.yukonga.miuix.kmp.basic.BasicComponent(
             title = label,
+            insideMargin =
+                if (LocalInsideAppCard.current) PaddingValues(vertical = 12.dp)
+                else top.yukonga.miuix.kmp.basic.BasicComponentDefaults.InsideMargin,
             modifier = modifier,
             endActions = { trailing() },
         )
@@ -108,7 +119,14 @@ fun AppCardSurface(modifier: Modifier = Modifier, content: @Composable () -> Uni
 @Composable
 fun AppFieldLabel(text: String, modifier: Modifier = Modifier) {
     if (LocalUiMode.current == UiMode.Miuix)
-        top.yukonga.miuix.kmp.basic.SmallTitle(text = text, modifier = modifier)
+        if (LocalInsideAppCard.current)
+            top.yukonga.miuix.kmp.basic.Text(
+                text = text,
+                modifier = modifier,
+                style = top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.body2,
+                color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+        else top.yukonga.miuix.kmp.basic.SmallTitle(text = text, modifier = modifier)
     else
         Text(
             text,
@@ -122,6 +140,12 @@ fun AppFieldLabel(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun AppInfoRow(label: String, value: String) {
     if (LocalUiMode.current == UiMode.Miuix)
-        top.yukonga.miuix.kmp.basic.BasicComponent(title = label, summary = value)
+        top.yukonga.miuix.kmp.basic.BasicComponent(
+            title = label,
+            summary = value,
+            insideMargin =
+                if (LocalInsideAppCard.current) PaddingValues(vertical = 12.dp)
+                else top.yukonga.miuix.kmp.basic.BasicComponentDefaults.InsideMargin,
+        )
     else SegmentedListItem(headlineContent = { Text(label) }, supportingContent = { Text(value) })
 }

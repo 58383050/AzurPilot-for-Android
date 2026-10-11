@@ -15,17 +15,16 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,8 +55,6 @@ internal enum class TopDestination(
     Hangar(R.string.nav_hangar, Icons.Outlined.PlayCircle, Icons.Filled.PlayCircle),
     /** 运行时控制台。 / Runtime console. */
     AzurPilot(R.string.nav_azurpilot, Icons.Outlined.Public, Icons.Filled.Public),
-    /** 应用设置。 / App settings. */
-    Settings(R.string.nav_settings, Icons.Outlined.Settings, Icons.Filled.Settings),
     /** 虚拟屏。 / Virtual display. */
     Screen(R.string.nav_screen, Icons.Outlined.PhoneAndroid, Icons.Filled.PhoneAndroid),
 }
@@ -115,7 +112,9 @@ internal fun AppNavigationScaffold(
         @Composable { bottomInnerPadding: Dp ->
             HorizontalPager(
                 modifier =
-                    Modifier.pagerGestureOverride(mainPagerState.pagerState, mode = pagerMode)
+                    Modifier.fillMaxSize()
+                        .clipToBounds()
+                        .pagerGestureOverride(mainPagerState.pagerState, mode = pagerMode)
                         .then(
                             if (
                                 enableFloatingBottomBar &&
@@ -130,7 +129,8 @@ internal fun AppNavigationScaffold(
                             else Modifier
                         ),
                 state = mainPagerState.pagerState,
-                beyondViewportPageCount = if (contentReady) TopDestination.entries.lastIndex else 0,
+                // 业务分页包含实时日志与统计，避免屏外页面继续组合和绘制。
+                beyondViewportPageCount = 0,
                 overscrollEffect = null,
                 userScrollEnabled = pagerMode != PagerInterceptionMode.CrossAxisInterceptor,
                 pageNestedScrollConnection =

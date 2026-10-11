@@ -126,12 +126,16 @@ fun AppFilterChip(
             onClick = onClick,
             modifier = modifier.semantics { this.selected = selected },
             enabled = enabled,
+            minHeight = 32.dp,
+            minWidth = 0.dp,
+            cornerRadius = 16.dp,
+            insideMargin = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             colors =
                 if (selected) top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()
                 else top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColors(),
         ) {
             androidx.compose.runtime.CompositionLocalProvider(
-                LocalAppTextStyle provides top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.button
+                LocalAppTextStyle provides top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.body2
             ) {
                 leadingIcon?.invoke()
                 label()

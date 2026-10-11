@@ -28,16 +28,20 @@ fun AppPageScaffold(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
+    collapsible: Boolean = true,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     if (LocalUiMode.current == UiMode.Miuix) {
-        val scrollBehavior = MiuixScrollBehavior()
+        val scrollBehavior = if (collapsible) MiuixScrollBehavior() else null
         val backdrop =
             com.azurpilot.ghio.ui.ksu.util.rememberBlurBackdrop(
                 com.azurpilot.ghio.theme.ksu.LocalEnableBlur.current
             )
         top.yukonga.miuix.kmp.basic.Scaffold(
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier =
+                if (scrollBehavior != null) {
+                    modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
+                } else modifier,
             topBar = {
                 com.azurpilot.ghio.ui.ksu.util.BlurredBar(backdrop) {
                     top.yukonga.miuix.kmp.basic.TopAppBar(
@@ -68,9 +72,14 @@ fun AppPageScaffold(
         )
     } else {
         val scrollBehavior =
-            TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+            if (collapsible) {
+                TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+            } else null
         ExpressiveScaffold(
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier =
+                if (scrollBehavior != null) {
+                    modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
+                } else modifier,
             topBar = {
                 LargeFlexibleTopAppBar(
                     title = { Text(title) },

@@ -143,6 +143,7 @@ enum class SettingsSection(val route: AppRoute, val titleRes: Int, val descRes: 
 fun SettingsScreen(
     state: SettingsUiState,
     onOpenSection: (SettingsSection) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     bottomInnerPadding: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
@@ -153,6 +154,7 @@ fun SettingsScreen(
     com.azurpilot.ghio.ui.ksu.AppPageScaffold(
         title = stringResource(R.string.nav_settings),
         modifier = modifier,
+        onBack = onBack,
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
@@ -290,7 +292,6 @@ fun DisplaySettingsPage(
             }
         }
         AppCard {
-            AppFieldLabel(stringResource(R.string.settings_language))
             LanguageChoice(onIntent)
         }
         ScreenSaverSettingsCard()
@@ -340,6 +341,7 @@ private fun ColumnScope.LanguageChoice(onIntent: (SettingsIntent) -> Unit) {
         )
     }
     AppSingleChoiceFlow(
+        title = stringResource(R.string.settings_language),
         options = options,
         selected = selectedTag,
         // 重复点选当前档位不发 Intent：避免无意义的 Activity 重建闪屏
@@ -757,8 +759,8 @@ fun AdvancedSettingsPage(
         modifier = modifier,
     ) {
         AppCard {
-            AppFieldLabel(stringResource(R.string.permission_backend))
             AppSingleChoiceFlow(
+                title = stringResource(R.string.permission_backend),
                 // 只列后端名，不展示「可用/不可用」——选哪个都行，可用性交给连接流程判
                 options = RemoteBackend.entries.map { it to it.display },
                 selected = state.remoteAccess.configuredBackend,

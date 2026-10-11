@@ -125,8 +125,8 @@ fun OcrSettingsPage(
             }
         }
         AppCard {
-            AppFieldLabel(stringResource(R.string.ocr_test_model))
             AppSingleChoiceFlow(
+                title = stringResource(R.string.ocr_test_model),
                 options =
                     models
                         .filter { it.flag("testable") }

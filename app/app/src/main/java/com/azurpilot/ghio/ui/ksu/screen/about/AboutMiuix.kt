@@ -300,21 +300,9 @@ private fun AboutContent(
             ) {
                 Image(
                     modifier = Modifier
-                        .requiredSize(245.dp)
-                        .then(
-                            if (enableBlur) {
-                                Modifier.textureBlur(
-                                    backdrop = backdrop,
-                                    shape = RoundedCornerShape(0.dp),
-                                    blurRadius = 150f,
-                                    colors = BlurColors(blendColors = logoBlend),
-                                    contentBlendMode = ComposeBlendMode.DstIn,
-                                    enabled = true,
-                                )
-                            } else Modifier
-                        ),
+.fillMaxSize(),
                     painter = painterResource(id = R.drawable.azurpilot_android_logo),
-                    colorFilter = ColorFilter.tint(colorScheme.onBackground),
+
                     contentDescription = null,
                 )
             }
@@ -332,18 +320,7 @@ private fun AboutContent(
                         scaleX = 1 - (projectNameProgress * 0.05f)
                         scaleY = 1 - (projectNameProgress * 0.05f)
                     }
-                    .then(
-                        if (enableBlur) {
-                            Modifier.textureBlur(
-                                backdrop = backdrop,
-                                shape = RoundedCornerShape(0.dp),
-                                blurRadius = 150f,
-                                colors = BlurColors(blendColors = logoBlend),
-                                contentBlendMode = ComposeBlendMode.DstIn,
-                                enabled = true,
-                            )
-                        } else Modifier
-                    ),
+,
                 text = state.appName,
                 color = colorScheme.onBackground,
                 fontWeight = FontWeight.Bold,

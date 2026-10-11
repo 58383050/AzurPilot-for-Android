@@ -1,8 +1,5 @@
 package com.azurpilot.ghio.ui.screen
 
-import android.graphics.PixelFormat
-import android.view.SurfaceHolder
-import android.view.SurfaceView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,7 +49,6 @@ import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
 import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /**
@@ -178,8 +174,7 @@ fun ScreenPage(
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
         ) {
-            // 只在可见时才创建 SurfaceView：它是独立图层，不跟随 Compose 的位移与裁剪，
-            // pager 把相邻页挪到屏幕外它不认，会以黑底留在可视区、盖住别的页
+            // 只在可见时接入预览，TextureView 随 Compose 分页移动和裁剪，避免独立图层残留
             if (active) {
                 // contain：画面按虚拟屏比例居中缩放，两侧/上下的留白由外层舞台色兜住。
                 // 圆角与离屏画面同形——这是块"屏幕"，M3 的媒体容器就是这个形状
@@ -202,44 +197,53 @@ fun ScreenPage(
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = { context ->
-                            SurfaceView(context).apply {
-                                holder.setFormat(PixelFormat.RGBA_8888)
-                                holder.addCallback(
-                                    object : SurfaceHolder.Callback {
-                                        override fun surfaceCreated(holder: SurfaceHolder) {
-                                            scope.launch {
-                                                delay(FIXED_SIZE_DELAY_MS)
-                                                holder.setFixedSize(
-                                                    DefaultDisplayConfig.WIDTH,
-                                                    DefaultDisplayConfig.HEIGHT,
-                                                )
-                                            }
-                                        }
-
-                                        override fun surfaceChanged(
-                                            holder: SurfaceHolder,
-                                            format: Int,
+                            android.view.TextureView(context).apply {
+                                // TextureView 属于应用图层，分页位移与裁剪能同步作用到预览。
+                                surfaceTextureListener =
+                                    object : android.view.TextureView.SurfaceTextureListener {
+                                        override fun onSurfaceTextureAvailable(
+                                            texture: android.graphics.SurfaceTexture,
                                             width: Int,
                                             height: Int,
                                         ) {
-                                            // setFixedSize 是异步的：只在尺寸对齐虚拟屏后才上报，
-                                            // 提前交出还是布局尺寸的 Surface 会按错误比例贴画面
-                                            if (
-                                                width == DefaultDisplayConfig.WIDTH &&
-                                                    height == DefaultDisplayConfig.HEIGHT
-                                            ) {
-                                                surfaceReady = true
-                                                currentAttach(holder.surface)
-                                            }
+                                            texture.setDefaultBufferSize(
+                                                DefaultDisplayConfig.WIDTH,
+                                                DefaultDisplayConfig.HEIGHT,
+                                            )
+                                            val surface = android.view.Surface(texture)
+                                            tag = surface
+                                            currentAttach(surface)
+                                            surfaceReady = true
                                         }
 
-                                        override fun surfaceDestroyed(holder: SurfaceHolder) {
-                                            surfaceReady = false
+                                        override fun onSurfaceTextureSizeChanged(
+                                            texture: android.graphics.SurfaceTexture,
+                                            width: Int,
+                                            height: Int,
+                                        ) = Unit
+
+                                        override fun onSurfaceTextureUpdated(
+                                            texture: android.graphics.SurfaceTexture
+                                        ) = Unit
+
+                                        override fun onSurfaceTextureDestroyed(
+                                            texture: android.graphics.SurfaceTexture
+                                        ): Boolean {
                                             currentDetach()
+                                            surfaceReady = false
+                                            (tag as? android.view.Surface)?.release()
+                                            tag = null
+                                            return true
                                         }
                                     }
-                                )
                             }
+                        },
+                        onRelease = { view ->
+                            view.surfaceTextureListener = null
+                            currentDetach()
+                            surfaceReady = false
+                            (view.tag as? android.view.Surface)?.release()
+                            view.tag = null
                         },
                     )
                     if (!surfaceReady) {

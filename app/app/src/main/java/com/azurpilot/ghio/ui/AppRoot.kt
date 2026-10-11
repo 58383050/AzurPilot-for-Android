@@ -3,6 +3,7 @@ package com.azurpilot.ghio.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,10 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -51,6 +56,8 @@ import com.azurpilot.ghio.settings.AppSettingsManager
 import com.azurpilot.ghio.settings.SettingsIntent
 import com.azurpilot.ghio.settings.SettingsViewModel
 import com.azurpilot.ghio.theme.AzurPilotTheme
+import com.azurpilot.ghio.theme.ksu.LocalUiMode
+import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.azurpilot.AzurPilotDetailPage
 import com.azurpilot.ghio.ui.azurpilot.AzurPilotPage
 import com.azurpilot.ghio.ui.components.AppLockGate
@@ -68,6 +75,8 @@ import com.azurpilot.ghio.ui.logs.AzurPilotLogDetailScreen
 import com.azurpilot.ghio.ui.logs.AzurPilotLogScreen
 import com.azurpilot.ghio.ui.logs.LogExportController
 import com.azurpilot.ghio.ui.motion.AppNavigation
+import com.azurpilot.ghio.ui.motion.settingsRevealTransition
+import top.yukonga.miuix.kmp.nav.core.LocalNavTransitionScope
 import com.azurpilot.ghio.ui.navigation.AppRoute
 import com.azurpilot.ghio.ui.navigation.rememberAppNavigator
 import com.azurpilot.ghio.ui.screen.ScreenPage
@@ -370,13 +379,24 @@ fun AppRoot(
                     }
             }
             val navigator = rememberAppNavigator()
+            // Record the actual toolbar gear center; both directions use the same origin.
+            var settingsAnchor by remember { mutableStateOf(Offset.Unspecified) }
+            val settingsTransition = remember {
+                settingsRevealTransition { settingsAnchor }
+            }
+            val settingsBackground =
+                if (LocalUiMode.current == UiMode.Miuix)
+                    top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.surface
             val onSubPage = navigator.current != AppRoute.Main
             // AppCompat 切换语言会重建 Activity；显式保存目标页，避免恢复到中途页。
             var selectedPage by rememberSaveable { mutableStateOf(TopDestination.Hangar.ordinal) }
+            // 旧版四个 Tab 的第 4 页是虚拟屏；升级到三个 Tab 后恢复到有效索引。
+            val restoredPage = selectedPage.coerceIn(0, TopDestination.entries.lastIndex)
             val tabStateHolder = rememberSaveableStateHolder()
             val pagerState =
                 androidx.compose.foundation.pager.rememberPagerState(
-                    initialPage = selectedPage,
+                    initialPage = restoredPage,
                     pageCount = { TopDestination.entries.size },
                 )
             val mainPagerState =
@@ -594,6 +614,9 @@ fun AppRoot(
                                                 active =
                                                     page == pagerState.settledPage && !onSubPage,
                                                 bottomInnerPadding = bottomInnerPadding,
+                                                onOpenSettings = { navigator.push(AppRoute.Settings) },
+                                                onSettingsAnchorChanged = { settingsAnchor = it },
+                                                onOpenTasks = { goToPage(TopDestination.AzurPilot.ordinal) },
                                             )
                                         TopDestination.Screen ->
                                             ScreenPage(
@@ -612,14 +635,29 @@ fun AppRoot(
                                                     Modifier.fillMaxSize()
                                                         .padding(bottom = bottomInnerPadding),
                                             )
-                                        TopDestination.Settings ->
-                                            SettingsScreen(
-                                                state = settingsState,
-                                                onOpenSection = { navigator.push(it.route) },
-                                                bottomInnerPadding = bottomInnerPadding,
-                                            )
                                     }
                                 }
+                            }
+                        }
+                        // 设置作为独立页面，不再占用底部导航；返回保持原分页位置。
+                        entry<AppRoute.Settings>(transition = settingsTransition) {
+                            val transitionScope = LocalNavTransitionScope.current
+                            // The neutral surface is *behind* the content, with no dark scrim.
+                            Box(Modifier.fillMaxSize().background(settingsBackground)) {
+                                SettingsScreen(
+                                    state = settingsState,
+                                    onOpenSection = { navigator.push(it.route) },
+                                    onBack = { navigator.pop() },
+                                    modifier = Modifier.fillMaxSize().graphicsLayer {
+                                        // Keep content clear during predictive preview; fade it
+                                        // before the container becomes small on actual exit.
+                                        val exit = (-transitionScope.relativeDepth).coerceIn(0f, 1f)
+                                        // Reveal controls while the window expands, not only
+                                        // at the very end. Predictive preview keeps them fully visible.
+                                        val reveal = ((0.78f - exit) / 0.36f).coerceIn(0f, 1f)
+                                        alpha = reveal * reveal * (3f - 2f * reveal)
+                                    },
+                                )
                             }
                         }
                         // 二级页面共享根导航的转场与返回手势处理。

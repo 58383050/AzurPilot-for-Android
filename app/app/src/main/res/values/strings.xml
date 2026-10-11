@@ -135,14 +135,14 @@
     <!-- 运行期屏保 -->
     <string name="screensaver_idle">等待任务</string>
     <string name="screensaver_swipe_to_unlock">拖到最右侧解锁</string>
-    <string name="screensaver_title">息屏挂机</string>
+    <string name="screensaver_title">息屏运行</string>
     <string name="screensaver_auto">任务启动时自动进入</string>
     <string name="screensaver_description">下次启动任务时，以最低亮度全屏黑色遮罩防止误触并隐藏导航栏。时间和任务状态在闲置时每 30 秒微移，触摸时暂停，拖动滑块解锁。</string>
-    <string name="screensaver_running">挂机运行中</string>
+    <string name="screensaver_running">正在运行</string>
     <string name="screensaver_connecting">正在连接运行环境</string>
     <string name="screensaver_battery">%1$d%%</string>
     <string name="screensaver_charging">正在充电</string>
-    <string name="screensaver_show_failed">无法打开息屏挂机，请检查悬浮窗权限</string>
+    <string name="screensaver_show_failed">无法开启息屏运行，请检查悬浮窗权限</string>
 
     <!-- 定时任务 -->
 
@@ -168,6 +168,19 @@
     <string name="screen_idle_title">虚拟屏已就绪</string>
     <string name="screen_idle_message">启动挂机或工具后，画面会出现在这里</string>
     <string name="hangar_config_label">运行配置</string>
+    <string name="hangar_start">开始运行</string>
+    <string name="hangar_stop">停止运行</string>
+    <string name="hangar_status_ready">挂机队列待命</string>
+    <string name="hangar_status_running">挂机调度运行中</string>
+    <string name="hangar_tasks_standby">已就绪 %1$d 个任务 · 点击下方开始</string>
+    <string name="hangar_tasks_running">共 %1$d 个任务 · 正在执行</string>
+    <string name="hangar_gateway_idle">调度队列就绪</string>
+    <string name="hangar_gateway_waiting">等待运行时网关就绪</string>
+    <string name="hangar_task_running">正在运行：%1$s</string>
+    <string name="hangar_env_privileged">特权服务：%1$s</string>
+    <string name="hangar_env_bridge">通信桥接：%1$s</string>
+    <string name="hangar_env_display">虚拟屏幕：%1$s</string>
+    <string name="hangar_env_gateway">调度网关：%1$s</string>
     <string name="tool_label">工具</string>
     <string name="tool_semi_auto">半自动点击</string>
     <string name="tool_event_story">活动剧情</string>
@@ -769,4 +782,51 @@
 <string name="ksu_settings_ui_mode">界面风格</string>
 
 
+    <string name="home_status_label">当前状态</string>
+    <string name="home_ready_title">准备就绪</string>
+    <string name="home_ready_description">点击开始运行，执行已设置的任务。</string>
+    <string name="home_running_title">正在运行</string>
+    <string name="home_running_description">自动执行已启动，任务会按计划进行。</string>
+    <string name="home_starting_title">正在启动</string>
+    <string name="home_stopping_title">正在停止</string>
+    <string name="home_busy_description">请稍候，完成后会自动更新状态。</string>
+    <string name="home_preparing_title">正在准备</string>
+    <string name="home_preparing_description">正在启动所需组件，请稍候。</string>
+    <string name="home_updating_title">正在更新</string>
+    <string name="home_updating_description">正在更新运行环境，请稍候。</string>
+    <string name="home_failed_title">启动未完成</string>
+    <string name="home_failed_description">运行环境启动失败，请重试。</string>
+    <string name="home_connecting_title">正在连接</string>
+    <string name="home_connecting_description">正在等待运行环境响应。</string>
+    <string name="home_attention_title">需要检查设置</string>
+    <string name="home_attention_description">当前设备无法正常创建运行画面，请检查启动方式或授权。</string>
+    <string name="home_attention_settings">打开设置</string>
+    <string name="home_tool_active_title">其他操作正在运行</string>
+    <string name="home_tool_active_description">请先结束当前操作，再开始自动运行。</string>
+    <string name="home_retry">重试启动</string>
+    <string name="home_wait_button">请稍候</string>
+    <string name="home_tasks_title">任务</string>
+    <string name="home_tasks_view_all">查看全部</string>
+    <string name="home_tasks_unavailable">连接后显示任务信息</string>
+    <string name="home_tasks_empty">尚未添加任务</string>
+    <string name="home_tasks_current">正在执行</string>
+    <string name="home_tasks_next">接下来</string>
+    <string name="home_tasks_count">任务总数</string>
+    <string name="home_tasks_count_value">%1$d 项</string>
+    <string name="home_running_interrupted_title">运行可能受到影响</string>
+    <string name="home_running_interrupted_description">运行程序仍在，但设备控制暂不可用。请检查后再继续。</string>
+    <string name="home_preparing_device_title">正在准备设备</string>
+    <string name="home_preparing_device_description">正在建立运行所需的画面和连接。</string>
+    <string name="home_needs_shizuku_title">还不能开始运行</string>
+    <string name="home_needs_shizuku_description">请先打开 Shizuku 并启动服务，完成后返回这里。</string>
+    <string name="home_needs_install_title">需要安装 Shizuku</string>
+    <string name="home_needs_install_description">先安装并启动 Shizuku，才能控制设备。</string>
+    <string name="home_needs_auth_title">还需要授权</string>
+    <string name="home_needs_auth_description">请允许 AzurPilot 控制设备，然后即可继续。</string>
+    <string name="home_needs_connection_title">设备控制未连接</string>
+    <string name="home_needs_connection_description">授权可能已完成，但设备控制尚未连接。</string>
+    <string name="home_open_shizuku">打开 Shizuku</string>
+    <string name="home_install_shizuku">获取 Shizuku</string>
+    <string name="home_grant_access">去授权</string>
+    <string name="home_reconnect">重新连接</string>
 </resources>

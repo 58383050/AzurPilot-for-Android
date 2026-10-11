@@ -135,14 +135,14 @@
     <!-- 執行期關螢幕 -->
     <string name="screensaver_idle">等待任務</string>
     <string name="screensaver_swipe_to_unlock">拖到最右側解鎖</string>
-    <string name="screensaver_title">息屏掛機</string>
+    <string name="screensaver_title">息屏執行</string>
     <string name="screensaver_auto">任務啟動時自動進入</string>
     <string name="screensaver_description">下次啟動任務時，以最低亮度全螢幕黑色遮罩防止誤觸並隱藏導覽列。時間和任務狀態在閒置時每 30 秒微移，觸控時暫停，拖動滑塊解鎖。</string>
-    <string name="screensaver_running">掛機執行中</string>
+    <string name="screensaver_running">正在執行</string>
     <string name="screensaver_connecting">正在連線執行環境</string>
     <string name="screensaver_battery">%1$d%%</string>
     <string name="screensaver_charging">正在充電</string>
-    <string name="screensaver_show_failed">無法開啟息屏掛機，請檢查懸浮視窗權限</string>
+    <string name="screensaver_show_failed">無法啟用息屏執行，請檢查懸浮視窗權限</string>
 
     <!-- 排程任務 -->
 
@@ -168,6 +168,12 @@
     <string name="screen_idle_title">虛擬螢幕已就緒</string>
     <string name="screen_idle_message">啟動掛機或工具後，畫面會出現在這裡</string>
     <string name="hangar_config_label">執行設定</string>
+    <string name="hangar_start">開始執行</string>
+    <string name="hangar_stop">停止執行</string>
+    <string name="hangar_env_privileged">特權服務：%1$s</string>
+    <string name="hangar_env_bridge">通信橋接：%1$s</string>
+    <string name="hangar_env_display">虛擬螢幕：%1$s</string>
+    <string name="hangar_env_gateway">調度閘道：%1$s</string>
     <string name="tool_label">工具</string>
     <string name="tool_semi_auto">半自動點擊</string>
     <string name="tool_event_story">活動劇情</string>
@@ -765,4 +771,51 @@
 <string name="ksu_settings_theme_mode_system">跟隨系統</string>
 <string name="ksu_unit_lines">Lines</string>
 <string name="ksu_settings_ui_mode">介面風格</string>
+    <string name="home_status_label">目前狀態</string>
+    <string name="home_ready_title">準備就緒</string>
+    <string name="home_ready_description">點擊開始執行，執行已設定的任務。</string>
+    <string name="home_running_title">執行中</string>
+    <string name="home_running_description">自動執行已啟動，任務將依照排程進行。</string>
+    <string name="home_starting_title">正在啟動</string>
+    <string name="home_stopping_title">正在停止</string>
+    <string name="home_busy_description">請稍候，完成後會自動更新狀態。</string>
+    <string name="home_preparing_title">正在準備</string>
+    <string name="home_preparing_description">正在啟動所需元件，請稍候。</string>
+    <string name="home_updating_title">正在更新</string>
+    <string name="home_updating_description">正在更新執行環境，請稍候。</string>
+    <string name="home_failed_title">啟動未完成</string>
+    <string name="home_failed_description">執行環境啟動失敗，請重試。</string>
+    <string name="home_connecting_title">正在連線</string>
+    <string name="home_connecting_description">正在等待執行環境回應。</string>
+    <string name="home_attention_title">需要檢查設定</string>
+    <string name="home_attention_description">目前裝置無法正常建立執行畫面，請檢查啟動方式或授權。</string>
+    <string name="home_attention_settings">開啟設定</string>
+    <string name="home_tool_active_title">其他操作正在執行</string>
+    <string name="home_tool_active_description">請先結束目前操作，再開始自動執行。</string>
+    <string name="home_retry">重試啟動</string>
+    <string name="home_wait_button">請稍候</string>
+    <string name="home_tasks_title">任務</string>
+    <string name="home_tasks_view_all">查看全部</string>
+    <string name="home_tasks_unavailable">連線後顯示任務資訊</string>
+    <string name="home_tasks_empty">尚未新增任務</string>
+    <string name="home_tasks_current">正在執行</string>
+    <string name="home_tasks_next">接下來</string>
+    <string name="home_tasks_count">任務總數</string>
+    <string name="home_tasks_count_value">%1$d 項</string>
+    <string name="home_running_interrupted_title">執行可能受到影響</string>
+    <string name="home_running_interrupted_description">程式仍在執行，但目前無法控制裝置。請先檢查。</string>
+    <string name="home_preparing_device_title">正在準備裝置</string>
+    <string name="home_preparing_device_description">正在建立執行所需的畫面與連線。</string>
+    <string name="home_needs_shizuku_title">尚無法開始執行</string>
+    <string name="home_needs_shizuku_description">請先開啟 Shizuku 並啟動服務，完成後返回這裡。</string>
+    <string name="home_needs_install_title">需要安裝 Shizuku</string>
+    <string name="home_needs_install_description">請先安裝並啟動 Shizuku，才能控制裝置。</string>
+    <string name="home_needs_auth_title">還需要授權</string>
+    <string name="home_needs_auth_description">請允許 AzurPilot 控制裝置，然後即可繼續。</string>
+    <string name="home_needs_connection_title">裝置控制尚未連線</string>
+    <string name="home_needs_connection_description">可能已完成授權，但裝置控制尚未連線。</string>
+    <string name="home_open_shizuku">開啟 Shizuku</string>
+    <string name="home_install_shizuku">取得 Shizuku</string>
+    <string name="home_grant_access">前往授權</string>
+    <string name="home_reconnect">重新連線</string>
 </resources>

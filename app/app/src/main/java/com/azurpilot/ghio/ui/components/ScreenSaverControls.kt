@@ -68,7 +68,7 @@ fun ScreenSaverButton(
                 }
             }
         },
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
     ) {
         Icon(
             imageVector = Icons.Outlined.NightsStay,

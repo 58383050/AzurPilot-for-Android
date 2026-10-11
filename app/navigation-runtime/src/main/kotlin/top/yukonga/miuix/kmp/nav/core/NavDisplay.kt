@@ -305,6 +305,7 @@ internal class PredictiveBackOwnership {
 
 private class PredictiveBackSession(
     val ownershipLease: Long,
+    val previewFraction: Float,
     var gesture: NavGesture? = null,
     var progressVelocity: Float = 0f,
 )
@@ -439,6 +440,14 @@ private fun NavDisplayLayout(
         }
     }
 
+    // Predictive preview belongs to the actual LIVE top route, not the highest
+    // PRESENTED entry: a previously popped page can remain presented during its
+    // exit animation and must not override the current page's preview limit.
+    val predictivePreviewFraction = remember(currentKeyList, transition, entryProvider) {
+        (entryProvider(currentKeyList.last()).transitionOrNull() ?: transition)
+            .predictiveBackPreviewFraction.coerceIn(0.05f, 1f)
+    }
+
     // Wire the platform predictive back gesture to the single driver. Enabled only when there is
     // something to pop (size > 1). During the gesture each NavBackEvent snaps animatedTop 1:1;
     // on commit onBack() pops and the renderer's animateTopTo converges to the new top; on cancel
@@ -470,7 +479,10 @@ private fun NavDisplayLayout(
     PredictiveBackHandlerWithSessions(
         enabled = backStack.size > 1,
         onProgress = { sessionId, events ->
-            val session = PredictiveBackSession(ownershipLease = predictiveBackOwnership.acquire())
+            val session = PredictiveBackSession(
+                ownershipLease = predictiveBackOwnership.acquire(),
+                previewFraction = predictivePreviewFraction,
+            )
             predictiveBackSessions[sessionId] = session
             presentation.pendingSettleVelocity = 0f
             // Per-gesture trackers: the initial touch anchors vertical-follow transitions, the
@@ -487,7 +499,8 @@ private fun NavDisplayLayout(
                         val progressVelocity = (event.progress - lastProgress) * 1000f / (event.frameTimeMillis - lastTimeMillis)
                         session.progressVelocity = progressVelocity
                         if (predictiveBackOwnership.generation == session.ownershipLease) {
-                            presentation.pendingSettleVelocity = -progressVelocity
+                            presentation.pendingSettleVelocity =
+                                -progressVelocity * session.previewFraction
                         }
                     }
                     if (event.frameTimeMillis != 0L) {
@@ -507,6 +520,7 @@ private fun NavDisplayLayout(
                 },
                 animatedTop = presentation.animatedTop,
                 topIndex = topIndex,
+                previewFraction = session.previewFraction,
             )
         },
         onCommit = commit@{ sessionId ->
@@ -525,7 +539,8 @@ private fun NavDisplayLayout(
             if (shouldCommit) {
                 predictiveBackSessions.remove(sessionId)
                 if (predictiveBackOwnership.generation == session.ownershipLease) {
-                    presentation.pendingSettleVelocity = -progressVelocity
+                    presentation.pendingSettleVelocity =
+                        -progressVelocity * session.previewFraction
                 }
                 // Pop synchronously; convergence is owned by the renderer. The pop retargets
                 // animateTopTo, which picks the programmatic curve for a from-rest discrete back

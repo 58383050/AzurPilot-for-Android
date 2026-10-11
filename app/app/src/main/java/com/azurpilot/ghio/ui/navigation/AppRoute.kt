@@ -17,6 +17,9 @@ sealed interface AppRoute : NavKey {
     /** 主页面。 / Main page. */
     @Serializable data object Main : AppRoute
 
+    /** 应用设置入口（独立页面）。 / Settings as a standalone destination. */
+    @Serializable data object Settings : AppRoute
+
     /** 启动器日志列表。 / Launcher log list. */
     @Serializable data object AppLog : AppRoute
 
