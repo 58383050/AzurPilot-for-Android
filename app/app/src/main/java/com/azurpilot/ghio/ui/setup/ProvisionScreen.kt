@@ -7,11 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,27 +17,27 @@ import com.azurpilot.ghio.R
 import com.azurpilot.ghio.provision.ProvisionState
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.components.MirrorSourcePicker
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppLinearProgressIndicator as LinearProgressIndicator
+import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 
 /**
  * 渲染首启 rootfs 部署页：未完成时整屏接管（AppRoot 的门）
  *
- * 「等」之外只有两件事：下载源可选（直连 / 镜像，切换即重下），失败给重试；
- * 跳过只留给开发包
+ * 「等」之外只有两件事：下载源可选（直连 / 镜像，切换即重下），失败给重试； 跳过只留给开发包
  *
- * Renders the first-run rootfs provisioning page: takes over the whole screen
- * until done (AppRoot's gate).
+ * Renders the first-run rootfs provisioning page: takes over the whole screen until done (AppRoot's
+ * gate).
  *
- * Beyond waiting there are only two actions: the download source is selectable
- * (direct / mirror, switching restarts the download) and failures get a retry;
- * skipping is reserved for dev builds.
+ * Beyond waiting there are only two actions: the download source is selectable (direct / mirror,
+ * switching restarts the download) and failures get a retry; skipping is reserved for dev builds.
  *
- * @param state 部署进度；[ProvisionState.Ready] 时本页不再渲染 / provisioning
- *   progress; nothing renders once [ProvisionState.Ready]
- * @param onSkip 跳过回调；null 不显示逃生门（正式包）/ skip callback; null hides
- *   the escape hatch (release builds)
+ * @param state 部署进度；[ProvisionState.Ready] 时本页不再渲染 / provisioning progress; nothing renders once
+ *   [ProvisionState.Ready]
+ * @param onSkip 跳过回调；null 不显示逃生门（正式包）/ skip callback; null hides the escape hatch (release builds)
  * @param mirrorId 当前下载源 / current download source
- * @param onMirrorChange 换源回调，切源即重下 / source-change callback; switching
- *   restarts the download
+ * @param onMirrorChange 换源回调，切源即重下 / source-change callback; switching restarts the download
  */
 @Composable
 fun ProvisionScreen(
@@ -57,9 +53,7 @@ fun ProvisionScreen(
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(AppTokens.Spacing.lg),
+            modifier = Modifier.fillMaxSize().padding(AppTokens.Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -84,7 +78,8 @@ fun ProvisionScreen(
 
                 is ProvisionState.Extracting -> {
                     val progress =
-                        if (state.totalBytes > 0) state.doneBytes.toFloat() / state.totalBytes else 0f
+                        if (state.totalBytes > 0) state.doneBytes.toFloat() / state.totalBytes
+                        else 0f
                     LinearProgressIndicator(
                         progress = { progress },
                         modifier = Modifier.fillMaxWidth(),
@@ -100,9 +95,16 @@ fun ProvisionScreen(
                 }
 
                 is ProvisionState.Downloading -> {
-                    val progress = if (state.totalBytes > 0) state.doneBytes.toFloat() / state.totalBytes else 0f
-                    LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
-                    StatusLine(stringResource(R.string.provision_downloading, (progress * 100).toInt()))
+                    val progress =
+                        if (state.totalBytes > 0) state.doneBytes.toFloat() / state.totalBytes
+                        else 0f
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    StatusLine(
+                        stringResource(R.string.provision_downloading, (progress * 100).toInt())
+                    )
                 }
 
                 is ProvisionState.LowDisk -> {
@@ -175,7 +177,9 @@ private fun StatusLine(text: String, isError: Boolean = false) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
-        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        color =
+            if (isError) MaterialTheme.colorScheme.error
+            else MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
 }

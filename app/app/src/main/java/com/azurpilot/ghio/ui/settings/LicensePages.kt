@@ -18,16 +18,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,6 +47,13 @@ import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppFieldLabel
 import com.azurpilot.ghio.ui.components.AppInfoRow
 import com.azurpilot.ghio.ui.components.AppNavigationRow
+import com.azurpilot.ghio.ui.ksu.AppFilterChip as FilterChip
+import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
+import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextField as OutlinedTextField
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -116,7 +116,7 @@ fun OpenSourceLicensesPage(
             value = searchQuery,
             onValueChange = { searchQuery = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.settings_license_search_placeholder)) },
+            placeholderText = stringResource(R.string.settings_license_search_placeholder),
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,

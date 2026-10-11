@@ -2,17 +2,12 @@
 
 package com.azurpilot.ghio.ui.motion
 
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.ui.navigation.AppNavigator
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
@@ -36,34 +31,21 @@ fun AppNavigation(
     modifier: Modifier = Modifier,
     content: NavEntryBuilder.(NavSwipeDirection) -> Unit,
 ) {
+    val manager: com.azurpilot.ghio.settings.AppSettingsManager = org.koin.compose.koinInject()
+    val appearance by manager.appearance.collectAsStateWithLifecycle()
     val swipeDirection =
-        if (LocalLayoutDirection.current == LayoutDirection.Ltr) {
+        if (!appearance.enableSwipeDismiss.toBoolean()) NavSwipeDirection.None
+        else if (LocalLayoutDirection.current == LayoutDirection.Ltr) {
             NavSwipeDirection.LeftToRight
         } else {
             NavSwipeDirection.RightToLeft
         }
     NavDisplay(
         backStack = navigator.backStack,
-        // 导轨和底栏在宿主外，限制退场图层避免越界覆盖固定导航。
-        modifier = modifier.clipToBounds(),
+        modifier = modifier,
         onBack = navigator::pop,
-        effects =
-            NavDisplayEffects(
-                cornerClipRadius = rememberNavSystemCornerRadius(),
-                backdropColor = MaterialTheme.colorScheme.background,
-            ),
+        effects = NavDisplayEffects(cornerClipRadius = rememberNavSystemCornerRadius()),
     ) {
         content(swipeDirection)
     }
-}
-
-/**
- * 返回平级内容的主题淡化转场，固定容器尺寸避免额外布局动画。
- *
- * Returns the theme fade for peer content without additional container size animation.
- */
-@Composable
-fun peerContentTransform(): ContentTransform {
-    val effects: FiniteAnimationSpec<Float> = MaterialTheme.motionScheme.fastEffectsSpec()
-    return fadeIn(effects) togetherWith fadeOut(effects)
 }

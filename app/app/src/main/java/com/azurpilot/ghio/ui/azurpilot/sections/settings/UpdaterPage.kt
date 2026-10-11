@@ -6,15 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +31,12 @@ import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApStatusPill
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppOutlinedButton as OutlinedButton
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
 
 /** 提交列表的分页大小 / The commit-list page size. */
 private const val COMMIT_PAGE = 50
@@ -49,10 +49,9 @@ private const val COMMIT_PAGE = 50
  *
  * The runtime-updater page.
  *
- * On the Android build the runtime is **updated wholesale by the host**
- * (`managedByAndroid`) and the gateway-side git hot-update is deliberately
- * disabled, so in that case the actions are hidden with the reason spelled out
- * — a button that does nothing is worse than no button.
+ * On the Android build the runtime is **updated wholesale by the host** (`managedByAndroid`) and
+ * the gateway-side git hot-update is deliberately disabled, so in that case the actions are hidden
+ * with the reason spelled out — a button that does nothing is worse than no button.
  *
  * @param repository 网关仓库 / the gateway repository
  */
@@ -82,7 +81,10 @@ fun UpdaterPage(repository: AzurPilotRepository) {
         ) {
             val data = updater
             if (data == null) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
                     ExpressiveLoadingIndicator()
                 }
                 return@AppCard
@@ -101,8 +103,14 @@ fun UpdaterPage(repository: AzurPilotRepository) {
                     ExpressiveLoadingIndicator(modifier = Modifier.size(AppTokens.IconSize.md))
                 }
             }
-            ApKeyValueRow(stringResource(R.string.ap_updater_local), data.localHead?.take(12) ?: "—")
-            ApKeyValueRow(stringResource(R.string.ap_updater_upstream), data.upstreamHead?.take(12) ?: "—")
+            ApKeyValueRow(
+                stringResource(R.string.ap_updater_local),
+                data.localHead?.take(12) ?: "—",
+            )
+            ApKeyValueRow(
+                stringResource(R.string.ap_updater_upstream),
+                data.upstreamHead?.take(12) ?: "—",
+            )
             ApKeyValueRow(stringResource(R.string.ap_updater_branch), data.branch)
             ApKeyValueRow(
                 label = stringResource(R.string.ap_updater_divergence),
@@ -143,7 +151,9 @@ fun UpdaterPage(repository: AzurPilotRepository) {
                     Button(
                         enabled = data.canApply,
                         onClick = { repository.updaterAction("apply") },
-                    ) { Text(stringResource(R.string.ap_updater_apply)) }
+                    ) {
+                        Text(stringResource(R.string.ap_updater_apply))
+                    }
                     if (data.canCancel) {
                         TextButton(onClick = { repository.updaterAction("cancel") }) {
                             Text(stringResource(R.string.ap_updater_cancel))
@@ -159,7 +169,8 @@ fun UpdaterPage(repository: AzurPilotRepository) {
                 modifier = Modifier,
             ) {
                 commits.forEachIndexed { index, commit ->
-                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    if (index > 0)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     CommitRow(commit)
                 }
                 Row(
@@ -169,11 +180,15 @@ fun UpdaterPage(repository: AzurPilotRepository) {
                     TextButton(
                         enabled = offset > 0,
                         onClick = { offset = (offset - COMMIT_PAGE).coerceAtLeast(0) },
-                    ) { Text(stringResource(R.string.ap_page_prev)) }
+                    ) {
+                        Text(stringResource(R.string.ap_page_prev))
+                    }
                     TextButton(
                         enabled = offset + COMMIT_PAGE < total,
                         onClick = { offset += COMMIT_PAGE },
-                    ) { Text(stringResource(R.string.ap_page_next)) }
+                    ) {
+                        Text(stringResource(R.string.ap_page_next))
+                    }
                 }
             }
         }
@@ -184,9 +199,7 @@ fun UpdaterPage(repository: AzurPilotRepository) {
 @Composable
 private fun CommitRow(commit: AzurPilotCommit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = AppTokens.Spacing.sm),
+        modifier = Modifier.fillMaxWidth().padding(vertical = AppTokens.Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(

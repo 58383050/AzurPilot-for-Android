@@ -2,13 +2,7 @@ package com.azurpilot.ghio.ui.settings
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -28,6 +22,12 @@ import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppInfoRow
 import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.components.AppSingleChoiceFlow
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppCheckbox as Checkbox
+import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
+import com.azurpilot.ghio.ui.ksu.AppLinearProgressIndicator as LinearProgressIndicator
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
 import org.koin.androidx.compose.koinViewModel
 
 /**

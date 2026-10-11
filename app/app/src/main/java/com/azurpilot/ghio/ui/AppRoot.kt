@@ -1,31 +1,17 @@
 package com.azurpilot.ghio.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -71,6 +57,10 @@ import com.azurpilot.ghio.ui.components.AppLockGate
 import com.azurpilot.ghio.ui.components.CommunityWarningDialog
 import com.azurpilot.ghio.ui.components.ShizukuReadinessDialog
 import com.azurpilot.ghio.ui.hangar.HangarScreen
+import com.azurpilot.ghio.ui.ksu.AppCheckbox as Checkbox
+import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
 import com.azurpilot.ghio.ui.logs.AppLogDetailScreen
 import com.azurpilot.ghio.ui.logs.AppLogScreen
 import com.azurpilot.ghio.ui.logs.AzurPilotErrorDetailScreen
@@ -78,7 +68,6 @@ import com.azurpilot.ghio.ui.logs.AzurPilotLogDetailScreen
 import com.azurpilot.ghio.ui.logs.AzurPilotLogScreen
 import com.azurpilot.ghio.ui.logs.LogExportController
 import com.azurpilot.ghio.ui.motion.AppNavigation
-import com.azurpilot.ghio.ui.motion.peerContentTransform
 import com.azurpilot.ghio.ui.navigation.AppRoute
 import com.azurpilot.ghio.ui.navigation.rememberAppNavigator
 import com.azurpilot.ghio.ui.screen.ScreenPage
@@ -183,12 +172,18 @@ fun AppRoot(
         }
     }
 
+    val appearance by appSettings.appearance.collectAsStateWithLifecycle()
+    val appearanceMode = appearance.colorMode.toIntOrNull()
     val darkTheme =
-        when (settingsState.themeMode) {
-            ThemeMode.System -> isSystemInDarkTheme()
-            ThemeMode.Light -> false
-            ThemeMode.Dark -> true
-        }
+        if (appearanceMode in listOf(1, 4)) false
+        else if (appearanceMode in listOf(2, 5, 6)) true
+        else if (appearanceMode in listOf(0, 3)) isSystemInDarkTheme()
+        else
+            when (settingsState.themeMode) {
+                ThemeMode.System -> isSystemInDarkTheme()
+                ThemeMode.Light -> false
+                ThemeMode.Dark -> true
+            }
     LaunchedEffect(darkTheme) { onDarkThemeChanged(darkTheme) }
 
     val context = LocalContext.current
@@ -211,6 +206,13 @@ fun AppRoot(
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
     val appLockEnabled by appSettings.appLockEnabled.collectAsStateWithLifecycle()
     val settingsLoaded by appSettings.loaded.collectAsStateWithLifecycle()
+    LaunchedEffect(settingsLoaded) {
+        if (settingsLoaded)
+            com.azurpilot.ghio.ui.ksu.setEnableOnBackInvokedCallback(
+                context.applicationInfo,
+                appearance.enablePredictiveBack.toBoolean(),
+            )
+    }
     // Fail closed until the persisted setting is read; the new-install default
     // is false, but existing users may have explicitly enabled app lock.
     val isAppLocked =
@@ -226,7 +228,15 @@ fun AppRoot(
     var compatNoticeDismissed by rememberSaveable { mutableStateOf(false) }
     var showCompatNoticeDialog by rememberSaveable { mutableStateOf(false) }
 
-    AzurPilotTheme(darkTheme = darkTheme) {
+    AzurPilotTheme(
+        darkTheme = darkTheme,
+        legacyColorMode =
+            when (settingsState.themeMode) {
+                ThemeMode.System -> 0
+                ThemeMode.Light -> 1
+                ThemeMode.Dark -> 2
+            },
+    ) {
         AppLockGate(
             isUnlocked = !isAppLocked,
             errorMessage = appLockError,
@@ -364,7 +374,28 @@ fun AppRoot(
             // AppCompat 切换语言会重建 Activity；显式保存目标页，避免恢复到中途页。
             var selectedPage by rememberSaveable { mutableStateOf(TopDestination.Hangar.ordinal) }
             val tabStateHolder = rememberSaveableStateHolder()
-            val peerTransition = peerContentTransform()
+            val pagerState =
+                androidx.compose.foundation.pager.rememberPagerState(
+                    initialPage = selectedPage,
+                    pageCount = { TopDestination.entries.size },
+                )
+            val mainPagerState =
+                com.azurpilot.ghio.ui.ksu.rememberMainPagerState(
+                    pagerState,
+                    animatePageChanges =
+                        !com.azurpilot.ghio.ui.ksu.useNavigationRail(
+                            appearance.enableFloatingBottomBar.toBoolean()
+                        ),
+                )
+            LaunchedEffect(pagerState.settledPage) { selectedPage = pagerState.settledPage }
+            // 方向归主导航管理，画面页被 pager 回收后也必须恢复系统策略。
+            LaunchedEffect(activity, selectedPage, onSubPage) {
+                activity?.requestedOrientation =
+                    if (!onSubPage && selectedPage == TopDestination.Screen.ordinal)
+                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+
             val repository: AzurPilotRepository = koinInject()
             val runtimeVisible =
                 navigator.current is AppRoute.Console ||
@@ -492,8 +523,8 @@ fun AppRoot(
              */
             fun goToPage(index: Int) {
                 if (index == selectedPage && !onSubPage) return
-                selectedPage = index
                 navigator.returnToMain()
+                mainPagerState.animateToPage(index)
             }
 
             // 桌面快捷方式的跳转请求：MainActivity 收到后登记到总线，这里消费。
@@ -548,68 +579,45 @@ fun AppRoot(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                AppNavigationScaffold(
-                    selectedPage = selectedPage,
-                    onSelectPage = ::goToPage,
-                    snackbarHostState = snackbarHostState,
-                ) {
+                com.azurpilot.ghio.ui.ksu.AppRootScaffold {
                     AppNavigation(navigator, modifier = Modifier.fillMaxSize()) { swipeDismiss ->
-                        entry<AppRoute.Main> {
-                            Scaffold(
-                                modifier = Modifier.fillMaxSize(),
-                                contentWindowInsets =
-                                    WindowInsets.systemBars.union(WindowInsets.displayCutout),
-                            ) { padding ->
-                                AnimatedContent(
-                                    targetState = selectedPage,
-                                    transitionSpec = {
-                                        // 旋转会改变窗口尺寸，虚拟屏两侧直接落位。
-                                        if (
-                                            initialState == TopDestination.Screen.ordinal ||
-                                                targetState == TopDestination.Screen.ordinal
-                                        ) {
-                                            EnterTransition.None togetherWith ExitTransition.None
-                                        } else {
-                                            peerTransition
-                                        }
-                                    },
-                                    modifier =
-                                        Modifier.fillMaxSize()
-                                            .padding(padding)
-                                            .consumeWindowInsets(padding),
-                                    label = "MainTabs",
-                                ) { page ->
-                                    tabStateHolder.SaveableStateProvider(page) {
-                                        when (TopDestination.entries[page]) {
-                                            TopDestination.Hangar ->
-                                                HangarScreen(
-                                                    active = hangarActive && !onSubPage,
-                                                    modifier = Modifier.fillMaxSize(),
-                                                )
-                                            TopDestination.Screen ->
-                                                ScreenPage(
-                                                    active =
-                                                        selectedPage ==
-                                                            TopDestination.Screen.ordinal &&
-                                                            !onSubPage,
-                                                    modifier = Modifier.fillMaxSize(),
-                                                )
-                                            TopDestination.AzurPilot ->
-                                                AzurPilotPage(
-                                                    active =
-                                                        selectedPage ==
-                                                            TopDestination.AzurPilot.ordinal &&
-                                                            !onSubPage,
-                                                    onNavigate = navigator::push,
-                                                    modifier = Modifier.fillMaxSize(),
-                                                )
-                                            TopDestination.Settings ->
-                                                SettingsScreen(
-                                                    state = settingsState,
-                                                    onOpenSection = { navigator.push(it.route) },
-                                                    modifier = Modifier.fillMaxSize(),
-                                                )
-                                        }
+                        entry<AppRoute.Main>(swipeDismiss = swipeDismiss) {
+                            AppNavigationScaffold(
+                                mainPagerState = mainPagerState,
+                                rootBackEnabled = navigator.backStack.size == 1,
+                                snackbarHostState = snackbarHostState,
+                            ) { page, bottomInnerPadding ->
+                                tabStateHolder.SaveableStateProvider(page) {
+                                    when (TopDestination.entries[page]) {
+                                        TopDestination.Hangar ->
+                                            HangarScreen(
+                                                active =
+                                                    page == pagerState.settledPage && !onSubPage,
+                                                bottomInnerPadding = bottomInnerPadding,
+                                            )
+                                        TopDestination.Screen ->
+                                            ScreenPage(
+                                                active =
+                                                    page == pagerState.settledPage && !onSubPage,
+                                                modifier =
+                                                    Modifier.fillMaxSize()
+                                                        .padding(bottom = bottomInnerPadding),
+                                            )
+                                        TopDestination.AzurPilot ->
+                                            AzurPilotPage(
+                                                active =
+                                                    page == pagerState.settledPage && !onSubPage,
+                                                onNavigate = navigator::push,
+                                                modifier =
+                                                    Modifier.fillMaxSize()
+                                                        .padding(bottom = bottomInnerPadding),
+                                            )
+                                        TopDestination.Settings ->
+                                            SettingsScreen(
+                                                state = settingsState,
+                                                onOpenSection = { navigator.push(it.route) },
+                                                bottomInnerPadding = bottomInnerPadding,
+                                            )
                                     }
                                 }
                             }
@@ -646,8 +654,14 @@ fun AppRoot(
                                 onBack = { navigator.pop() },
                             )
                         }
+                        entry<AppRoute.Appearance>(swipeDismiss = swipeDismiss) {
+                            com.azurpilot.ghio.ui.ksu.screen.colorpalette.AppearanceScreen(
+                                onBack = { navigator.pop() }
+                            )
+                        }
                         entry<AppRoute.Display>(swipeDismiss = swipeDismiss) {
                             DisplaySettingsPage(
+                                onOpenAppearance = { navigator.push(AppRoute.Appearance) },
                                 state = settingsState,
                                 onIntent = settingsViewModel::onIntent,
                                 onBack = { navigator.pop() },

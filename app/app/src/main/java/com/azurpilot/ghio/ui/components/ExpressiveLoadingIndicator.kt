@@ -25,5 +25,13 @@ fun ExpressiveLoadingIndicator(
     modifier: Modifier = Modifier.size(DefaultExpressiveIndicatorSize),
     color: Color = MaterialTheme.colorScheme.primary,
 ) {
-    LoadingIndicator(modifier = modifier, color = color)
+    if (
+        com.azurpilot.ghio.theme.ksu.LocalUiMode.current ==
+            com.azurpilot.ghio.theme.ksu.UiMode.Miuix
+    ) {
+        top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator(
+            modifier = modifier,
+            color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.primary,
+        )
+    } else LoadingIndicator(modifier = modifier, color = color)
 }

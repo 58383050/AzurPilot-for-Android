@@ -1,10 +1,6 @@
 package com.azurpilot.ghio.ui.azurpilot
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,33 +8,18 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,7 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
 import com.azurpilot.ghio.proot.AzurPilotRepository
@@ -71,9 +51,15 @@ import com.azurpilot.ghio.ui.azurpilot.sections.settings.MeowfficerPage
 import com.azurpilot.ghio.ui.azurpilot.sections.settings.SettingsSection
 import com.azurpilot.ghio.ui.azurpilot.sections.settings.UpdaterPage
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
-import com.azurpilot.ghio.ui.motion.peerContentTransform
+import com.azurpilot.ghio.ui.ksu.AppFilterChip as FilterChip
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
+import com.azurpilot.ghio.ui.ksu.AppSnackbarHost as SnackbarHost
+import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 import com.azurpilot.ghio.ui.navigation.AppRoute
 import org.koin.compose.koinInject
+import top.yukonga.miuix.kmp.utils.pagerGestureOverride
 
 /**
  * 渲染控制台的平级分区，详情通过宿主唯一导航栈打开。
@@ -134,25 +120,7 @@ private fun AzurPilotRuntimeSurface(
         content(repository)
 
         // 运行时未就绪或断连时使用悬浮遮罩平滑覆盖，避免破坏底层视图树
-        AnimatedVisibility(
-            visible = !connected,
-            enter =
-                fadeIn(
-                    animationSpec =
-                        tween(
-                            durationMillis = ApMotion.Medium2,
-                            easing = ApMotion.EmphasizedDecelerate,
-                        )
-                ),
-            exit =
-                fadeOut(
-                    animationSpec =
-                        tween(
-                            durationMillis = ApMotion.Short4,
-                            easing = ApMotion.EmphasizedAccelerate,
-                        )
-                ),
-        ) {
+        if (!connected) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background,
@@ -236,34 +204,13 @@ fun ApDetailPage(
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable BoxScope.() -> Unit,
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = title,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.ap_back),
-                        )
-                    }
-                },
-                actions = actions,
-            )
-        },
+    com.azurpilot.ghio.ui.ksu.AppPageScaffold(
+        title = title,
+        modifier = modifier,
+        onBack = onBack,
+        actions = actions,
     ) { padding ->
-        Box(
-            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
-            content = content,
-        )
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), content = content)
     }
 }
 
@@ -282,39 +229,25 @@ private fun AzurPilotContent(
     val selected by repository.selectedInstance.collectAsStateWithLifecycle()
     var currentSection by rememberSaveable { mutableStateOf(AzurPilotSection.Overview) }
     val saveableStateHolder = rememberSaveableStateHolder()
-    val peerTransition = peerContentTransform()
+    val pagerState =
+        androidx.compose.foundation.pager.rememberPagerState(
+            initialPage = currentSection.ordinal,
+            pageCount = { AzurPilotSection.entries.size },
+        )
+    val mainPagerState = com.azurpilot.ghio.ui.ksu.rememberMainPagerState(pagerState)
+    LaunchedEffect(pagerState.settledPage) {
+        currentSection = AzurPilotSection.entries[pagerState.settledPage]
+    }
+    LaunchedEffect(pagerState.currentPage) { mainPagerState.syncPage() }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(currentSection.labelRes),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                windowInsets = WindowInsets(0, 0, 0, 0),
-            )
-        },
-    ) { padding ->
+    com.azurpilot.ghio.ui.ksu.AppPageScaffold(title = stringResource(currentSection.labelRes)) {
+        padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
-            PrimaryTabRow(
-                selectedTabIndex = currentSection.ordinal,
-                containerColor = MaterialTheme.colorScheme.surface,
-            ) {
-                AzurPilotSection.entries.forEach { entry ->
-                    Tab(
-                        selected = entry == currentSection,
-                        onClick = { currentSection = entry },
-                        text = { Text(stringResource(entry.labelRes), maxLines = 1) },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            com.azurpilot.ghio.ui.ksu.AppTabRow(
+                selectedTabIndex = mainPagerState.selectedPage,
+                tabs = AzurPilotSection.entries.map { stringResource(it.labelRes) },
+                onTabClick = mainPagerState::animateToPage,
+            )
             InstanceChipRow(
                 instances = instances.map { it.name },
                 selected = selected,
@@ -322,14 +255,28 @@ private fun AzurPilotContent(
                 onManage = { onNavigate(AppRoute.Instances) },
             )
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                AnimatedContent(
-                    targetState = currentSection,
-                    transitionSpec = {
-                        peerTransition
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                    label = "ApSections",
-                ) { section ->
+                androidx.compose.foundation.pager.HorizontalPager(
+                    state = pagerState,
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .pagerGestureOverride(
+                                pagerState,
+                                mode =
+                                    top.yukonga.miuix.kmp.utils.PagerInterceptionMode
+                                        .CrossAxisInterceptor,
+                            ),
+                    userScrollEnabled = false,
+                    overscrollEffect = null,
+                    pageNestedScrollConnection =
+                        top.yukonga.miuix.kmp.utils.PagerGestureNestedScrollConnection,
+                    flingBehavior =
+                        androidx.compose.foundation.pager.PagerDefaults.flingBehavior(
+                            pagerState,
+                            snapAnimationSpec =
+                                top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec,
+                        ),
+                ) { page ->
+                    val section = AzurPilotSection.entries[page]
                     saveableStateHolder.SaveableStateProvider(key = section.name) {
                         when (section) {
                             AzurPilotSection.Overview -> OverviewSection(repository)

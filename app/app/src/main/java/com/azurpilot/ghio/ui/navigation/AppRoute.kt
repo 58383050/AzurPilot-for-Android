@@ -23,6 +23,9 @@ sealed interface AppRoute : NavKey {
     /** 运行时日志列表。 / Runtime log list. */
     @Serializable data object AzurPilotLog : AppRoute
 
+    /** KSU 外观设置。 / KSU appearance settings. */
+    @Serializable data object Appearance : AppRoute
+
     /** 显示设置。 / Display settings. */
     @Serializable data object Display : AppRoute
 

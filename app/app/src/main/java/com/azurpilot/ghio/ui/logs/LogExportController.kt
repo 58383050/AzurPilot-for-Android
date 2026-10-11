@@ -3,19 +3,13 @@ package com.azurpilot.ghio.ui.logs
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +24,8 @@ import com.azurpilot.ghio.R
 import com.azurpilot.ghio.log.LogExportKind
 import com.azurpilot.ghio.log.LogExportService
 import com.azurpilot.ghio.theme.AppTokens
+import com.azurpilot.ghio.ui.ksu.AppBottomSheet as ModalBottomSheet
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -38,26 +34,22 @@ import org.koin.compose.koinInject
  *
  * [kind] 为空 = 不显示。两类导出（AzurPilot / 启动器）共用这一个 sheet，标题与产物按类型走
  *
- * 必须无条件挂在调用方的组合顶层——`rememberLauncherForActivityResult` 的注册要稳定，
- * 跟着 sheet 的显隐一起装卸的话，回调回来时注册已经没了
+ * 必须无条件挂在调用方的组合顶层——`rememberLauncherForActivityResult` 的注册要稳定， 跟着 sheet 的显隐一起装卸的话，回调回来时注册已经没了
  *
  * 反馈经 [onMessage] 交给调用方：提示该显示在哪（snackbar / toast）由承载它的那一层决定
  *
- * Hosts log export: sheet visibility, SAF location picking, the share Intent, and
- * double-tap protection.
+ * Hosts log export: sheet visibility, SAF location picking, the share Intent, and double-tap
+ * protection.
  *
- * A null [kind] = not shown. Both export kinds (AzurPilot / launcher) share this
- * one sheet; title and artifact follow the kind. Must hang unconditionally at the
- * caller's composition top level — the `rememberLauncherForActivityResult`
- * registration has to stay stable; mounted and unmounted together with the sheet,
- * it would already be gone by the time the callback returns. Feedback flows
- * through [onMessage]: where the message shows (snackbar / toast) is up to the
- * layer hosting it.
+ * A null [kind] = not shown. Both export kinds (AzurPilot / launcher) share this one sheet; title
+ * and artifact follow the kind. Must hang unconditionally at the caller's composition top level —
+ * the `rememberLauncherForActivityResult` registration has to stay stable; mounted and unmounted
+ * together with the sheet, it would already be gone by the time the callback returns. Feedback
+ * flows through [onMessage]: where the message shows (snackbar / toast) is up to the layer hosting
+ * it.
  *
- * @param kind 当前要导出的类别，null 收起 sheet / kind to export, null hides the
- *   sheet
- * @param onMessage 结果反馈回调（成功/失败文案） / result feedback callback
- *   (success/failure copy)
+ * @param kind 当前要导出的类别，null 收起 sheet / kind to export, null hides the sheet
+ * @param onMessage 结果反馈回调（成功/失败文案） / result feedback callback (success/failure copy)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,40 +68,45 @@ fun LogExportController(
     val runningText = stringResource(R.string.log_export_running)
     val failedText = stringResource(R.string.log_export_failed)
 
-    val saveLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(MIME_ZIP),
-    ) { uri ->
-        if (uri == null) {
-            busy = false
-            return@rememberLauncherForActivityResult
+    val saveLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument(MIME_ZIP)
+        ) { uri ->
+            if (uri == null) {
+                busy = false
+                return@rememberLauncherForActivityResult
+            }
+            val targetKind = pendingKind
+            scope.launch {
+                val name = service.exportTo(targetKind, uri)
+                busy = false
+                onMessage(
+                    name?.let { context.getString(R.string.log_export_saved, it) } ?: failedText
+                )
+            }
         }
-        val targetKind = pendingKind
-        scope.launch {
-            val name = service.exportTo(targetKind, uri)
-            busy = false
-            onMessage(name?.let { context.getString(R.string.log_export_saved, it) } ?: failedText)
-        }
-    }
 
     if (kind == null) return
 
-    val title = stringResource(
-        when (kind) {
-            LogExportKind.AZURPILOT -> R.string.log_export_azurpilot_title
-            LogExportKind.LAUNCHER -> R.string.log_export_launcher_title
-        },
-    )
+    val title =
+        stringResource(
+            when (kind) {
+                LogExportKind.AZURPILOT -> R.string.log_export_azurpilot_title
+                LogExportKind.LAUNCHER -> R.string.log_export_launcher_title
+            }
+        )
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(bottom = AppTokens.Spacing.lg)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(
-                    start = AppTokens.Spacing.lg,
-                    end = AppTokens.Spacing.lg,
-                    bottom = AppTokens.Spacing.sm,
-                ),
+                modifier =
+                    Modifier.padding(
+                        start = AppTokens.Spacing.lg,
+                        end = AppTokens.Spacing.lg,
+                        bottom = AppTokens.Spacing.sm,
+                    ),
             )
             ExportAction(
                 label = stringResource(R.string.log_export_share),
@@ -146,19 +143,7 @@ fun LogExportController(
 
 @Composable
 private fun ExportAction(label: String, icon: ImageVector, onClick: () -> Unit) {
-    ListItem(
-        headlineContent = { Text(label) },
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    )
+    com.azurpilot.ghio.ui.components.AppNavigationRow(label = label, onClick = onClick)
 }
 
 private const val MIME_ZIP = "application/zip"

@@ -45,6 +45,7 @@
     "miuix-nav/src/commonTest/kotlin/top/yukonga/miuix/kmp/nav/state/NavMaxLifecycleTest.kt": "b3f266562119a3d04fa56c88e61ea85ed714f148ac49eca02751e0eb4de9172a",
     "miuix-nav/src/commonTest/kotlin/top/yukonga/miuix/kmp/nav/transition/NavMotionTest.kt": "84a191266ac2b7e485c22917f770c8b7b9e51b5381963312ecde102846d4ed12",
     "miuix-nav/src/commonTest/kotlin/top/yukonga/miuix/kmp/nav/transition/NavTransitionScrimTest.kt": "c58c4753bf07204c0b99e41d1cebb65c7e19a5a274f67ff6c8b1360ac12484dd",
-    "miuix-nav/src/androidMain/kotlin/top/yukonga/miuix/kmp/nav/core/NavSystemCornerRadius.android.kt": "e37f620db59f93b347d5e029560940eb336a85dad448c024446af108de47f77c"
+    "miuix-nav/src/androidMain/kotlin/top/yukonga/miuix/kmp/nav/core/NavSystemCornerRadius.android.kt": "e37f620db59f93b347d5e029560940eb336a85dad448c024446af108de47f77c",
+    "miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/utils/PagerGestureUtils.kt": "e96c9a961341c6dc19ab27746fd3a0be79fa774f2651e7939d4c18f4e0a06287"
   }
 }

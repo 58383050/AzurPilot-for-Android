@@ -70,6 +70,12 @@ def main():
     provenance[android_corner.relative_to(source).as_posix()] = hashlib.sha256(
         android_corner.read_bytes()
     ).hexdigest()
+    pager = source / "miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/utils/PagerGestureUtils.kt"
+    subprocess.run(["git", "-C", str(source), "diff", "--quiet", "HEAD", "--", str(pager)], check=True)
+    pager_output = target / "src/main/kotlin/top/yukonga/miuix/kmp/utils/PagerGestureUtils.kt"
+    pager_output.parent.mkdir(parents=True, exist_ok=True)
+    pager_output.write_bytes(pager.read_bytes())
+    provenance[pager.relative_to(source).as_posix()] = hashlib.sha256(pager.read_bytes()).hexdigest()
     (target / "LICENSE").write_bytes((source / "LICENSE").read_bytes())
     (target / "UPSTREAM.json").write_text(
         json.dumps({"repository": "https://github.com/compose-miuix-ui/miuix",

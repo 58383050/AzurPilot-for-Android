@@ -1,12 +1,10 @@
 package com.azurpilot.ghio.ui.azurpilot.sections
 
-
-import androidx.compose.foundation.layout.Arrangement
-import com.azurpilot.ghio.ui.azurpilot.ApMotion
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -21,19 +19,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RestartAlt
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,6 +43,13 @@ import com.azurpilot.ghio.proot.prettyText
 import com.azurpilot.ghio.proot.sameValueAs
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.ksu.AppCheckbox as Checkbox
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
+import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
+import com.azurpilot.ghio.ui.ksu.AppTextField as OutlinedTextField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -64,36 +58,37 @@ import kotlinx.coroutines.launch
  *
  * A single argument's save status, shown as a small line at the row's end.
  */
-enum class ApFieldStatus { Idle, Saving, Saved, Failed }
+enum class ApFieldStatus {
+    Idle,
+    Saving,
+    Saved,
+    Failed,
+}
 
 /**
  * 参数值的文本形式；嵌套结构给 pretty JSON，避免显示成 `{a=1}` 那种 toString
  *
- * The text form of an argument value; nested structures get pretty JSON
- * instead of a `{a=1}`-style toString.
+ * The text form of an argument value; nested structures get pretty JSON instead of a `{a=1}`-style
+ * toString.
  */
 fun fieldTextOf(value: ApValue): String = value.prettyText()
 
 /**
  * 本地校验结果：[payload] 为 null 表示这次输入还不能提交
  *
- * [display] 是输入框该显示的文本；null 表示维持用户输入。
- * 清空数字/时间字段回落默认值时，网关存的是默认值而输入框如果还空着，
- * 看起来就像「没保存上」——WebUI 用 `text: String(fallback)` 解决，这里同理。
+ * [display] 是输入框该显示的文本；null 表示维持用户输入。 清空数字/时间字段回落默认值时，网关存的是默认值而输入框如果还空着， 看起来就像「没保存上」——WebUI 用
+ * `text: String(fallback)` 解决，这里同理。
  *
- * The outcome of local validation: a null [payload] means the input is not
- * submittable yet.
+ * The outcome of local validation: a null [payload] means the input is not submittable yet.
  *
- * [display] is what the field should show; null keeps the user's input. When
- * clearing a numeric/datetime field falls back to the default, the gateway
- * stores the default while the box would stay empty — looking like the save
- * never happened. The WebUI solves it with `text: String(fallback)`; ditto
- * here.
+ * [display] is what the field should show; null keeps the user's input. When clearing a
+ * numeric/datetime field falls back to the default, the gateway stores the default while the box
+ * would stay empty — looking like the save never happened. The WebUI solves it with `text:
+ * String(fallback)`; ditto here.
  *
- * @property payload 可提交的值；null 表示本地校验未通过 / the submittable value;
- *   null when local validation failed
- * @property display 输入框该显示的文本；null 维持用户输入 / the text the field
- *   should show; null keeps the user's input
+ * @property payload 可提交的值；null 表示本地校验未通过 / the submittable value; null when local validation failed
+ * @property display 输入框该显示的文本；null 维持用户输入 / the text the field should show; null keeps the user's
+ *   input
  * @property error 预留的错误文案 / the reserved error text
  */
 data class PreparedField(val payload: ApValue, val display: String?, val error: String?)
@@ -101,14 +96,12 @@ data class PreparedField(val payload: ApValue, val display: String?, val error: 
 /**
  * 把输入框里的文本转成能提交的值
  *
- * 与网关的校验规则对齐（类型、整数性、区间、正则、日期格式），这样**本地就能拦下**明显不合法
- * 的输入，不必等一次往返再显示红字。
+ * 与网关的校验规则对齐（类型、整数性、区间、正则、日期格式），这样**本地就能拦下**明显不合法 的输入，不必等一次往返再显示红字。
  *
  * Converts a field's text into a submittable value.
  *
- * Aligned with the gateway's validation rules (type, integrality, range,
- * regex, date format) so obviously invalid input is **rejected locally**
- * instead of waiting a round trip to show red text.
+ * Aligned with the gateway's validation rules (type, integrality, range, regex, date format) so
+ * obviously invalid input is **rejected locally** instead of waiting a round trip to show red text.
  *
  * @param field 参数定义 / the argument definition
  * @param text 输入框文本 / the field's text
@@ -141,7 +134,8 @@ fun prepareFieldValue(field: AzurPilotField, text: String): PreparedField {
         return PreparedField(text, null, null)
     }
     val number = trimmed.toDoubleOrNull() ?: return PreparedField(null, null, null)
-    if (field.value is Int && number != number.toLong().toDouble()) return PreparedField(null, null, null)
+    if (field.value is Int && number != number.toLong().toDouble())
+        return PreparedField(null, null, null)
     field.range?.let { (min, max) ->
         if (number < min || number > max) return PreparedField(null, null, null)
     }
@@ -156,17 +150,15 @@ private val DATETIME = Regex("""\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}""")
 /**
  * 一个参数行
  *
- * 控件按 schema 的定义挑：布尔→开关，有候选→下拉，多选→勾选组，其余→文本。
- * 开关与下拉这类**离散选择**改完立刻提交；文本类**防抖后提交**——手机上逐字符发请求既费流量，
+ * 控件按 schema 的定义挑：布尔→开关，有候选→下拉，多选→勾选组，其余→文本。 开关与下拉这类**离散选择**改完立刻提交；文本类**防抖后提交**——手机上逐字符发请求既费流量，
  * 也会让中间态（`1`、`1.`）撞上服务端校验。
  *
  * One argument row.
  *
- * The control is picked by the schema's definition: boolean → switch, options
- * → dropdown, multiselect → checkbox group, everything else → text.
- * **Discrete choices** like switches and dropdowns commit immediately; text
- * fields **commit after a debounce** — per-character requests on a phone burn
- * traffic and let intermediate states (`1`, `1.`) trip server validation.
+ * The control is picked by the schema's definition: boolean → switch, options → dropdown,
+ * multiselect → checkbox group, everything else → text. **Discrete choices** like switches and
+ * dropdowns commit immediately; text fields **commit after a debounce** — per-character requests on
+ * a phone burn traffic and let intermediate states (`1`, `1.`) trip server validation.
  *
  * @param schema schema 定义 / the schema definition
  * @param group 分组名 / the group name
@@ -174,14 +166,13 @@ private val DATETIME = Regex("""\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}""")
  * @param field 参数元信息 / the argument's metadata
  * @param value 当前值 / the current value
  * @param status 保存状态 / the save status
- * @param statusError 保存失败时网关给的原文——「参数必须在 0 到 100 之间：Main.Campaign.X」
- *   正是用户要的下一步 / the gateway's raw message on save failure — "argument
- *   must be between 0 and 100: Main.Campaign.X" is exactly the user's next
- *   step
+ * @param statusError 保存失败时网关给的原文——「参数必须在 0 到 100 之间：Main.Campaign.X」 正是用户要的下一步 / the gateway's raw
+ *   message on save failure — "argument must be between 0 and 100: Main.Campaign.X" is exactly the
+ *   user's next step
  * @param onChange 提交新值 / commits a new value
  * @param onRetry 失败后重试提交 / retries the failed commit
- * @param onRunNow 「立刻运行」入口；仅调度时间参数提供 / the run-now entry,
- *   offered only for the scheduler-time argument
+ * @param onRunNow 「立刻运行」入口；仅调度时间参数提供 / the run-now entry, offered only for the scheduler-time
+ *   argument
  * @param onCheckScript 受限 Lua 的预检入口 / the restricted-Lua precheck entry
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -201,9 +192,7 @@ fun ApFieldRow(
 ) {
     val readOnly = field.readOnly
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = AppTokens.Spacing.xs),
+        modifier = Modifier.fillMaxWidth().padding(vertical = AppTokens.Spacing.xs),
         verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xs),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -232,45 +221,50 @@ fun ApFieldRow(
 
         when {
             // storage 只允许清空（`{}`）；网关对它有单独的放行分支
-            field.type == "storage" -> StorageControl(value, enabled = !readOnly && field.clearableStorage) {
-                onChange(emptyMap<String, ApValue>())
-            }
+            field.type == "storage" ->
+                StorageControl(value, enabled = !readOnly && field.clearableStorage) {
+                    onChange(emptyMap<String, ApValue>())
+                }
 
             field.type == "stored" || field.type == "state" || field.type == "lock" ->
                 ReadOnlyValue(fieldTextOf(value))
 
-            field.booleanish -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(
-                    checked = value as? Boolean ?: false,
+            field.booleanish ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(
+                        checked = value as? Boolean ?: false,
+                        enabled = !readOnly,
+                        onCheckedChange = { onChange(it) },
+                    )
+                }
+
+            field.type == "multiselect" ->
+                MultiSelect(
+                    field = field,
+                    value = value,
                     enabled = !readOnly,
-                    onCheckedChange = { onChange(it) },
+                    labelOf = { schema.optionLabel(group, argument, it) },
+                    onChange = onChange,
                 )
-            }
 
-            field.type == "multiselect" -> MultiSelect(
-                field = field,
-                value = value,
-                enabled = !readOnly,
-                labelOf = { schema.optionLabel(group, argument, it) },
-                onChange = onChange,
-            )
+            !field.option.isNullOrEmpty() ->
+                OptionSelect(
+                    field = field,
+                    value = value,
+                    enabled = !readOnly,
+                    labelOf = { schema.optionLabel(group, argument, it) },
+                    onChange = onChange,
+                )
 
-            !field.option.isNullOrEmpty() -> OptionSelect(
-                field = field,
-                value = value,
-                enabled = !readOnly,
-                labelOf = { schema.optionLabel(group, argument, it) },
-                onChange = onChange,
-            )
-
-            else -> TextControl(
-                field = field,
-                value = value,
-                enabled = !readOnly,
-                onCommit = onChange,
-                onRunNow = onRunNow,
-                onCheckScript = onCheckScript,
-            )
+            else ->
+                TextControl(
+                    field = field,
+                    value = value,
+                    enabled = !readOnly,
+                    onCommit = onChange,
+                    onRunNow = onRunNow,
+                    onCheckScript = onCheckScript,
+                )
         }
 
         if (status == ApFieldStatus.Failed) FailedNotice(statusError, onRetry)
@@ -291,34 +285,37 @@ private fun StatusIndicator(status: ApFieldStatus) {
     AnimatedContent(
         targetState = status,
         transitionSpec = {
-            fadeIn(ApMotion.effects(ApMotion.Short4, ApMotion.EmphasizedDecelerate)) togetherWith
-                fadeOut(ApMotion.effects(ApMotion.Short2, ApMotion.StandardAccelerate))
+            fadeIn(androidx.compose.animation.core.spring()) togetherWith
+                fadeOut(androidx.compose.animation.core.spring())
         },
         label = "fieldStatus",
     ) { state ->
         when (state) {
-            ApFieldStatus.Idle, ApFieldStatus.Failed -> Unit
-            ApFieldStatus.Saving -> Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xs),
-            ) {
-                ExpressiveLoadingIndicator(
-                    modifier = Modifier.size(12.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = stringResource(R.string.ap_field_saving),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            ApFieldStatus.Idle,
+            ApFieldStatus.Failed -> Unit
+            ApFieldStatus.Saving ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xs),
+                ) {
+                    ExpressiveLoadingIndicator(
+                        modifier = Modifier.size(12.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = stringResource(R.string.ap_field_saving),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
-            ApFieldStatus.Saved -> Icon(
-                imageVector = Icons.Filled.CheckCircle,
-                contentDescription = stringResource(R.string.ap_field_saved),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(AppTokens.IconSize.sm),
-            )
+            ApFieldStatus.Saved ->
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = stringResource(R.string.ap_field_saved),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(AppTokens.IconSize.sm),
+                )
         }
     }
 }
@@ -326,17 +323,15 @@ private fun StatusIndicator(status: ApFieldStatus) {
 /**
  * 保存失败的原因
  *
- * 只给一个「重试」按钮等于让用户猜哪里错了：网关的校验消息（区间、正则、日期格式、类型）
- * 就是修好这件事所需的全部信息，必须原样显示出来。
+ * 只给一个「重试」按钮等于让用户猜哪里错了：网关的校验消息（区间、正则、日期格式、类型） 就是修好这件事所需的全部信息，必须原样显示出来。
  *
  * The reason a save failed.
  *
- * A lone "retry" button makes users guess what went wrong: the gateway's
- * validation message (range, regex, date format, type) is exactly the
- * information needed to fix it and must be shown verbatim.
+ * A lone "retry" button makes users guess what went wrong: the gateway's validation message (range,
+ * regex, date format, type) is exactly the information needed to fix it and must be shown verbatim.
  *
- * @param error 网关的校验消息；null 表示原因不明 / the gateway's validation
- *   message; null when the cause is unknown
+ * @param error 网关的校验消息；null 表示原因不明 / the gateway's validation message; null when the cause is
+ *   unknown
  * @param onRetry 重试提交 / retries the commit
  */
 @Composable
@@ -353,14 +348,18 @@ private fun FailedNotice(error: String?, onRetry: () -> Unit) {
             modifier = Modifier.size(AppTokens.IconSize.sm),
         )
         Text(
-            text = error?.let { stringResource(R.string.ap_field_failed, it) }
-                ?: stringResource(R.string.ap_field_failed_unknown),
+            text =
+                error?.let { stringResource(R.string.ap_field_failed, it) }
+                    ?: stringResource(R.string.ap_field_failed_unknown),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
             modifier = Modifier.weight(1f),
         )
         TextButton(onClick = onRetry) {
-            Text(stringResource(R.string.ap_field_retry), style = MaterialTheme.typography.labelMedium)
+            Text(
+                stringResource(R.string.ap_field_retry),
+                style = MaterialTheme.typography.labelMedium,
+            )
         }
     }
 }
@@ -368,8 +367,7 @@ private fun FailedNotice(error: String?, onRetry: () -> Unit) {
 /**
  * 只读值：嵌套结构给等宽 pretty JSON，截断到固定行数
  *
- * A read-only value: nested structures get monospace pretty JSON, truncated to
- * a fixed line count.
+ * A read-only value: nested structures get monospace pretty JSON, truncated to a fixed line count.
  */
 @Composable
 private fun ReadOnlyValue(text: String) {
@@ -385,8 +383,8 @@ private fun ReadOnlyValue(text: String) {
 /**
  * 存储区：只读展示 + 清空（网关只接受清成 `{}`）
  *
- * A storage area: read-only display plus a clear action (the gateway only
- * accepts clearing it to `{}`).
+ * A storage area: read-only display plus a clear action (the gateway only accepts clearing it to
+ * `{}`).
  */
 @Composable
 private fun StorageControl(value: ApValue, enabled: Boolean, onClear: () -> Unit) {
@@ -413,9 +411,8 @@ private fun StorageControl(value: ApValue, enabled: Boolean, onClear: () -> Unit
 /**
  * 单选下拉：候选取自 schema，显示名走翻译；当前值不在候选里时也照样显示出来
  *
- * A single-select dropdown: candidates come from the schema, display names go
- * through translation, and a current value outside the candidates still shows
- * up instead of leaving the box empty.
+ * A single-select dropdown: candidates come from the schema, display names go through translation,
+ * and a current value outside the candidates still shows up instead of leaving the box empty.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -426,44 +423,25 @@ private fun OptionSelect(
     labelOf: (ApValue) -> String,
     onChange: (ApValue) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val options = field.option.orEmpty()
-    val known = options.any { it.sameValueAs(value) }
-    ExposedDropdownMenuBox(
-        expanded = expanded && enabled,
-        onExpandedChange = { if (enabled) expanded = it },
-    ) {
-        val notSet = stringResource(R.string.ap_field_notset)
-        OutlinedTextField(
-            // 值不在候选里（历史配置/未设置）时照样显示出来，别让下拉框看起来是空的
-            value = if (known) labelOf(value) else fieldTextOf(value).ifEmpty { notSet },
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(labelOf(option)) },
-                    onClick = {
-                        expanded = false
-                        if (!option.sameValueAs(value)) onChange(option)
-                    },
-                )
-            }
-        }
-    }
+    val candidates = field.option.orEmpty()
+    val options =
+        if (candidates.any { it.sameValueAs(value) }) candidates else listOf(value) + candidates
+    com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
+        title = "",
+        items = options.map(labelOf),
+        selectedIndex = options.indexOfFirst { it.sameValueAs(value) }.coerceAtLeast(0),
+        enabled = enabled,
+        onSelectedIndexChange = { index ->
+            if (!options[index].sameValueAs(value)) onChange(options[index])
+        },
+    )
 }
 
 /**
  * 多选：勾选即提交整个列表（网关要求元素与候选"类型与值都相同"且不重复）
  *
- * A multi-select: each toggle commits the whole list (the gateway requires
- * elements to be "same type and value" as a candidate, without duplicates).
+ * A multi-select: each toggle commits the whole list (the gateway requires elements to be "same
+ * type and value" as a candidate, without duplicates).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -488,7 +466,7 @@ private fun MultiSelect(
                     onCheckedChange = { next ->
                         onChange(
                             if (next) selected + option
-                            else selected.filterNot { it.sameValueAs(option) },
+                            else selected.filterNot { it.sameValueAs(option) }
                         )
                     },
                 )
@@ -512,8 +490,11 @@ private fun TextControl(
     onRunNow: (() -> Unit)?,
     onCheckScript: (suspend (String) -> String?)?,
 ) {
-    val multiline = field.type == "textarea" || field.type == "task_priority" ||
-        field.mode == "yaml" || field.mode == "restricted_lua"
+    val multiline =
+        field.type == "textarea" ||
+            field.type == "task_priority" ||
+            field.mode == "yaml" ||
+            field.mode == "restricted_lua"
     var text by remember(field) { mutableStateOf(fieldTextOf(value)) }
     var touched by remember(field) { mutableStateOf(false) }
     var invalid by remember(field) { mutableStateOf(false) }
@@ -551,32 +532,41 @@ private fun TextControl(
         enabled = enabled,
         isError = invalid || scriptError != null,
         singleLine = !multiline,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = when {
-                field.type == "datetime" -> KeyboardType.Text
-                field.value is Int -> KeyboardType.Number
-                field.numeric -> KeyboardType.Decimal
-                else -> KeyboardType.Text
+        keyboardOptions =
+            KeyboardOptions(
+                keyboardType =
+                    when {
+                        field.type == "datetime" -> KeyboardType.Text
+                        field.value is Int -> KeyboardType.Number
+                        field.numeric -> KeyboardType.Decimal
+                        else -> KeyboardType.Text
+                    }
+            ),
+        textStyle =
+            if (multiline || field.type == "datetime") {
+                MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+            } else {
+                MaterialTheme.typography.bodyMedium
             },
-        ),
-        textStyle = if (multiline || field.type == "datetime") {
-            MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
-        } else {
-            MaterialTheme.typography.bodyMedium
-        },
         supportingText = {
             when {
                 !enabled -> Text(stringResource(R.string.ap_field_readonly))
-                invalid -> Text(stringResource(R.string.ap_field_invalid), color = MaterialTheme.colorScheme.error)
+                invalid ->
+                    Text(
+                        stringResource(R.string.ap_field_invalid),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 scriptError != null -> Text(scriptError!!, color = MaterialTheme.colorScheme.error)
-                scriptChecked -> Text(
-                    text = stringResource(R.string.ap_script_valid),
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                scriptChecked ->
+                    Text(
+                        text = stringResource(R.string.ap_script_valid),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
 
                 field.type == "datetime" -> Text(stringResource(R.string.ap_field_datetime_format))
                 field.mode == "yaml" -> Text(stringResource(R.string.ap_field_yaml_hint))
-                field.mode == "restricted_lua" -> Text(stringResource(R.string.ap_field_script_hint))
+                field.mode == "restricted_lua" ->
+                    Text(stringResource(R.string.ap_field_script_hint))
             }
         },
         trailingIcon = {
@@ -589,9 +579,9 @@ private fun TextControl(
                 }
             }
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (multiline) Modifier.heightIn(min = 140.dp) else Modifier),
+        modifier =
+            Modifier.fillMaxWidth()
+                .then(if (multiline) Modifier.heightIn(min = 140.dp) else Modifier),
     )
 
     // 受限脚本可以在提交前先求一次诊断，拿到行列号；不点也能靠保存失败发现
@@ -608,9 +598,10 @@ private fun TextControl(
             },
         ) {
             Text(
-                text = stringResource(
-                    if (checking) R.string.ap_script_checking else R.string.ap_script_check,
-                ),
+                text =
+                    stringResource(
+                        if (checking) R.string.ap_script_checking else R.string.ap_script_check
+                    )
             )
         }
     }

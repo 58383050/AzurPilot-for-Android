@@ -11,10 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -26,24 +23,24 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.R
 import com.azurpilot.ghio.theme.AppTokens
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 
 /**
  * 盖出全局应用锁遮罩门
  *
- * 冷启动或从后台切回且尚未解锁时，呈现整屏遮罩，彻底阻断对界面与服务的未授权访问；
- * 展示应用锁提示，并在初次出现时经 [onUnlockRequest] 自动调起原生系统锁屏/生物识别验证。
+ * 冷启动或从后台切回且尚未解锁时，呈现整屏遮罩，彻底阻断对界面与服务的未授权访问； 展示应用锁提示，并在初次出现时经 [onUnlockRequest] 自动调起原生系统锁屏/生物识别验证。
  *
  * Renders the global app-lock gate.
  *
- * On cold start or return from background while still locked, a full-screen overlay
- * cuts off all unauthorized access to the UI and services; it shows the lock prompt
- * and, on first appearance, automatically raises native screen-lock/biometric
- * authentication via [onUnlockRequest].
+ * On cold start or return from background while still locked, a full-screen overlay cuts off all
+ * unauthorized access to the UI and services; it shows the lock prompt and, on first appearance,
+ * automatically raises native screen-lock/biometric authentication via [onUnlockRequest].
  *
- * @param isUnlocked 是否已解锁；false 时盖出遮罩 / whether unlocked; false draws the
- *   overlay
- * @param onUnlockRequest 请求解锁（拉起验证），遮罩首次出现时自动调用一次 / requests
- *   unlock (raises the prompt); invoked once when the overlay first appears
+ * @param isUnlocked 是否已解锁；false 时盖出遮罩 / whether unlocked; false draws the overlay
+ * @param onUnlockRequest 请求解锁（拉起验证），遮罩首次出现时自动调用一次 / requests unlock (raises the prompt); invoked
+ *   once when the overlay first appears
  */
 @Composable
 fun AppLockGate(
@@ -63,19 +60,21 @@ fun AppLockGate(
             }
 
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .pointerInput(Unit) {
-                        // 拦截所有触控，防止误触底层内容
-                        awaitPointerEventScope {
-                            while (true) {
-                                // Let the unlock button handle its event before
-                                // swallowing anything that could hit content beneath.
-                                awaitPointerEvent(PointerEventPass.Final).changes.forEach { it.consume() }
+                modifier =
+                    Modifier.fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .pointerInput(Unit) {
+                            // 拦截所有触控，防止误触底层内容
+                            awaitPointerEventScope {
+                                while (true) {
+                                    // Let the unlock button handle its event before
+                                    // swallowing anything that could hit content beneath.
+                                    awaitPointerEvent(PointerEventPass.Final).changes.forEach {
+                                        it.consume()
+                                    }
+                                }
                             }
-                        }
-                    },
+                        },
                 contentAlignment = Alignment.Center,
             ) {
                 Column(

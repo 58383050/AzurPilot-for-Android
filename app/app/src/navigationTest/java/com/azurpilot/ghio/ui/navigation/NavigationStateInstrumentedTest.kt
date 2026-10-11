@@ -12,9 +12,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -22,7 +23,9 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.azurpilot.ghio.theme.AzurPilotTheme
+import com.azurpilot.ghio.ui.ksu.component.FloatingBottomBarItem
 import com.azurpilot.ghio.ui.motion.AppNavigation
+import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -37,6 +40,94 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class NavigationStateInstrumentedTest {
     @get:Rule val compose = createComposeRule()
+
+    /**
+     * 验证真实悬浮底栏在旧 Android 上可绘制和点击。 / Verifies floating navigation rendering and selection on older
+     * Android.
+     */
+    /** 切换两套主题时保留详情和输入草稿。 / Theme switching preserves the current detail and input draft. */
+    @Test
+    fun themeSwitchPreservesCurrentEntryAndDraft() {
+        val manager =
+            org.koin.core.context.GlobalContext.get()
+                .get<com.azurpilot.ghio.settings.AppSettingsManager>()
+        kotlinx.coroutines.runBlocking {
+            kotlinx.coroutines.withTimeout(10000) { manager.loaded.first { it } }
+        }
+        val originalMode = manager.appearance.value.uiMode
+        val nextMode = if (originalMode == "miuix") "material" else "miuix"
+        lateinit var navigator: AppNavigator
+        compose.setContent {
+            AzurPilotTheme {
+                navigator = rememberAppNavigator()
+                com.azurpilot.ghio.ui.ksu.AppRootScaffold {
+                    AppNavigation(navigator) { swipe ->
+                        entry<AppRoute.Main> { BasicText("Home") }
+                        entry<AppRoute.Display>(swipeDismiss = swipe) {
+                            var draft by rememberSaveable { mutableStateOf("") }
+                            Column {
+                                BasicText(
+                                    com.azurpilot.ghio.theme.ksu.LocalUiMode.current.value,
+                                    Modifier.testTag("mode"),
+                                )
+                                com.azurpilot.ghio.ui.ksu.AppTextField(
+                                    draft,
+                                    { draft = it },
+                                    Modifier.testTag("themeDraft"),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        try {
+            compose.runOnIdle { navigator.push(AppRoute.Display) }
+            compose
+                .onNode(androidx.compose.ui.test.hasSetTextAction())
+                .performTextInput("Theme draft")
+            kotlinx.coroutines.runBlocking { manager.setAppearance { it.copy(uiMode = nextMode) } }
+            compose.waitUntil(10000) { manager.appearance.value.uiMode == nextMode }
+            compose.onNodeWithTag("mode").assertTextEquals(nextMode)
+            compose.onNodeWithText("Theme draft").assertIsDisplayed()
+            compose.runOnIdle { assertEquals(AppRoute.Display, navigator.current) }
+        } finally {
+            kotlinx.coroutines.runBlocking {
+                manager.setAppearance { it.copy(uiMode = originalMode) }
+            }
+        }
+    }
+
+    @Test
+    fun floatingNavigationRendersAndSelectsWithoutRuntimeShader() {
+        var selected = 0
+        compose.setContent {
+            AzurPilotTheme {
+                top.yukonga.miuix.kmp.theme.MiuixTheme {
+                    val backdrop =
+                        top.yukonga.miuix.kmp.blur.rememberLayerBackdrop { drawContent() }
+                    com.azurpilot.ghio.ui.ksu.component.FloatingBottomBar(
+                        selectedIndex = selected,
+                        onSelected = { selected = it },
+                        backdrop = backdrop,
+                        tabsCount = 4,
+                        isBlurEnabled = true,
+                    ) { activate ->
+                        repeat(4) { index ->
+                            FloatingBottomBarItem(
+                                selected = selected == index,
+                                onClick = { activate(index) },
+                            ) {
+                                BasicText("Tab $index")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Tab 2").assertIsDisplayed().performTouchInput { click() }
+        compose.runOnIdle { assertEquals(2, selected) }
+    }
 
     @Test
     fun restoresTaskArgumentsAndParentDraft() {

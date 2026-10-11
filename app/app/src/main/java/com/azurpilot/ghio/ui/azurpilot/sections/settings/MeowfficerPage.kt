@@ -5,17 +5,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,20 +30,24 @@ import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApStatusPill
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
 import kotlinx.coroutines.delay
 
 /**
  * 指挥喵评分
  *
- * 报告是**机器级**的（`log/meowfficer_score.json`），跟哪个实例无关，所以 `instance` 参数
- * 只用于校验。页面可见期间每 5 秒刷一次：评分任务跑起来之后，结果会自己出现。
+ * 报告是**机器级**的（`log/meowfficer_score.json`），跟哪个实例无关，所以 `instance` 参数 只用于校验。页面可见期间每 5
+ * 秒刷一次：评分任务跑起来之后，结果会自己出现。
  *
  * The Meowfficer (commander cat) scoring page.
  *
- * The report is **machine-level** (`log/meowfficer_score.json`), independent of
- * any instance, so the `instance` parameter is only for validation. It
- * refreshes every 5 seconds while the page is visible: once the scoring task
- * runs, the result shows up on its own.
+ * The report is **machine-level** (`log/meowfficer_score.json`), independent of any instance, so
+ * the `instance` parameter is only for validation. It refreshes every 5 seconds while the page is
+ * visible: once the scoring task runs, the result shows up on its own.
  *
  * @param repository 网关仓库 / the gateway repository
  */
@@ -64,7 +62,8 @@ fun MeowfficerPage(repository: AzurPilotRepository) {
 
     LaunchedEffect(Unit) {
         while (true) {
-            repository.loadMeowfficerReport()
+            repository
+                .loadMeowfficerReport()
                 .onSuccess {
                     cats = it.cats
                     generatedAt = it.generatedAt
@@ -86,11 +85,15 @@ fun MeowfficerPage(repository: AzurPilotRepository) {
             title = { Text(stringResource(R.string.ap_meowfficer_clear_title)) },
             text = { Text(stringResource(R.string.ap_meowfficer_clear_message)) },
             confirmButton = {
-                TextButton(onClick = {
-                    repository.clearMeowfficerReport()
-                    cats = emptyList()
-                    confirmClear = false
-                }) { Text(stringResource(R.string.ap_meowfficer_clear)) }
+                TextButton(
+                    onClick = {
+                        repository.clearMeowfficerReport()
+                        cats = emptyList()
+                        confirmClear = false
+                    }
+                ) {
+                    Text(stringResource(R.string.ap_meowfficer_clear))
+                }
             },
             dismissButton = {
                 TextButton(onClick = { confirmClear = false }) {
@@ -111,16 +114,19 @@ fun MeowfficerPage(repository: AzurPilotRepository) {
                 horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
             ) {
                 Text(
-                    text = if (generatedAt.isNotEmpty()) {
-                        stringResource(R.string.ap_meowfficer_generated, generatedAt)
-                    } else {
-                        stringResource(R.string.ap_meowfficer_not_generated)
-                    },
+                    text =
+                        if (generatedAt.isNotEmpty()) {
+                            stringResource(R.string.ap_meowfficer_generated, generatedAt)
+                        } else {
+                            stringResource(R.string.ap_meowfficer_not_generated)
+                        },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = { runCatching { uriHandler.openUri(MEOWFFICER_REPORT_URL) } }) {
+                IconButton(
+                    onClick = { runCatching { uriHandler.openUri(MEOWFFICER_REPORT_URL) } }
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = stringResource(R.string.ap_open_in_browser),
@@ -131,23 +137,29 @@ fun MeowfficerPage(repository: AzurPilotRepository) {
                         imageVector = Icons.Filled.DeleteSweep,
                         contentDescription = stringResource(R.string.ap_meowfficer_clear),
                     )
-                }            }
+                }
+            }
         }
 
         when {
-            loading && cats.isEmpty() -> AppCard {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    ExpressiveLoadingIndicator()
+            loading && cats.isEmpty() ->
+                AppCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        ExpressiveLoadingIndicator()
+                    }
                 }
-            }
 
-            cats.isEmpty() -> AppCard {
-                ApEmptyState(
-                    icon = Icons.Filled.Pets,
-                    title = stringResource(R.string.ap_meowfficer_not_generated),
-                    hint = error ?: stringResource(R.string.ap_meowfficer_hint),
-                )
-            }
+            cats.isEmpty() ->
+                AppCard {
+                    ApEmptyState(
+                        icon = Icons.Filled.Pets,
+                        title = stringResource(R.string.ap_meowfficer_not_generated),
+                        hint = error ?: stringResource(R.string.ap_meowfficer_hint),
+                    )
+                }
 
             else -> cats.forEachIndexed { index, cat -> CatCard(cat, Modifier) }
         }
@@ -157,8 +169,7 @@ fun MeowfficerPage(repository: AzurPilotRepository) {
 /**
  * 一只指挥喵的评分卡：等级/品阶/结论徽章 + 结论与养成建议
  *
- * One commander cat's score card: level/tier/verdict badges plus the verdict
- * and training advice.
+ * One commander cat's score card: level/tier/verdict badges plus the verdict and training advice.
  *
  * @param cat 评分数据 / the scoring data
  * @param modifier 应用于卡片的修饰符 / the modifier applied to the card
@@ -203,7 +214,9 @@ private fun CatCard(cat: AzurPilotCat, modifier: Modifier = Modifier) {
             )
         }
         cat.costText?.let { ApMeowRow(stringResource(R.string.ap_meowfficer_cost), it) }
-        cat.pointsSpent?.let { ApMeowRow(stringResource(R.string.ap_meowfficer_points), it.toString()) }
+        cat.pointsSpent?.let {
+            ApMeowRow(stringResource(R.string.ap_meowfficer_points), it.toString())
+        }
         if (cat.targets.isNotEmpty()) {
             ApMeowRow(
                 stringResource(R.string.ap_meowfficer_targets),
@@ -213,11 +226,12 @@ private fun CatCard(cat: AzurPilotCat, modifier: Modifier = Modifier) {
         if (cat.talents.isNotEmpty()) {
             // 拼接要在 composable 之外做：joinToString 的 lambda 不是 composable 上下文
             val inferredMark = stringResource(R.string.ap_meowfficer_inferred)
-            val talents = cat.talents.joinToString("、") { talent ->
-                val level = talent.level?.let { "Lv$it" }.orEmpty()
-                val inferred = if (talent.inferred) inferredMark else ""
-                "${talent.name}$level$inferred"
-            }
+            val talents =
+                cat.talents.joinToString("、") { talent ->
+                    val level = talent.level?.let { "Lv$it" }.orEmpty()
+                    val inferred = if (talent.inferred) inferredMark else ""
+                    "${talent.name}$level$inferred"
+                }
             Text(
                 text = talents,
                 style = MaterialTheme.typography.bodySmall,
@@ -238,24 +252,32 @@ private fun CatCard(cat: AzurPilotCat, modifier: Modifier = Modifier) {
 /** 「标签: 值」行，固定 4:6 分栏 / A "label: value" row with a fixed 4:6 split. */
 @Composable
 private fun ApMeowRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md),
+    ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(0.4f),
         )
-        Text(text = value, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(0.6f))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(0.6f),
+        )
     }
 }
 
 /**
  * 评分报告是网关提供的独立 HTML，走设备本机浏览器看（不是 WebUI）
  *
- * The score report is a standalone HTML served by the gateway, viewed in the
- * device's local browser (not the WebUI).
+ * The score report is a standalone HTML served by the gateway, viewed in the device's local browser
+ * (not the WebUI).
  */
-private const val MEOWFFICER_REPORT_URL = "http://127.0.0.1:${com.azurpilot.ghio.proot.ProotHost.WEBUI_PORT}/reports/meowfficer_score"
+private const val MEOWFFICER_REPORT_URL =
+    "http://127.0.0.1:${com.azurpilot.ghio.proot.ProotHost.WEBUI_PORT}/reports/meowfficer_score"
 
 /** 页面可见期间的轮询间隔（毫秒） / The polling interval while the page is visible, in milliseconds. */
 private const val POLL_MS = 5_000L

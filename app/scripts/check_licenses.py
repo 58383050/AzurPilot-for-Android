@@ -1408,6 +1408,7 @@ warranty. In no event shall the authors be held liable for any damages
 arising from the use of this software."""
 
 LICENSES_CATALOG = {
+    "MIT-MaterialKolor": {'name': 'MaterialKolor MIT License', 'spdxId': 'MIT', 'url': 'https://github.com/jordond/MaterialKolor/blob/main/LICENSE', 'text': 'MIT License\n\nCopyright (c) 2025 Jordon de Hoog\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.'},
     "Apache-2.0": {
         "name": "Apache License 2.0",
         "spdxId": "Apache-2.0",
@@ -1459,6 +1460,12 @@ LICENSES_CATALOG = {
 }
 
 COMPONENTS_DATA = [
+{'id': 'hidden-api-bypass', 'name': 'Android Hidden API Bypass', 'group': 'org.lsposed.hiddenapibypass', 'artifact': 'hiddenapibypass', 'version': '6.1', 'licenseId': 'Apache-2.0', 'url': 'https://github.com/LSPosed/AndroidHiddenApiBypass', 'description': 'KernelSU predictive-back preference bridge', 'category': 'android_lib', 'isCore': False, 'tomlAlias': 'hidden-api-bypass'},
+{'id': 'kernelsu-ui', 'name': 'KernelSU Manager UI', 'group': 'me.weishu.kernelsu', 'artifact': 'manager-ui', 'version': '6e38604', 'licenseId': 'GPL-3.0', 'url': 'https://github.com/tiann/KernelSU', 'description': 'Material and Miuix manager UI source transplants; business adapters are documented', 'category': 'core', 'isCore': True},
+{'id': 'miuix-runtime', 'name': 'Miuix UI / Preference / Blur / Shader', 'group': 'top.yukonga.miuix.kmp', 'artifact': 'miuix-runtime', 'version': '0.9.4 (39c40f9)', 'licenseId': 'Apache-2.0', 'url': 'https://github.com/compose-miuix-ui/miuix', 'description': 'Pinned upstream UI sources compiled for JVM 17', 'category': 'core', 'isCore': True},
+{'id': 'material-kolor', 'name': 'MaterialKolor', 'group': 'com.materialkolor', 'artifact': 'material-kolor', 'version': '5.0.1', 'licenseId': 'MIT-MaterialKolor', 'url': 'https://github.com/jordond/MaterialKolor', 'description': 'KSU theme and responsive UI dependency', 'category': 'android_lib', 'isCore': False, 'tomlAlias': 'material-kolor'},
+{'id': 'material-color-utilities', 'name': 'Material Color Utilities', 'group': 'com.materialkolor', 'artifact': 'material-color-utilities', 'version': '5.0.1', 'licenseId': 'MIT-MaterialKolor', 'url': 'https://github.com/jordond/MaterialKolor', 'description': 'KSU theme and responsive UI dependency', 'category': 'android_lib', 'isCore': False, 'tomlAlias': 'material-color-utilities'},
+{'id': 'androidx-material3-window-size-class', 'name': 'AndroidX Material 3 Window Size Class', 'group': 'androidx.compose.material3', 'artifact': 'material3-window-size-class', 'version': '1.5.0-alpha28', 'licenseId': 'Apache-2.0', 'url': 'https://developer.android.com/jetpack/androidx/releases/compose-material3', 'description': 'KSU theme and responsive UI dependency', 'category': 'android_lib', 'isCore': False, 'tomlAlias': 'androidx-material3-window-size'},
     {'id': 'litert',
      'name': 'Google LiteRT',
      'group': 'com.google.ai.edge.litert',
@@ -1810,7 +1817,7 @@ COMPONENTS_DATA = [
         "name": "Jetpack Compose Material 3",
         "group": "androidx.compose.material3",
         "artifact": "material3",
-        "version": "1.5.0-alpha22",
+        "version": "1.5.0-alpha28",
         "licenseId": "Apache-2.0",
         "url": "https://developer.android.com/jetpack/androidx/releases/compose-material3",
         "description": "Material Design 3 components for Jetpack Compose",

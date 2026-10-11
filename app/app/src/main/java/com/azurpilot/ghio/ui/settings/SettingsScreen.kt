@@ -14,34 +14,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -51,10 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.BuildConfig
@@ -62,7 +44,6 @@ import com.azurpilot.ghio.R
 import com.azurpilot.ghio.auth.AppLockManager
 import com.azurpilot.ghio.constant.ProjectLinks
 import com.azurpilot.ghio.domain.RemoteBackend
-import com.azurpilot.ghio.domain.ThemeMode
 import com.azurpilot.ghio.domain.license.LicenseRepository
 import com.azurpilot.ghio.i18n.AppLocales
 import com.azurpilot.ghio.keepalive.KeepAliveManager
@@ -85,6 +66,13 @@ import com.azurpilot.ghio.ui.components.AppNavigationRow
 import com.azurpilot.ghio.ui.components.AppSingleChoiceFlow
 import com.azurpilot.ghio.ui.components.MirrorSourcePicker
 import com.azurpilot.ghio.ui.components.ScreenSaverSettingsCard
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
+import com.azurpilot.ghio.ui.ksu.AppSlider as Slider
+import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
+import com.azurpilot.ghio.ui.ksu.AppTextField as OutlinedTextField
 import com.azurpilot.ghio.ui.navigation.AppRoute
 import com.azurpilot.ghio.update.AppUpdateManager
 import com.azurpilot.ghio.update.ReleaseUrls
@@ -105,6 +93,11 @@ import org.koin.compose.koinInject
  * Category entries of the settings hub: one row per second-level page.
  */
 enum class SettingsSection(val route: AppRoute, val titleRes: Int, val descRes: Int) {
+    Appearance(
+        AppRoute.Appearance,
+        R.string.ksu_settings_theme,
+        R.string.settings_cat_display_desc,
+    ),
     Display(AppRoute.Display, R.string.settings_cat_display, R.string.settings_cat_display_desc),
     VirtualDisplay(
         AppRoute.VirtualDisplay,
@@ -151,57 +144,65 @@ fun SettingsScreen(
     state: SettingsUiState,
     onOpenSection: (SettingsSection) -> Unit,
     modifier: Modifier = Modifier,
+    bottomInnerPadding: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     val uriHandler = LocalUriHandler.current
-    Column(modifier = modifier.fillMaxSize()) {
-        // M3 的顶栏滚动行为：内容滚起来时顶栏换成容器色并抬起
-        val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-        TopAppBar(
-            title = { Text(stringResource(R.string.nav_settings)) },
-            // AppRoot 的 Scaffold 已吃掉状态栏顶部 inset，这里不能再加一次
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            scrollBehavior = scrollBehavior,
-        )
+    val manager: AppSettingsManager = koinInject()
+    val appearance by manager.appearance.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    com.azurpilot.ghio.ui.ksu.AppPageScaffold(
+        title = stringResource(R.string.nav_settings),
+        modifier = modifier,
+    ) { padding ->
         Column(
-            modifier =
-                Modifier.weight(1f)
-                    .fillMaxWidth()
-                    .imePadding()
-                    // nestedScroll 排在 verticalScroll 左边才是滚动节点的父级
-                    .nestedScroll(scrollBehavior.nestedScrollConnection)
-                    .verticalScroll(rememberScrollState())
-                    .padding(
-                        start = AppTokens.Spacing.lg,
-                        end = AppTokens.Spacing.lg,
-                        top = AppTokens.Spacing.sm,
-                        bottom = AppTokens.Spacing.lg,
-                    ),
-            verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.lg),
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
         ) {
-            AppCard {
-                SettingsSection.entries.forEachIndexed { index, section ->
-                    if (index > 0) HorizontalDivider()
+            com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp)
+            ) {
+                item {
+                    com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
+                        title = stringResource(R.string.ksu_settings_ui_mode),
+                        items = listOf("Miuix", "Material"),
+                        selectedIndex = if (appearance.uiMode == "miuix") 0 else 1,
+                        onSelectedIndexChange = { index ->
+                            scope.launch {
+                                manager.setAppearance {
+                                    it.copy(uiMode = if (index == 0) "miuix" else "material")
+                                }
+                            }
+                        },
+                    )
+                }
+                SettingsSection.entries.forEach { section ->
+                    item {
+                        AppNavigationRow(
+                            label = stringResource(section.titleRes),
+                            description = stringResource(section.descRes),
+                            onClick = { onOpenSection(section) },
+                        )
+                    }
+                }
+            }
+            com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp)
+            ) {
+                item {
                     AppNavigationRow(
-                        label = stringResource(section.titleRes),
-                        description = stringResource(section.descRes),
-                        onClick = { onOpenSection(section) },
+                        label = stringResource(R.string.settings_feedback_bug),
+                        description = stringResource(R.string.settings_feedback_bug_desc),
+                        onClick = { uriHandler.openUri(ProjectLinks.ISSUES) },
+                    )
+                }
+                item {
+                    AppNavigationRow(
+                        label = stringResource(R.string.settings_feedback_group),
+                        description = stringResource(R.string.settings_feedback_group_desc),
+                        onClick = { uriHandler.openUri(ProjectLinks.QQ_FEEDBACK_GROUP) },
                     )
                 }
             }
-            // 分类入口之外的直达行：反馈走浏览器离开 App，不该混进二级页导航里
-            AppCard {
-                AppNavigationRow(
-                    label = stringResource(R.string.settings_feedback_bug),
-                    description = stringResource(R.string.settings_feedback_bug_desc),
-                    onClick = { uriHandler.openUri(ProjectLinks.ISSUES) },
-                )
-                HorizontalDivider()
-                AppNavigationRow(
-                    label = stringResource(R.string.settings_feedback_group),
-                    description = stringResource(R.string.settings_feedback_group_desc),
-                    onClick = { uriHandler.openUri(ProjectLinks.QQ_FEEDBACK_GROUP) },
-                )
-            }
+            androidx.compose.foundation.layout.Spacer(Modifier.height(bottomInnerPadding))
         }
     }
 }
@@ -224,35 +225,19 @@ internal fun SettingsSubPage(
     scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-    Scaffold(
-        modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
-        contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                scrollBehavior = scrollBehavior,
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.ap_back),
-                        )
-                    }
-                },
-            )
-        },
+    com.azurpilot.ghio.ui.ksu.AppPageScaffold(
+        title = title,
+        onBack = onBack,
+        modifier = modifier,
     ) { padding ->
         val body = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()
         Column(
             modifier =
                 (if (scrollable) body.verticalScroll(rememberScrollState()) else body).padding(
-                    start = AppTokens.Spacing.lg,
-                    end = AppTokens.Spacing.lg,
-                    top = AppTokens.Spacing.sm,
-                    bottom = AppTokens.Spacing.lg,
+                    horizontal = 16.dp,
+                    vertical = 8.dp,
                 ),
-            verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(13.dp),
             content = content,
         )
     }
@@ -285,6 +270,7 @@ internal fun SettingsSubPage(
  */
 @Composable
 fun DisplaySettingsPage(
+    onOpenAppearance: () -> Unit,
     state: SettingsUiState,
     onIntent: (SettingsIntent) -> Unit,
     onBack: () -> Unit,
@@ -295,19 +281,13 @@ fun DisplaySettingsPage(
         onBack = onBack,
         modifier = modifier,
     ) {
-        AppCard {
-            AppFieldLabel(stringResource(R.string.settings_theme))
-            val modes =
-                listOf(
-                    ThemeMode.System to stringResource(R.string.settings_follow_system),
-                    ThemeMode.Light to stringResource(R.string.settings_theme_light),
-                    ThemeMode.Dark to stringResource(R.string.settings_theme_dark),
+        com.azurpilot.ghio.ui.ksu.AppSettingsGroup {
+            item {
+                AppNavigationRow(
+                    label = stringResource(R.string.ksu_settings_theme),
+                    onClick = onOpenAppearance,
                 )
-            AppSingleChoiceFlow(
-                options = modes,
-                selected = state.themeMode,
-                onSelect = { onIntent(SettingsIntent.SetThemeMode(it)) },
-            )
+            }
         }
         AppCard {
             AppFieldLabel(stringResource(R.string.settings_language))
@@ -903,58 +883,53 @@ fun AboutSettingsPage(
     licenseRepository: LicenseRepository = koinInject(),
 ) {
     val uriHandler = LocalUriHandler.current
-    SettingsSubPage(
-        titleRes = R.string.settings_cat_about,
-        onBack = onBack,
-        modifier = modifier,
-    ) {
-        AppCard {
-            Text(
-                text = stringResource(R.string.settings_about_description),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            AppInfoRow(stringResource(R.string.settings_version), BuildConfig.VERSION_NAME)
-            AppInfoRow(stringResource(R.string.settings_build), BuildConfig.VERSION_CODE.toString())
-        }
-        AppCard {
-            AppNavigationRow(
-                label = stringResource(R.string.settings_about_license),
-                description = "AGPL-3.0",
-                onClick = { onOpenLicenseDetail("alas-aos") },
-            )
-            AppNavigationRow(
-                label = stringResource(R.string.settings_about_repository),
-                description = "github.com/wess09/AzurPilot-for-Android",
-                onClick = { uriHandler.openUri("https://github.com/wess09/AzurPilot-for-Android") },
-            )
-            AppNavigationRow(
-                label = stringResource(R.string.settings_about_source_project),
-                description = "github.com/Shinarin/ALAS-AOS",
-                onClick = { uriHandler.openUri("https://github.com/Shinarin/ALAS-AOS") },
-            )
-        }
-        AppCard {
-            // 开源组件入口行自带标题与计数，不再叠一层区块标题（曾与首行几乎同文重复）
-            val allComponents = remember { licenseRepository.getAllComponents() }
-            val coreComponents = remember { licenseRepository.getCoreComponents() }
-
-            // 查看完整列表入口（包含组件总数与协议原文提示）
-            AppNavigationRow(
-                label = stringResource(R.string.settings_open_source_licenses),
-                description =
-                    stringResource(R.string.settings_about_components_summary, allComponents.size),
-                onClick = onOpenLicenses,
-            )
-
-            // 核心组件快捷入口：点击直接进入该组件的协议原文
-            coreComponents.take(4).forEach { comp ->
-                AppNavigationRow(
-                    label = comp.name,
-                    description = comp.licenseId,
-                    onClick = { onOpenLicenseDetail(comp.id) },
-                )
-            }
-        }
+    val components = remember { licenseRepository.getAllComponents() }
+    val links =
+        listOf(
+            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                stringResource(R.string.settings_about_license),
+                "license:alas-aos",
+            ),
+            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                stringResource(R.string.settings_about_repository),
+                "https://github.com/wess09/AzurPilot-for-Android",
+            ),
+            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                stringResource(R.string.settings_about_source_project),
+                "https://github.com/Shinarin/ALAS-AOS",
+            ),
+            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                stringResource(R.string.settings_open_source_licenses) + " (${components.size})",
+                "licenses:",
+            ),
+            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                "KernelSU",
+                "https://github.com/tiann/KernelSU",
+            ),
+        )
+    val state =
+        com.azurpilot.ghio.ui.ksu.screen.about.AboutUiState(
+            title = stringResource(R.string.settings_cat_about),
+            appName = stringResource(R.string.app_name),
+            versionName = BuildConfig.VERSION_NAME + " (${BuildConfig.VERSION_CODE})",
+            links = links,
+        )
+    val actions =
+        com.azurpilot.ghio.ui.ksu.screen.about.AboutScreenActions(
+            onBack = onBack,
+            onOpenLink = { url ->
+                when {
+                    url == "licenses:" -> onOpenLicenses()
+                    url.startsWith("license:") -> onOpenLicenseDetail(url.removePrefix("license:"))
+                    else -> uriHandler.openUri(url)
+                }
+            },
+        )
+    when (com.azurpilot.ghio.theme.ksu.LocalUiMode.current) {
+        com.azurpilot.ghio.theme.ksu.UiMode.Miuix ->
+            com.azurpilot.ghio.ui.ksu.screen.about.AboutScreenMiuix(state, actions)
+        com.azurpilot.ghio.theme.ksu.UiMode.Material ->
+            com.azurpilot.ghio.ui.ksu.screen.about.AboutScreenMaterial(state, actions)
     }
 }
 
@@ -1386,7 +1361,7 @@ fun RuntimeSettingsPage(
                 OutlinedTextField(
                     value = customDraft,
                     onValueChange = { customDraft = it },
-                    label = { Text(stringResource(R.string.settings_mirror_custom_hint)) },
+                    labelText = stringResource(R.string.settings_mirror_custom_hint),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
