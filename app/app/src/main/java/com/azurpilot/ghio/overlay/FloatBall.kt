@@ -1,11 +1,6 @@
 package com.azurpilot.ghio.overlay
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -36,20 +31,19 @@ import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
  * 常驻悬浮球：环境活着期间的唯一入口
  *
  * 呈现在 WindowManager 悬浮窗（SYSTEM_ALERT_WINDOW）内的 Compose 内容，盖在其他应用 画面上；[running] 区分运行中（播放图标 +
- * 呼吸动画）与空闲（对勾 + 静止），点击回调 由 [OverlayController] 接管用于展开控制面板
+ * 稳定颜色）与空闲（对勾 + 静止），点击回调由 [OverlayController] 接管用于展开控制面板
  *
- * 尺寸压到 32dp：它盖在其他应用画面上，再大就开始碍事了 环境活着时做呼吸动画——静止的小圆点在满屏画面里根本注意不到
+ * 尺寸压到 32dp：它盖在其他应用画面上，再大就开始碍事了。避免常驻呼吸动画使后台窗口持续满帧绘制。
  *
  * The resident floating ball: the sole entry point while the environment is alive.
  *
  * Compose content rendered inside a WindowManager overlay window (SYSTEM_ALERT_WINDOW) drawn over
- * other apps' screens; [running] separates the running state (play icon + breathing animation) from
+ * other apps' screens; [running] separates the running state (play icon + stable color) from
  * the idle one (check icon + still), and taps are handled by [OverlayController] to expand the
  * control panel.
  *
  * The size is squeezed down to 32dp: it sits on top of other apps' screens, so anything bigger
- * starts getting in the way. It breathes while the environment is alive — a static dot is invisible
- * against a full-screen game frame.
+ * starts getting in the way. Avoid a permanent animation that keeps rendering in the background.
  *
  * @param running 运行环境是否存活 / Whether the run environment is alive
  * @param onClick 点击回调，展开/收起控制面板 / Tap callback to expand or collapse the control panel
@@ -67,15 +61,6 @@ fun FloatBall(
     val onTarget = if (running) palette.onSuccess else MaterialTheme.colorScheme.onPrimary
     val color by animateColorAsState(target.copy(alpha = 0.85f), tween(300))
 
-    val breathing by
-        rememberInfiniteTransition()
-            .animateFloat(
-                initialValue = 1f,
-                targetValue = 0.6f,
-                animationSpec =
-                    infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Reverse),
-            )
-
     val description =
         stringResource(if (running) R.string.overlay_ball_running else R.string.overlay_ball_idle)
 
@@ -90,7 +75,9 @@ fun FloatBall(
                     onTarget.copy(alpha = 0.15f),
                     CircleShape,
                 )
-                .then(if (running) Modifier.alpha(breathing) else Modifier)
+                // 悬浮窗常驻桌面，不能靠每帧修改 alpha 来提示运行状态。
+                // 颜色变更已有 300ms 补间，稳定运行后无需持续刷新图层。
+                .then(if (running) Modifier.alpha(0.85f) else Modifier)
                 .semantics { contentDescription = description },
         shape = CircleShape,
         color = color,

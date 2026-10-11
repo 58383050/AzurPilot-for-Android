@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.constant.DefaultDisplayConfig
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotRunController
 import com.azurpilot.ghio.proot.ProotHost
@@ -103,9 +104,13 @@ private fun AzurPilotRuntimeSurface(
     val message by repository.messages.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // 和主页一样：这一页可见时才补一次环境拉起，避免在后台白转
+    // 仅在设备不存在时补拉，平级页切换不应重复探测已有的虚拟屏。
     LaunchedEffect(active, hostSnapshot.privilegedConnected) {
-        if (active && hostSnapshot.privilegedConnected) hostState.ensureEnvironmentStarted()
+        if (active && hostSnapshot.privilegedConnected &&
+            hostState.snapshot.value.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE
+        ) {
+            hostState.ensureEnvironmentStarted()
+        }
     }
 
     LaunchedEffect(message) {

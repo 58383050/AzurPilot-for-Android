@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.constant.DefaultDisplayConfig
 import com.azurpilot.ghio.domain.RemoteBackend
 import com.azurpilot.ghio.theme.ksu.LocalUiMode
 import com.azurpilot.ghio.theme.ksu.UiMode
@@ -121,9 +122,14 @@ fun HangarScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // 延续已有幂等准备流程，切回主页不会再次创建显示设备。
+    // 仅在虚拟屏确实不存在时补拉环境。返回主页不能再次主动探测桥接，
+    // 否则探测的短暂失败会把已就绪的页面闪成「正在准备设备」。
     LaunchedEffect(active, host.privilegedConnected) {
-        if (active && host.privilegedConnected) hostState.ensureEnvironmentStarted()
+        if (active && host.privilegedConnected &&
+            hostState.snapshot.value.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE
+        ) {
+            hostState.ensureEnvironmentStarted()
+        }
     }
 
     val mode = homeMode(run, proot, host, access, shizuku.stage)
@@ -226,7 +232,9 @@ private fun homeMode(
 ): HomeMode = when {
     run.busy -> when {
         run.runnerAlive -> HomeMode.STOPPING
-        !host.environmentUp -> HomeMode.PREPARING_DEVICE
+        host.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE -> HomeMode.PREPARING_DEVICE
+        // 设备已创建但桥暂时不可达是连接问题，不应误报为重新准备设备。
+        !host.bridgeReachable -> HomeMode.CONNECTING
         else -> HomeMode.STARTING
     }
 
@@ -253,7 +261,8 @@ private fun homeMode(
     !access.isGranted(access.configuredBackend) -> HomeMode.NEEDS_AUTH
     !host.privilegedConnected -> HomeMode.NEEDS_CONNECTION
     host.environmentIssue != null -> HomeMode.NEEDS_ACTION
-    !host.environmentUp -> HomeMode.PREPARING_DEVICE
+    host.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE -> HomeMode.PREPARING_DEVICE
+    !host.bridgeReachable -> HomeMode.CONNECTING
 
     run.reachable && run.statusKnown && run.toolAlive -> HomeMode.TOOL_ACTIVE
     run.reachable && run.statusKnown -> HomeMode.READY
