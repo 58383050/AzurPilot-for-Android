@@ -14,6 +14,19 @@ import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
 import top.yukonga.miuix.kmp.nav.core.NavEntryBuilder
 import top.yukonga.miuix.kmp.nav.core.rememberNavSystemCornerRadius
 import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
+import top.yukonga.miuix.kmp.nav.transition.NavTransition
+import top.yukonga.miuix.kmp.nav.transition.NavTransitions
+
+/**
+ * 仅限制预测式返回的预览幅度；完整 push/pop 仍由 Miuix 默认转场处理。
+ *
+ * Limits predictive-back preview to a short peek. The original transition still owns the full
+ * programmatic/committed settle and cancellation spring.
+ */
+private val ShallowPredictiveBackTransition: NavTransition =
+    object : NavTransition by NavTransitions.MiuixDefault {
+        override val predictiveBackPreviewFraction: Float = 0.13f
+    }
 
 /**
  * 在主线程组合统一导航，使用 KernelSU 的 Miuix 默认转场与设备圆角。
@@ -44,6 +57,7 @@ fun AppNavigation(
         backStack = navigator.backStack,
         modifier = modifier,
         onBack = navigator::pop,
+        transition = ShallowPredictiveBackTransition,
         effects = NavDisplayEffects(cornerClipRadius = rememberNavSystemCornerRadius()),
     ) {
         content(swipeDirection)

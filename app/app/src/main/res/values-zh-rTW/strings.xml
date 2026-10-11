@@ -379,6 +379,10 @@
     <string name="ap_instances_source_copy">複製 %1$s</string>
     <string name="ap_instances_export">匯出為 JSON</string>
     <string name="ap_instances_import">匯入設定</string>
+    <string name="ap_import_default_hint">設定只會覆蓋預設實例 ap，匯入前會備份。</string>
+    <string name="ap_import_overwrite_warning">將覆蓋預設實例中的可編輯參數。請先停止排程器，Android 裝置連線設定會保留。</string>
+    <string name="ap_import_completed">已將設定匯入預設實例</string>
+    <string name="ap_import_backup_failed">無法備份目前設定，已取消匯入</string>
     <string name="ap_instances_import_warning">將把「%1$s」匯入為新實例。Android 版使用特殊設定，電腦版設定直接匯入可能無法使用，確定要繼續嗎？</string>
     <string name="ap_instances_import_confirm">仍要匯入</string>
     <string name="ap_instances_import_read_failed">設定檔讀取失敗，請重試</string>
@@ -438,6 +442,8 @@
     <string name="ap_logs_order_desc">改為正序</string>
     <string name="ap_logs_clear">清空檢視</string>
     <string name="ap_logs_export">匯出日誌</string>
+    <string name="ap_logs_no_matches">沒有符合篩選條件的日誌</string>
+    <string name="ap_logs_no_matches_hint">請調整關鍵字或日誌級別</string>
     <string name="ap_logs_empty">還沒有日誌</string>
     <string name="ap_logs_empty_hint">執行任務後這裡會即時更新</string>
     <string name="ap_stats_cat_resources">資源</string>

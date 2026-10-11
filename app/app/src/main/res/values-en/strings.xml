@@ -386,6 +386,10 @@
     <string name="ap_instances_source_copy">Copy %1$s</string>
     <string name="ap_instances_export">Export as JSON</string>
     <string name="ap_instances_import">Import config</string>
+    <string name="ap_import_default_hint">Settings are imported into the default ap instance. A backup is saved first.</string>
+    <string name="ap_import_overwrite_warning">Editable settings will overwrite the default instance. Stop the scheduler first. Android device connection settings are preserved.</string>
+    <string name="ap_import_completed">Settings imported into the default instance</string>
+    <string name="ap_import_backup_failed">Could not back up the current configuration. Import cancelled.</string>
     <string name="ap_instances_import_warning">“%1$s” will be imported as a new instance. The Android version uses a special config — a PC config may not work after import. Continue?</string>
     <string name="ap_instances_import_confirm">Import anyway</string>
     <string name="ap_instances_import_read_failed">Couldn\'t read the config file, please try again</string>
@@ -445,6 +449,8 @@
     <string name="ap_logs_order_desc">Show oldest first</string>
     <string name="ap_logs_clear">Clear view</string>
     <string name="ap_logs_export">Export logs</string>
+    <string name="ap_logs_no_matches">No matching logs</string>
+    <string name="ap_logs_no_matches_hint">Try a different keyword or log level</string>
     <string name="ap_logs_empty">No logs yet</string>
     <string name="ap_logs_empty_hint">Logs stream in here once a task runs</string>
     <string name="ap_stats_cat_resources">Resources</string>

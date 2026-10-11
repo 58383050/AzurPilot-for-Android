@@ -136,6 +136,7 @@ class AzurPilotApp : Application() {
         val hostState = koin.get<HostState>()
         hostState.start()
         val runController = koin.get<AzurPilotRunController>()
+        runController.selectConfig(com.azurpilot.ghio.proot.AzurPilotRunState.DEFAULT_CONFIG)
         runController.start()
         koin.get<com.azurpilot.ghio.provision.RuntimeAutoUpdater>().start()
         // 富接口：与 /android/… 薄接口并存。实例选择归 repository 自己管，

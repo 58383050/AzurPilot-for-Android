@@ -1,6 +1,7 @@
 package com.azurpilot.ghio.ui.azurpilot
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -77,7 +79,7 @@ fun AzurPilotPage(
     modifier: Modifier = Modifier,
 ) {
     AzurPilotRuntimeSurface(active = active, modifier = modifier) { repository ->
-        AzurPilotContent(repository, onNavigate)
+        AzurPilotContent(repository, onNavigate, active)
     }
 }
 
@@ -229,79 +231,111 @@ fun ApDetailPage(
 private fun AzurPilotContent(
     repository: AzurPilotRepository,
     onNavigate: (AppRoute) -> Unit,
+    active: Boolean,
 ) {
-    val instances by repository.instances.collectAsStateWithLifecycle()
-    val selected by repository.selectedInstance.collectAsStateWithLifecycle()
-    var currentSection by rememberSaveable { mutableStateOf(AzurPilotSection.Overview) }
+    var section by rememberSaveable { mutableStateOf(AzurPilotSection.Overview) }
     val saveableStateHolder = rememberSaveableStateHolder()
-    val pagerState =
-        androidx.compose.foundation.pager.rememberPagerState(
-            initialPage = currentSection.ordinal,
-            pageCount = { AzurPilotSection.entries.size },
-        )
-    val mainPagerState = com.azurpilot.ghio.ui.ksu.rememberMainPagerState(pagerState)
-    LaunchedEffect(pagerState.settledPage) {
-        currentSection = AzurPilotSection.entries[pagerState.settledPage]
+    val goHome = { section = AzurPilotSection.Overview }
+    androidx.activity.compose.BackHandler(enabled = active && section != AzurPilotSection.Overview) {
+        goHome()
     }
-    LaunchedEffect(pagerState.currentPage) { mainPagerState.syncPage() }
-
-    com.azurpilot.ghio.ui.ksu.AppPageScaffold(title = stringResource(currentSection.labelRes)) {
-        padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
-            com.azurpilot.ghio.ui.ksu.AppTabRow(
-                selectedTabIndex = mainPagerState.selectedPage,
-                tabs = AzurPilotSection.entries.map { stringResource(it.labelRes) },
-                onTabClick = mainPagerState::animateToPage,
-            )
-            InstanceChipRow(
-                instances = instances.map { it.name },
-                selected = selected,
-                onSelect = repository::selectInstance,
-                onManage = { onNavigate(AppRoute.Instances) },
-            )
-            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                androidx.compose.foundation.pager.HorizontalPager(
-                    state = pagerState,
-                    modifier =
-                        Modifier.fillMaxSize()
-                            .pagerGestureOverride(
-                                pagerState,
-                                mode =
-                                    top.yukonga.miuix.kmp.utils.PagerInterceptionMode
-                                        .CrossAxisInterceptor,
-                            ),
-                    userScrollEnabled = false,
-                    overscrollEffect = null,
-                    pageNestedScrollConnection =
-                        top.yukonga.miuix.kmp.utils.PagerGestureNestedScrollConnection,
-                    flingBehavior =
-                        androidx.compose.foundation.pager.PagerDefaults.flingBehavior(
-                            pagerState,
-                            snapAnimationSpec =
-                                top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec,
+    // 两个目的地在动画期间同时保留：整页包含标题栏一起移动，
+    // 而不是只对内容做渐变（此前的 section 切换没有任何动画）。
+    androidx.compose.animation.AnimatedContent(
+        targetState = section,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            val forward = targetState != AzurPilotSection.Overview
+            val entering =
+                if (forward) {
+                    androidx.compose.animation.slideInHorizontally(
+                        initialOffsetX = { it / 3 },
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 330,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing,
                         ),
-                ) { page ->
-                    val section = AzurPilotSection.entries[page]
-                    saveableStateHolder.SaveableStateProvider(key = section.name) {
-                        when (section) {
-                            AzurPilotSection.Overview -> OverviewSection(repository)
-                            AzurPilotSection.Config ->
-                                ConfigSection(
-                                    repository = repository,
-                                    onOpenTask = { task -> onNavigate(AppRoute.Task(task)) },
-                                )
-                            AzurPilotSection.Logs -> LogsSection(repository)
-                            AzurPilotSection.Statistics -> StatisticsSection(repository)
-                            AzurPilotSection.Settings ->
-                                SettingsSection(
-                                    repository = repository,
-                                    onOpenInstances = { onNavigate(AppRoute.Instances) },
-                                    onOpenAnnouncement = { onNavigate(AppRoute.Announcement) },
-                                    onOpenMeowfficer = { onNavigate(AppRoute.Meowfficer) },
-                                    onOpenUpdater = { onNavigate(AppRoute.Updater) },
-                                    onOpenDeploy = { onNavigate(AppRoute.Deploy) },
-                                )
-                        }
+                    )
+                } else {
+                    androidx.compose.animation.slideInHorizontally(
+                        initialOffsetX = { -it / 5 },
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 330,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                        ),
+                    )
+                }
+            val exiting =
+                if (forward) {
+                    androidx.compose.animation.slideOutHorizontally(
+                        targetOffsetX = { -it / 5 },
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 330,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                        ),
+                    )
+                } else {
+                    androidx.compose.animation.slideOutHorizontally(
+                        targetOffsetX = { it / 3 },
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 330,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                        ),
+                    )
+                }
+            (entering + androidx.compose.animation.fadeIn(
+                animationSpec = androidx.compose.animation.core.tween(230),
+            )) togetherWith (exiting + androidx.compose.animation.fadeOut(
+                animationSpec = androidx.compose.animation.core.tween(200),
+            ))
+        },
+        label = "AzurPilotPageNavigation",
+    ) { destination ->
+        com.azurpilot.ghio.ui.ksu.AppPageScaffold(
+            title = if (destination == AzurPilotSection.Overview) {
+                stringResource(R.string.app_name)
+            } else {
+                stringResource(destination.labelRes)
+            },
+            onBack = if (destination != AzurPilotSection.Overview) goHome else null,
+            actions = {
+                if (destination == AzurPilotSection.Overview) {
+                    IconButton(onClick = { section = AzurPilotSection.Settings }) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.ap_section_settings),
+                        )
+                    }
+                }
+            },
+        ) { padding ->
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
+            ) {
+                saveableStateHolder.SaveableStateProvider(destination.name) {
+                    when (destination) {
+                        AzurPilotSection.Overview ->
+                            OverviewSection(
+                                repository = repository,
+                                onOpenConfig = { section = AzurPilotSection.Config },
+                                onOpenLogs = { section = AzurPilotSection.Logs },
+                                onOpenStats = { section = AzurPilotSection.Statistics },
+                            )
+                        AzurPilotSection.Config ->
+                            ConfigSection(
+                                repository = repository,
+                                onOpenTask = { task -> onNavigate(AppRoute.Task(task)) },
+                            )
+                        AzurPilotSection.Logs -> LogsSection(repository)
+                        AzurPilotSection.Statistics -> StatisticsSection(repository)
+                        AzurPilotSection.Settings ->
+                            SettingsSection(
+                                repository = repository,
+                                onOpenInstances = { onNavigate(AppRoute.Instances) },
+                                onOpenAnnouncement = { onNavigate(AppRoute.Announcement) },
+                                onOpenMeowfficer = { onNavigate(AppRoute.Meowfficer) },
+                                onOpenUpdater = { onNavigate(AppRoute.Updater) },
+                                onOpenDeploy = { onNavigate(AppRoute.Deploy) },
+                            )
                     }
                 }
             }
@@ -321,7 +355,7 @@ fun AzurPilotDetailPage(route: AppRoute.Console, onBack: () -> Unit) {
         val titleRes =
             when (route) {
                 is AppRoute.Task -> R.string.ap_title_task_config
-                AppRoute.Instances -> R.string.ap_title_instances
+                AppRoute.Instances -> R.string.ap_instances_import
                 AppRoute.Announcement -> R.string.ap_title_announcement
                 AppRoute.Meowfficer -> R.string.ap_title_meowfficer
                 AppRoute.Updater -> R.string.ap_title_updater
@@ -353,65 +387,5 @@ fun AzurPilotDetailPage(route: AppRoute.Console, onBack: () -> Unit) {
                 AppRoute.Deploy -> DeploySettingsPage(repository)
             }
         }
-    }
-}
-
-/**
- * 实例选择条
- *
- * 常显而不是藏进顶栏菜单：实例是这一页的**上下文**，所有分区的内容都随它变。 藏起来会出现「看了半天才发现看的是另一个实例」。
- *
- * The instance selection chip row.
- *
- * Always visible rather than tucked into a top-bar menu: the instance is the page's **context** —
- * every section's content changes with it. Hiding it leads to "reading a whole screen before
- * noticing it was another instance".
- *
- * @param instances 实例名列表 / the instance names
- * @param selected 当前选中的实例名；无实例时为 null / the selected instance name; null when no instance exists
- * @param onSelect 选中某实例 / invoked when an instance is selected
- * @param onManage 打开实例管理页 / invoked to open the instance-management page
- */
-@Composable
-private fun InstanceChipRow(
-    instances: List<String>,
-    selected: String?,
-    onSelect: (String) -> Unit,
-    onManage: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier.fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = AppTokens.Spacing.lg, vertical = AppTokens.Spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (instances.isEmpty()) {
-            Text(
-                text = stringResource(R.string.ap_instance_none),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        instances.forEach { name ->
-            FilterChip(
-                selected = name == selected,
-                onClick = { onSelect(name) },
-                label = { Text(name) },
-            )
-        }
-        FilterChip(
-            selected = false,
-            onClick = onManage,
-            label = { Text(stringResource(R.string.ap_instance_manage)) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(AppTokens.IconSize.sm),
-                )
-            },
-        )
     }
 }

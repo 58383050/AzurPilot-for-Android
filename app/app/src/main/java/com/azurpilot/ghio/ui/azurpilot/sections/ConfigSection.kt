@@ -49,12 +49,15 @@ import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotStartup
 import com.azurpilot.ghio.proot.toValueMap
 import com.azurpilot.ghio.theme.AppTokens
+import com.azurpilot.ghio.theme.ksu.LocalUiMode
+import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.azurpilot.ApEmptyState
 import com.azurpilot.ghio.ui.azurpilot.ApErrorState
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApTopBarAction
 import com.azurpilot.ghio.ui.azurpilot.apContentWidth
 import com.azurpilot.ghio.ui.components.AppCard
+import com.azurpilot.ghio.ui.components.AppCardSurface
 import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.components.AppNavigationRow
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
@@ -148,26 +151,23 @@ fun ConfigSection(repository: AzurPilotRepository, onOpenTask: (String) -> Unit)
 
             else -> {
                 val data = schema!!
-                data.menu.forEachIndexed { index, group ->
-                    AppCard(
+                data.menu.forEach { group ->
+                    com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
                         title = data.menuTitle(group.key),
-                        collapsible = true,
-                        modifier = Modifier,
                     ) {
-                        group.tasks.forEachIndexed { taskIndex, task ->
-                            if (taskIndex > 0) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        group.tasks.forEach { task ->
+                            item {
+                                AppNavigationRow(
+                                    label = data.taskTitle(task),
+                                    description =
+                                        if (group.isTool) {
+                                            stringResource(R.string.ap_config_tool_hint)
+                                        } else {
+                                            task
+                                        },
+                                    onClick = { onOpenTask(task) },
+                                )
                             }
-                            AppNavigationRow(
-                                label = data.taskTitle(task),
-                                description =
-                                    if (group.isTool) {
-                                        stringResource(R.string.ap_config_tool_hint)
-                                    } else {
-                                        task
-                                    },
-                                onClick = { onOpenTask(task) },
-                            )
                         }
                     }
                 }
@@ -402,13 +402,12 @@ fun TaskConfigPage(
         }
 
         itemsIndexed(groups, key = { _, item -> item.first }) { _, (group, fields) ->
-            AppCard(title = data.groupTitle(group), collapsible = true) {
-                fields.entries.forEachIndexed { index, (argument, field) ->
-                    if (index > 0) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
+            com.azurpilot.ghio.ui.ksu.AppSettingsGroup(title = data.groupTitle(group)) {
+                fields.entries.forEach { (argument, field) ->
                     val path = "$task.$group.$argument"
-                    ApFieldRow(
+                    item {
+                        val renderField: @Composable () -> Unit = {
+                            ApFieldRow(
                         schema = data,
                         group = group,
                         argument = argument,
@@ -439,7 +438,10 @@ fun TaskConfigPage(
                             } else {
                                 null
                             },
-                    )
+                            )
+                        }
+                        renderField()
+                    }
                 }
             }
         }
@@ -599,38 +601,27 @@ private fun GroupDirectoryMenu(titles: List<String>, onJump: (Int) -> Unit) {
 @Composable
 private fun StartupCard(repository: AzurPilotRepository, startup: AzurPilotStartup?) {
     val ready = startup != null
-    AppCard(title = stringResource(R.string.ap_startup_title)) {
-        AppLabeledControlRow(
-            label = stringResource(R.string.ap_startup_autorun),
-            trailing = {
-                Switch(
-                    checked = startup?.enabled == true,
-                    enabled = ready,
-                    onCheckedChange = { repository.setStartup(enabled = it) },
-                )
-            },
-        )
-        Text(
-            text = stringResource(R.string.ap_startup_autorun_help),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        AppLabeledControlRow(
-            label = stringResource(R.string.ap_startup_remember),
-            trailing = {
-                Switch(
-                    checked = startup?.remember == true,
-                    enabled = ready,
-                    onCheckedChange = { repository.setStartup(remember = it) },
-                )
-            },
-        )
-        Text(
-            text = stringResource(R.string.ap_startup_remember_help),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
+        title = stringResource(R.string.ap_startup_title),
+    ) {
+        item {
+            com.azurpilot.ghio.ui.components.AppSwitchPreference(
+                title = stringResource(R.string.ap_startup_autorun),
+                summary = stringResource(R.string.ap_startup_autorun_help),
+                checked = startup?.enabled == true,
+                enabled = ready,
+                onCheckedChange = { repository.setStartup(enabled = it) },
+            )
+        }
+        item {
+            com.azurpilot.ghio.ui.components.AppSwitchPreference(
+                title = stringResource(R.string.ap_startup_remember),
+                summary = stringResource(R.string.ap_startup_remember_help),
+                checked = startup?.remember == true,
+                enabled = ready,
+                onCheckedChange = { repository.setStartup(remember = it) },
+            )
+        }
     }
 }
 

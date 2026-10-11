@@ -1,41 +1,25 @@
 package com.azurpilot.ghio.ui.azurpilot.sections.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
 import com.azurpilot.ghio.proot.AzurPilotRepository
-import com.azurpilot.ghio.ui.azurpilot.ApKeyValueRow
-import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
-import com.azurpilot.ghio.ui.azurpilot.instanceStatusText
-import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppNavigationRow
-import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
-import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppSettingsGroup
 
 /**
- * 设置：实例、公告、指挥喵、运行时更新、部署设置
+ * 和 Android 设置中心采用相同的原生列表容器与行控件。
  *
- * 这里是「全局性」的东西；任务参数在配置分区里。分隔的依据是**作用域**： 改了只影响一个实例的归配置，影响整个运行环境的归这里。
- *
- * The Settings section: instances, announcement, Meowfficer, runtime updater, and deploy settings.
- *
- * This page holds the "global" things; task arguments live in the Config section. The split
- * criterion is **scope**: changes that affect a single instance belong to Config, changes that
- * affect the whole runtime environment belong here.
- *
- * @param repository 网关仓库 / the gateway repository
- * @param onOpenInstances 打开实例管理页 / opens the instance-management page
- * @param onOpenAnnouncement 打开公告页 / opens the announcement page
- * @param onOpenMeowfficer 打开指挥喵页 / opens the Meowfficer page
- * @param onOpenUpdater 打开运行时更新页 / opens the runtime-updater page
- * @param onOpenDeploy 打开部署设置页 / opens the deploy-settings page
+ * Uses the same native settings groups and navigation rows as the Android settings screen.
  */
 @Composable
 fun SettingsSection(
@@ -46,96 +30,58 @@ fun SettingsSection(
     onOpenUpdater: () -> Unit,
     onOpenDeploy: () -> Unit,
 ) {
-    val instances by repository.instances.collectAsStateWithLifecycle()
-    val selected by repository.selectedInstance.collectAsStateWithLifecycle()
     val updater by repository.updater.collectAsStateWithLifecycle()
     val announcement by repository.announcement.collectAsStateWithLifecycle()
     val deploy by repository.deploySettings.collectAsStateWithLifecycle()
 
-    ApSectionColumn {
-        AppCard(
-            title = stringResource(R.string.ap_title_instances),
-            modifier = Modifier,
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        AppSettingsGroup(
+            title = stringResource(R.string.ap_section_config),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            AppNavigationRow(
-                label = stringResource(R.string.ap_settings_instances_manage),
-                description = stringResource(R.string.ap_settings_instances_count, instances.size),
-                onClick = onOpenInstances,
-            )
-            selected?.let { name ->
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                ApKeyValueRow(
-                    label = stringResource(R.string.ap_settings_current_instance),
-                    value =
-                        instances
-                            .firstOrNull { it.name == name }
-                            ?.let { "$name · ${instanceStatusText(it.status)}" } ?: name,
+            item {
+                AppNavigationRow(
+                    label = stringResource(R.string.ap_instances_import),
+                    description = stringResource(R.string.ap_import_default_hint),
+                    onClick = onOpenInstances,
+                )
+            }
+            item {
+                AppNavigationRow(
+                    label = stringResource(R.string.ap_title_deploy),
+                    description = deploy?.let {
+                        stringResource(R.string.ap_settings_deploy_count, it.groups.size)
+                    } ?: stringResource(R.string.ap_waiting_data),
+                    onClick = onOpenDeploy,
                 )
             }
         }
-
-        AppCard(modifier = Modifier) {
-            AppNavigationRow(
-                label = stringResource(R.string.ap_title_announcement),
-                description =
-                    announcement?.title ?: stringResource(R.string.ap_settings_announcement_empty),
-                onClick = onOpenAnnouncement,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            AppNavigationRow(
-                label = stringResource(R.string.ap_title_meowfficer),
-                description = stringResource(R.string.ap_settings_meowfficer_hint),
-                onClick = onOpenMeowfficer,
-            )
-        }
-
-        AppCard(
-            title = stringResource(R.string.ap_title_updater),
-            modifier = Modifier,
+        AppSettingsGroup(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            AppNavigationRow(
-                label =
-                    updater?.let { it.localHead?.take(10) ?: it.state }
-                        ?: stringResource(R.string.ap_waiting_data),
-                description =
-                    when {
-                        updater == null -> stringResource(R.string.ap_waiting_data)
-                        updater!!.managedByAndroid -> stringResource(R.string.ap_updater_managed)
-                        updater!!.behind > 0 ->
-                            stringResource(R.string.ap_updater_behind, updater!!.behind)
-                        else -> stringResource(R.string.ap_updater_current)
-                    },
-                onClick = onOpenUpdater,
-            )
-        }
-
-        AppCard(
-            title = stringResource(R.string.ap_title_deploy),
-            modifier = Modifier,
-        ) {
-            if (deploy == null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    Text(stringResource(R.string.ap_waiting_data))
-                }
-            } else {
+            item {
                 AppNavigationRow(
-                    label = stringResource(R.string.ap_settings_deploy_open),
-                    description =
-                        stringResource(R.string.ap_settings_deploy_count, deploy!!.groups.size),
-                    onClick = onOpenDeploy,
+                    label = stringResource(R.string.ap_title_updater),
+                    description = updater?.let {
+                        if (it.managedByAndroid) stringResource(R.string.ap_updater_managed)
+                        else if (it.behind > 0) stringResource(R.string.ap_updater_behind, it.behind)
+                        else stringResource(R.string.ap_updater_current)
+                    } ?: stringResource(R.string.ap_waiting_data),
+                    onClick = onOpenUpdater,
                 )
-                deploy!!.remote?.let { remote ->
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    ApKeyValueRow(
-                        label = stringResource(R.string.ap_settings_remote),
-                        value =
-                            if (remote.enabled) remote.state
-                            else stringResource(R.string.ap_settings_remote_off),
-                    )
-                }
+            }
+            item {
+                AppNavigationRow(
+                    label = stringResource(R.string.ap_title_announcement),
+                    description = announcement?.title,
+                    onClick = onOpenAnnouncement,
+                )
+            }
+            item {
+                AppNavigationRow(
+                    label = stringResource(R.string.ap_title_meowfficer),
+                    onClick = onOpenMeowfficer,
+                )
             }
         }
     }

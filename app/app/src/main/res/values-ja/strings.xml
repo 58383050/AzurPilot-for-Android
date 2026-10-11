@@ -379,6 +379,10 @@
     <string name="ap_instances_source_copy">%1$s を複製</string>
     <string name="ap_instances_export">JSON で書き出す</string>
     <string name="ap_instances_import">設定をインポート</string>
+    <string name="ap_import_default_hint">設定はデフォルトの ap に上書きされます。事前にバックアップします。</string>
+    <string name="ap_import_overwrite_warning">編集可能な項目をデフォルト設定に上書きします。スケジューラーを停止してください。Android の接続設定は維持されます。</string>
+    <string name="ap_import_completed">デフォルト設定にインポートしました</string>
+    <string name="ap_import_backup_failed">現在の設定をバックアップできません。インポートを中止しました。</string>
     <string name="ap_instances_import_warning">「%1$s」を新しいインスタンスとしてインポートします。Android 版は特殊な設定を使うため、PC 版の設定は動かない場合があります。続行しますか？</string>
     <string name="ap_instances_import_confirm">それでもインポート</string>
     <string name="ap_instances_import_read_failed">設定ファイルを読み込めませんでした。もう一度お試しください</string>
@@ -438,6 +442,8 @@
     <string name="ap_logs_order_desc">古い順に並べ替え</string>
     <string name="ap_logs_clear">表示をクリア</string>
     <string name="ap_logs_export">ログを書き出す</string>
+    <string name="ap_logs_no_matches">条件に一致するログがありません</string>
+    <string name="ap_logs_no_matches_hint">キーワードかログレベルを変更してください</string>
     <string name="ap_logs_empty">ログがまだありません</string>
     <string name="ap_logs_empty_hint">タスクを実行するとここに流れます</string>
     <string name="ap_stats_cat_resources">資源</string>

@@ -121,19 +121,17 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                     )
                 }
             }
-            data.groups.forEachIndexed { index, group ->
-                AppCard(
-                    title = group.label,
-                    collapsible = true,
-                    modifier = Modifier,
-                ) {
+            data.groups.forEach { group ->
+                com.azurpilot.ghio.ui.ksu.AppSettingsGroup(title = group.label) {
                     group.fields.forEach { field ->
-                        DeployFieldRow(
-                            field = field,
-                            draft = draft[field.key],
-                            enabled = !data.demo,
-                            onDraft = { draft[field.key] = it },
-                        )
+                        item(key = field.key) {
+                            DeployFieldRow(
+                                field = field,
+                                draft = draft[field.key],
+                                enabled = !data.demo,
+                                onDraft = { draft[field.key] = it },
+                            )
+                        }
                     }
                 }
             }
@@ -215,92 +213,53 @@ private fun DeployFieldRow(
     onDraft: (ApValue) -> Unit,
 ) {
     val current = draft ?: field.value
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = AppTokens.Spacing.xs),
-        verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xs),
-    ) {
-        Text(text = field.label, style = MaterialTheme.typography.bodyLarge)
-        if (field.help.isNotEmpty()) {
-            Text(
-                text = field.help,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    when {
+        field.type == "bool" ->
+            com.azurpilot.ghio.ui.components.AppSwitchPreference(
+                title = field.label,
+                summary = field.help.takeIf { it.isNotBlank() },
+                checked = current as? Boolean ?: false,
+                enabled = enabled,
+                onCheckedChange = onDraft,
+            )
+
+        field.options.isNotEmpty() -> {
+            val options =
+                if (field.options.any { it.sameValueAs(current) }) field.options
+                else listOf(current) + field.options
+            com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
+                title = field.label,
+                summary = field.help.takeIf { it.isNotBlank() },
+                items = options.map(::optionText),
+                selectedIndex = options.indexOfFirst { it.sameValueAs(current) }.coerceAtLeast(0),
+                enabled = enabled,
+                onSelectedIndexChange = { onDraft(options[it]) },
             )
         }
 
-        when {
-            field.type == "bool" ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(
-                        checked = current as? Boolean ?: false,
-                        enabled = enabled,
-                        onCheckedChange = { onDraft(it) },
-                    )
-                }
-
-            field.options.isNotEmpty() -> {
-                val options =
-                    if (field.options.any { it.sameValueAs(current) }) field.options
-                    else listOf(current) + field.options
-                com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
-                    title = "",
-                    items = options.map { optionText(it) },
-                    selectedIndex =
-                        options.indexOfFirst { it.sameValueAs(current) }.coerceAtLeast(0),
-                    enabled = enabled,
-                    onSelectedIndexChange = { onDraft(options[it]) },
-                )
-            }
-
-            field.type == "password" -> {
-                var visible by remember { mutableStateOf(false) }
-                OutlinedTextField(
-                    value = current as? String ?: "",
-                    onValueChange = { onDraft(it) },
-                    enabled = enabled,
-                    singleLine = true,
-                    visualTransformation =
-                        if (visible) {
-                            VisualTransformation.None
-                        } else {
-                            PasswordVisualTransformation()
-                        },
-                    placeholderText = stringResource(R.string.ap_deploy_password_hint),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    trailingIcon = {
-                        IconButton(onClick = { visible = !visible }) {
-                            Icon(
-                                imageVector =
-                                    if (visible) Icons.Filled.VisibilityOff
-                                    else Icons.Filled.Visibility,
-                                contentDescription = null,
-                                modifier = Modifier.size(AppTokens.IconSize.md),
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            field.type == "int" ->
-                OutlinedTextField(
-                    value = (current as? Number)?.toLong()?.toString() ?: "",
-                    onValueChange = { text -> text.toIntOrNull()?.let(onDraft) },
-                    enabled = enabled,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-            else ->
-                OutlinedTextField(
-                    value = current as? String ?: "",
-                    onValueChange = { onDraft(it) },
-                    enabled = enabled,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-        }
+        else ->
+            com.azurpilot.ghio.ui.components.AppEditablePreference(
+                title = field.label,
+                value =
+                    if (field.type == "int") (current as? Number)?.toLong()?.toString().orEmpty()
+                    else current as? String ?: "",
+                enabled = enabled,
+                password = field.type == "password",
+                keyboardType =
+                    if (field.type == "int") KeyboardType.Number else KeyboardType.Text,
+                onSave = { text ->
+                    if (field.type == "int") {
+                        val number = text.toIntOrNull()
+                        if (number != null) {
+                            onDraft(number)
+                            true
+                        } else false
+                    } else {
+                        onDraft(text)
+                        true
+                    }
+                },
+            )
     }
 }
 

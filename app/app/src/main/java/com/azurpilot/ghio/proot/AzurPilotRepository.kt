@@ -62,7 +62,7 @@ class AzurPilotRepository(
     val authRequired: StateFlow<Boolean> = _authRequired.asStateFlow()
 
     /** 当前浏览的实例名；null 表示未选（此时只订与实例无关的主题） / The instance being browsed; null means none selected (only instance-independent topics are subscribed then). */
-    private val _selectedInstance = MutableStateFlow(store.selectedInstance)
+    private val _selectedInstance = MutableStateFlow(AzurPilotRunState.DEFAULT_CONFIG)
     val selectedInstance: StateFlow<String?> = _selectedInstance.asStateFlow()
 
     private val _schema = MutableStateFlow<AzurPilotSchema?>(null)
@@ -262,6 +262,8 @@ class AzurPilotRepository(
      * and realigns the subscription. IO 调度器上执行 / Runs on the IO dispatcher.
      */
     fun selectInstance(name: String?) {
+        // Android 只呈现默认实例；保留后台兼容接口但不再允许切换到其他实例。
+        if (name != AzurPilotRunState.DEFAULT_CONFIG) return
         if (_selectedInstance.value == name) return
         _selectedInstance.value = name
         store.selectedInstance = name
@@ -321,11 +323,6 @@ class AzurPilotRepository(
             "instances" -> {
                 val list = event.optJSONArray("data")
                 _instances.value = parseInstances(list)
-                // 当前实例被删了：跟着切到列表里的第一个，避免停在一个不存在的名字上
-                val selected = _selectedInstance.value
-                if (selected != null && list != null && _instances.value.none { it.name == selected }) {
-                    selectInstance(_instances.value.firstOrNull()?.name)
-                }
             }
 
             "overview" -> applyOverview(event.optJSONObject("data"))
@@ -666,6 +663,72 @@ class AzurPilotRepository(
      * For export: fetches one instance's full config (everything beyond the
      * revision). IO 调度器上执行 / Runs on the IO dispatcher.
      */
+    /**
+     * 将导入文件的可编辑参数覆盖到 Android 默认实例，不创建新实例。
+     * Preserves Android device-specific Emulator settings to keep local control operational.
+     */
+    fun overwriteDefaultConfig(content: String, onComplete: (Boolean, String?) -> Unit) {
+        scope.launch(AppDispatchers.IO) {
+            val schema = _schema.value
+            if (schema == null) {
+                onComplete(false, "Schema is not ready")
+                return@launch
+            }
+            if (_overview.value?.status == AzurPilotStatus.Running || _schedulerBusy.value) {
+                onComplete(false, "Stop the scheduler before importing")
+                return@launch
+            }
+            val root = runCatching { JSONObject(content) }.getOrNull()
+            if (root == null) {
+                onComplete(false, "Invalid JSON file")
+                return@launch
+            }
+            val values = root.optJSONObject("values") ?: root
+            val changes = JSONArray()
+            val tasks = values.keys()
+            while (tasks.hasNext()) {
+                val task = tasks.next()
+                val groups = values.optJSONObject(task) ?: continue
+                val groupKeys = groups.keys()
+                while (groupKeys.hasNext()) {
+                    val group = groupKeys.next()
+                    if (task == "Alas" && group == "Emulator") continue
+                    val fields = groups.optJSONObject(group) ?: continue
+                    val fieldKeys = fields.keys()
+                    while (fieldKeys.hasNext()) {
+                        val argument = fieldKeys.next()
+                        val field = schema.field(task, group, argument) ?: continue
+                        if (field.readOnly || field.hidden) continue
+                        changes.put(
+                            JSONObject()
+                                .put("path", "$task.$group.$argument")
+                                .put("value", fields.opt(argument)),
+                        )
+                    }
+                }
+            }
+            if (changes.length() == 0) {
+                onComplete(false, "No compatible settings found")
+                return@launch
+            }
+            configEditor.settle()
+            val instance = AzurPilotRunState.DEFAULT_CONFIG
+            when (
+                val reply = gateway.call(
+                    "config.patch",
+                    JSONObject().put("instance", instance).put("changes", changes),
+                )
+            ) {
+                is AzurPilotGateway.Reply.Ok -> {
+                    configEditor.load(instance, force = true)
+                    onComplete(true, null)
+                }
+                is AzurPilotGateway.Reply.Err -> onComplete(false, reply.message)
+                AzurPilotGateway.Reply.Offline -> onComplete(false, "Runtime is offline")
+            }
+        }
+    }
+
     suspend fun exportConfig(instance: String): AzurPilotConfig? =
         (gateway.call("config.get", JSONObject().put("instance", instance)) as? AzurPilotGateway.Reply.Ok)
             ?.obj?.let(::parseConfig)
@@ -1125,7 +1188,8 @@ class AzurPilotRepository(
         const val TOPIC_PREVIEW = "preview"
 
         /** 常订主题；`preview` 可按可见性摘除 / The standing topics; `preview` may drop by visibility. */
-        val TOPICS = listOf("instances", "overview", "logs", TOPIC_PREVIEW)
+        // 精简后的 Android 控制台不显示实时画面，避免后台解码/传输预览帧。
+        val TOPICS = listOf("instances", "overview", "logs")
     }
 }
 

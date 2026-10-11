@@ -136,11 +136,18 @@ fun StatisticsSection(repository: AzurPilotRepository) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        com.azurpilot.ghio.ui.ksu.AppTabRow(
-            selectedTabIndex = category.ordinal,
-            tabs = AzurPilotStatCategory.entries.map { stringResource(statCategoryLabel(it)) },
-            onTabClick = { category = AzurPilotStatCategory.entries[it] },
-        )
+        com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            item {
+                com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
+                    title = stringResource(R.string.ap_section_stats),
+                    items = AzurPilotStatCategory.entries.map { stringResource(statCategoryLabel(it)) },
+                    selectedIndex = category.ordinal,
+                    onSelectedIndexChange = { category = AzurPilotStatCategory.entries[it] },
+                )
+            }
+        }
 
         ApSectionColumn {
             CategoryControls(
@@ -443,56 +450,75 @@ private fun CategoryControls(
 @Composable
 private fun ApLineChart(series: List<AzurPilotStatSeries>) {
     val colors = chartPalette()
-    // 数据换了就重播一次描线：曲线「画出来」比直接出现更容易看出是同一张图的延续。
-    // 签名只取形状（键 / 点数 / 末值），避免每来一帧就重画
-    val signature =
-        remember(series) {
-            series.joinToString("|") {
-                "${it.key}:${it.points.size}:${it.points.lastOrNull()?.value}"
-            }
-        }
-    val progress = remember(signature) { Animatable(0f) }
-    LaunchedEffect(signature) {
-        progress.snapTo(0f)
-        progress.animateTo(1f, androidx.compose.animation.core.spring())
+    val valid = remember(series) {
+        series.map { line -> line.points.filter { it.value.isFinite() } }
     }
-    val allValues = series.flatMap { line -> line.points.map { it.value } }
-    val minValue = allValues.minOrNull() ?: 0.0
-    val maxValue = allValues.maxOrNull() ?: 1.0
+    val values = valid.flatten().map { it.value }
+    if (values.isEmpty()) return
+
+    // 横坐标依据真实时间戳，而非各系列自己的数据下标。
+    val allTimes = remember(valid) { valid.flatten().map { it.time }.distinct().sorted() }
+    val numericTime = remember(allTimes) {
+        allTimes.map { parseChartTime(it) }
+    }
+    val hasActualTime = numericTime.all { it != null }
+    val timeMap = if (hasActualTime) {
+        allTimes.zip(numericTime.filterNotNull()).toMap()
+    } else emptyMap()
+    val timeStart = numericTime.filterNotNull().minOrNull() ?: 0.0
+    val timeEnd = numericTime.filterNotNull().maxOrNull() ?: 0.0
+    val minValue = values.minOrNull() ?: 0.0
+    val maxValue = values.maxOrNull() ?: 0.0
     val span = (maxValue - minValue).takeIf { it > 0.0 } ?: 1.0
+    val timeIndex = remember(allTimes) { allTimes.withIndex().associate { it.value to it.index } }
 
     Column(verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
         Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
-            // 擦除式揭示：按进度裁掉右侧还没画到的部分
-            clipRect(right = size.width * progress.value) {
-                series.forEachIndexed { index, line ->
-                    val points = line.points
-                    if (points.size < 2) {
-                        // 单点画不出折线，给一个圆点，否则这条序列看起来像不存在
-                        if (points.size == 1) {
-                            val y =
-                                size.height * (1f - ((points[0].value - minValue) / span).toFloat())
-                            drawCircle(
-                                colors[index % colors.size],
-                                radius = 4f,
-                                center = Offset(size.width / 2f, y),
-                            )
-                        }
-                        return@forEachIndexed
-                    }
+            fun xAt(time: String): Float {
+                val ratio =
+                    if (hasActualTime && timeEnd > timeStart) {
+                        ((timeMap[time] ?: timeStart) - timeStart) / (timeEnd - timeStart)
+                    } else if (allTimes.size > 1) {
+                        (timeIndex[time] ?: 0).toDouble() / (allTimes.size - 1)
+                    } else 0.5
+                return size.width * ratio.coerceIn(0.0, 1.0).toFloat()
+            }
+            fun yAt(value: Double): Float =
+                size.height * (1f - ((value - minValue) / span).toFloat().coerceIn(0f, 1f))
+
+            series.forEachIndexed { index, line ->
+                val points = valid[index].sortedBy { xAt(it.time) }
+                if (points.isEmpty()) return@forEachIndexed
+                val color = colors[index % colors.size]
+                if (points.size == 1) {
+                    drawCircle(color, radius = 4f, center = Offset(xAt(points[0].time), yAt(points[0].value)))
+                } else {
                     val path = Path()
-                    points.forEachIndexed { pointIndex, point ->
-                        val x = size.width * pointIndex / (points.size - 1).toFloat()
-                        val y = size.height * (1f - ((point.value - minValue) / span).toFloat())
-                        if (pointIndex == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    points.forEachIndexed { i, point ->
+                        val x = xAt(point.time)
+                        val y = yAt(point.value)
+                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                     }
-                    drawPath(
-                        path = path,
-                        color = colors[index % colors.size],
-                        style = Stroke(width = 3f, cap = StrokeCap.Round),
-                    )
+                    drawPath(path, color, style = Stroke(width = 3f, cap = StrokeCap.Round))
                 }
             }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = allTimes.firstOrNull().orEmpty(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+            Text(
+                text = allTimes.lastOrNull().orEmpty(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
             Text(
@@ -511,11 +537,26 @@ private fun ApLineChart(series: List<AzurPilotStatSeries>) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        FlowRowChips(
-            series = series,
-            colors = colors,
-        )
+        FlowRowChips(series = series, colors = colors)
     }
+}
+
+/** 尝试解析统计后端的常见时间格式；不支持的格式回退到有序分类轴。 */
+private fun parseChartTime(value: String): Double? {
+    val raw = value.trim()
+    return raw.toDoubleOrNull()
+        ?: runCatching { java.time.Instant.parse(raw).toEpochMilli().toDouble() }.getOrNull()
+        ?: runCatching {
+            java.time.OffsetDateTime.parse(raw).toInstant().toEpochMilli().toDouble()
+        }.getOrNull()
+        ?: runCatching {
+            java.time.LocalDateTime.parse(raw.replace(' ', 'T'))
+                .toEpochSecond(java.time.ZoneOffset.UTC).toDouble() * 1000.0
+        }.getOrNull()
+        ?: runCatching { java.time.LocalDate.parse(raw).toEpochDay().toDouble() * 86400000.0 }.getOrNull()
+        ?: runCatching {
+            java.time.YearMonth.parse(raw).atDay(1).toEpochDay().toDouble() * 86400000.0
+        }.getOrNull()
 }
 
 /** 图例：色点 + 序列名，与曲线取色一致 / The chart legend: color dot + series name, matching the line colors. */

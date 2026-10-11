@@ -386,6 +386,10 @@
     <string name="ap_instances_source_copy">复制 %1$s</string>
     <string name="ap_instances_export">导出为 JSON</string>
     <string name="ap_instances_import">导入配置</string>
+    <string name="ap_import_default_hint">配置仅写入默认实例 ap，覆盖前会保存备份。</string>
+    <string name="ap_import_overwrite_warning">将用文件中的可编辑参数覆盖默认实例。请先停止调度器，Android 设备连接参数会保留。</string>
+    <string name="ap_import_completed">配置已导入默认实例</string>
+    <string name="ap_import_backup_failed">无法备份当前配置，已取消导入</string>
     <string name="ap_instances_import_warning">将把「%1$s」导入为新实例。安卓版使用特殊配置，电脑版配置直接导入可能无法使用，确定继续吗？</string>
     <string name="ap_instances_import_confirm">继续导入</string>
     <string name="ap_instances_import_read_failed">配置文件读取失败，请重试</string>
@@ -445,6 +449,8 @@
     <string name="ap_logs_order_desc">改为正序</string>
     <string name="ap_logs_clear">清空视图</string>
     <string name="ap_logs_export">导出日志</string>
+    <string name="ap_logs_no_matches">还没有符合筛选条件的日志</string>
+    <string name="ap_logs_no_matches_hint">请调整关键词或日志级别</string>
     <string name="ap_logs_empty">还没有日志</string>
     <string name="ap_logs_empty_hint">运行任务后这里会实时刷新</string>
     <string name="ap_stats_cat_resources">资源</string>

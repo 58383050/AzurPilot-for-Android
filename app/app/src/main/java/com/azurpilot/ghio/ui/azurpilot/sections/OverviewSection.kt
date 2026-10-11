@@ -68,10 +68,15 @@ import com.azurpilot.ghio.ui.ksu.AppText as Text
  * @param repository 网关仓库 / the gateway repository
  */
 @Composable
-fun OverviewSection(repository: AzurPilotRepository) {
+fun OverviewSection(
+    repository: AzurPilotRepository,
+    onOpenConfig: () -> Unit,
+    onOpenLogs: () -> Unit,
+    onOpenStats: () -> Unit,
+) {
     val overview by repository.overview.collectAsStateWithLifecycle()
-    val startup by repository.startup.collectAsStateWithLifecycle()
     val selected by repository.selectedInstance.collectAsStateWithLifecycle()
+    val data = overview
 
     ApSectionColumn {
         if (selected == null) {
@@ -82,79 +87,61 @@ fun OverviewSection(repository: AzurPilotRepository) {
                     hint = stringResource(R.string.ap_instance_none),
                 )
             }
-            return@ApSectionColumn
         }
 
-        val data = overview
-        AppCard(
-            title = stringResource(R.string.ap_overview_scheduler),
-            modifier = Modifier,
-        ) {
+        AppCard(title = stringResource(R.string.ap_overview_scheduler)) {
             if (data == null) {
                 ApEmptyState(Icons.Filled.Schedule, stringResource(R.string.ap_waiting_data))
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // 状态是离散的几档，换档时交叉淡入而不是硬切，眼睛才跟得上「刚刚变了」
-                    AnimatedContent(
-                        targetState = data.status,
-                        transitionSpec = {
-                            fadeIn(androidx.compose.animation.core.spring()) togetherWith
-                                fadeOut(androidx.compose.animation.core.spring())
-                        },
-                        label = "schedulerStatus",
-                    ) { status ->
-                        ApStatusPill(
-                            text = instanceStatusText(status),
-                            container = instanceStatusColor(status).copy(alpha = 0.16f),
-                            content = instanceStatusColor(status),
-                        )
-                    }
-                    TaskCounts(data.tasks)
-                }
-                ApKeyValueRow(stringResource(R.string.ap_overview_revision), data.revision.take(12))
-            }
-            AppLabeledControlRow(
-                label = stringResource(R.string.ap_overview_startup_auto),
-                trailing = {
-                    Switch(
-                        checked = startup?.enabled == true,
-                        onCheckedChange = { repository.setStartup(enabled = it) },
+                val status = data.status
+                ApStatusPill(
+                    text = instanceStatusText(status),
+                    container = instanceStatusColor(status).copy(alpha = 0.15f),
+                    content = instanceStatusColor(status),
+                )
+                data.tasks.firstOrNull { it.state == AzurPilotTaskState.Running }?.let { task ->
+                    Text(
+                        text = task.name,
+                        style = MaterialTheme.typography.titleMedium,
                     )
-                },
-            )
+                    Text(
+                        text = taskStateText(task.state),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                data.tasks.firstOrNull { it.state == AzurPilotTaskState.Pending }?.let { task ->
+                    Text(
+                        text = if (task.nextRun.startsWith("2020-01-01")) {
+                            "${stringResource(R.string.ap_overview_tasks)} · ${task.name}"
+                        } else {
+                            "${stringResource(R.string.ap_overview_tasks)} · ${task.name} · ${task.nextRun}"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                    )
+                }
+            }
             SchedulerButton(repository, running = data?.status == AzurPilotStatus.Running)
         }
 
-        if (data != null && data.resources.isNotEmpty()) {
-            AppCard(
-                title = stringResource(R.string.ap_overview_resources),
-                modifier = Modifier,
-            ) {
-                ResourceGrid(data.resources)
-            }
-        }
-
-        PreviewCard(repository, Modifier)
-
-        if (data != null) {
-            AppCard(
-                title = stringResource(R.string.ap_overview_tasks),
-                modifier = Modifier,
-            ) {
-                if (data.tasks.isEmpty()) {
-                    ApEmptyState(
-                        icon = Icons.Filled.TaskAlt,
-                        title = stringResource(R.string.ap_overview_no_tasks),
-                        hint = stringResource(R.string.ap_overview_no_tasks_hint),
-                    )
-                } else {
-                    TaskPlan(data.tasks, onRunNow = repository::runTask)
-                }
-            }
+        AppCard {
+            com.azurpilot.ghio.ui.components.AppNavigationRow(
+                label = stringResource(R.string.ap_section_config),
+                description = stringResource(R.string.ap_title_task_config),
+                onClick = onOpenConfig,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            com.azurpilot.ghio.ui.components.AppNavigationRow(
+                label = stringResource(R.string.ap_section_logs),
+                onClick = onOpenLogs,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            com.azurpilot.ghio.ui.components.AppNavigationRow(
+                label = stringResource(R.string.ap_section_stats),
+                onClick = onOpenStats,
+            )
         }
     }
 }

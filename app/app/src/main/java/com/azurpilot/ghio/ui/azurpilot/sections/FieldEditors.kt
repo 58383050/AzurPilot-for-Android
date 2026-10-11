@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -43,6 +44,7 @@ import com.azurpilot.ghio.proot.prettyText
 import com.azurpilot.ghio.proot.sameValueAs
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.ksu.AppCheckbox as Checkbox
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
 import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
@@ -191,52 +193,79 @@ fun ApFieldRow(
     onCheckScript: (suspend (String) -> String?)? = null,
 ) {
     val readOnly = field.readOnly
+    val label = schema.fieldLabel(group, argument)
+    val help = schema.fieldHelp(group, argument)
+        .takeUnless { it.isEmpty() || it == "help" || it == argument }
+        ?.replace(HELP_TAG, "")
+    val shortHelp = help?.let { if (it.length > 150) it.take(150) + "…" else it }
+    val simpleEdit = field.type == "input" && field.option.isNullOrEmpty() &&
+        !field.booleanish && field.mode != "yaml" && field.mode != "restricted_lua" &&
+        !readOnly
+    val inlinePreference = field.booleanish ||
+        (field.type != "multiselect" && !field.option.isNullOrEmpty()) ||
+        simpleEdit || field.type in setOf("stored", "state", "lock")
+
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = AppTokens.Spacing.xs),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xs),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = schema.fieldLabel(group, argument),
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f),
-            )
-            if (readOnly) {
+        // 简单字段完全由原生 Preference 绘制标题、说明与控件，
+        // 不再叠加自定义标题或分隔用的输入框卡片。
+        if (!inlinePreference) {
+            Row(
+                modifier = Modifier.padding(horizontal = AppTokens.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                if (readOnly) Text(
                     text = stringResource(R.string.ap_field_readonly),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                StatusIndicator(status)
             }
-            StatusIndicator(status)
+            if (!help.isNullOrBlank()) {
+                var helpExpanded by remember(group, argument) { mutableStateOf(false) }
+                Text(
+                    text = help,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = if (helpExpanded) Int.MAX_VALUE else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .padding(horizontal = AppTokens.Spacing.sm)
+                        .then(
+                            if (help.length > 80) Modifier.clickable {
+                                helpExpanded = !helpExpanded
+                            } else Modifier
+                        ),
+                )
+            }
         }
-        val help = schema.fieldHelp(group, argument)
-        if (help.isNotEmpty() && help != "help" && help != argument) {
-            Text(
-                text = help.replace(HELP_TAG, ""),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
         when {
-            // storage 只允许清空（`{}`）；网关对它有单独的放行分支
             field.type == "storage" ->
                 StorageControl(value, enabled = !readOnly && field.clearableStorage) {
                     onChange(emptyMap<String, ApValue>())
                 }
 
             field.type == "stored" || field.type == "state" || field.type == "lock" ->
-                ReadOnlyValue(fieldTextOf(value))
+                com.azurpilot.ghio.ui.components.AppInfoRow(
+                    label = label,
+                    value = fieldTextOf(value).ifEmpty { "—" }.take(180),
+                )
 
             field.booleanish ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(
-                        checked = value as? Boolean ?: false,
-                        enabled = !readOnly,
-                        onCheckedChange = { onChange(it) },
-                    )
-                }
+                com.azurpilot.ghio.ui.components.AppSwitchPreference(
+                    title = label,
+                    summary = shortHelp,
+                    checked = value as? Boolean ?: false,
+                    enabled = !readOnly,
+                    onCheckedChange = { onChange(it) },
+                )
 
             field.type == "multiselect" ->
                 MultiSelect(
@@ -249,11 +278,29 @@ fun ApFieldRow(
 
             !field.option.isNullOrEmpty() ->
                 OptionSelect(
+                    title = label,
+                    summary = shortHelp,
                     field = field,
                     value = value,
                     enabled = !readOnly,
                     labelOf = { schema.optionLabel(group, argument, it) },
                     onChange = onChange,
+                )
+
+            simpleEdit ->
+                com.azurpilot.ghio.ui.components.AppEditablePreference(
+                    title = label,
+                    value = fieldTextOf(value),
+                    onSave = { raw ->
+                        val prepared = prepareFieldValue(field, raw)
+                        val payload = prepared.payload
+                        if (payload == null) false else {
+                            if (!payload.sameValueAs(value)) onChange(payload)
+                            true
+                        }
+                    },
+                    keyboardType =
+                        if (field.numeric) KeyboardType.Decimal else KeyboardType.Text,
                 )
 
             else ->
@@ -266,7 +313,9 @@ fun ApFieldRow(
                     onCheckScript = onCheckScript,
                 )
         }
-
+        if (inlinePreference && status != ApFieldStatus.Idle) {
+            StatusIndicator(status)
+        }
         if (status == ApFieldStatus.Failed) FailedNotice(statusError, onRetry)
     }
 }
@@ -417,6 +466,8 @@ private fun StorageControl(value: ApValue, enabled: Boolean, onClear: () -> Unit
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun OptionSelect(
+    title: String,
+    summary: String?,
     field: AzurPilotField,
     value: ApValue,
     enabled: Boolean,
@@ -427,7 +478,8 @@ private fun OptionSelect(
     val options =
         if (candidates.any { it.sameValueAs(value) }) candidates else listOf(value) + candidates
     com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
-        title = "",
+        title = title,
+        summary = summary,
         items = options.map(labelOf),
         selectedIndex = options.indexOfFirst { it.sameValueAs(value) }.coerceAtLeast(0),
         enabled = enabled,
@@ -453,25 +505,20 @@ private fun MultiSelect(
     onChange: (ApValue) -> Unit,
 ) {
     val selected = value as? List<ApValue> ?: emptyList()
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md),
-    ) {
+    Column(Modifier.fillMaxWidth()) {
         field.option.orEmpty().forEach { option ->
             val checked = selected.any { it.sameValueAs(option) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = checked,
-                    enabled = enabled,
-                    onCheckedChange = { next ->
-                        onChange(
-                            if (next) selected + option
-                            else selected.filterNot { it.sameValueAs(option) }
-                        )
-                    },
-                )
-                Text(text = labelOf(option), style = MaterialTheme.typography.bodyMedium)
-            }
+            com.azurpilot.ghio.ui.components.AppSwitchPreference(
+                title = labelOf(option),
+                checked = checked,
+                enabled = enabled,
+                onCheckedChange = { next ->
+                    onChange(
+                        if (next) selected + option
+                        else selected.filterNot { it.sameValueAs(option) }
+                    )
+                },
+            )
         }
     }
 }

@@ -263,7 +263,11 @@ fun LogsSection(repository: AzurPilotRepository) {
                             hint = stringResource(R.string.ap_logs_empty_hint),
                         )
                     } else {
-                        ExpressiveLoadingIndicator()
+                        ApEmptyState(
+                            icon = Icons.Filled.Search,
+                            title = stringResource(R.string.ap_logs_no_matches),
+                            hint = stringResource(R.string.ap_logs_no_matches_hint),
+                        )
                     }
                 }
             } else {
@@ -287,13 +291,8 @@ fun LogsSection(repository: AzurPilotRepository) {
                             entry = entry,
                             centered = entry.id in bannerIds,
                             search = query,
-                            // 新行淡入、既有行平滑落位。日志滚得快，硬插入会像画面在跳
-                            modifier =
-                                Modifier.animateItem(
-                                    fadeInSpec = androidx.compose.animation.core.spring(),
-                                    placementSpec = androidx.compose.animation.core.spring(),
-                                    fadeOutSpec = androidx.compose.animation.core.spring(),
-                                ),
+                            // 高频日志不执行逐行位移动画，避免插入时列表反复跳动。
+                            modifier = Modifier,
                         )
                     }
                 }

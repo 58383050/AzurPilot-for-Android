@@ -62,6 +62,9 @@ private val RULE = Regex("""^[═─]{3,}\s*(.*?)\s*[═─]{3,}$""")
 /** 纯分隔线（无标题） / A bare rule line with no title. */
 private val PURE_RULE = Regex("""^[═─]{3,}$""")
 
+/** Removes terminal color/control sequences before Compose lays out the text. */
+private val ANSI_ESCAPE = Regex("""\u001B\[[0-?]*[ -/]*[@-~]""")
+
 /** 两侧各留三个以上空格的居中文本 / Text centered with three-plus spaces on each side. */
 private val CENTER_TITLE = Regex("""^\s{3,}(.*?)\s{3,}$""")
 
@@ -197,7 +200,7 @@ fun isLogBanner(
  * `centered` comes from the neighbor-based banner check.
  */
 private fun classify(entry: AzurPilotLogEntry, centered: Boolean): LogLineKind {
-    val raw = entry.text.trimEnd('\r', '\n')
+    val raw = entry.text.replace(ANSI_ESCAPE, "").trimEnd('\r', '\n')
     val trimmed = raw.trim()
 
     if (PURE_RULE.matches(trimmed)) {
