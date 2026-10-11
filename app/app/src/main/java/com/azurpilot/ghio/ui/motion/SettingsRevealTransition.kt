@@ -78,4 +78,3 @@ internal fun settingsRevealTransition(anchor: () -> Offset): NavTransition = obj
             }
         }
 }
-
