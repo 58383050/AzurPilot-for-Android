@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
@@ -764,97 +765,146 @@ class AzurPilotRepository(
     }
 
     /**
-     * 拉整份统计报表；未选实例时以 NOT_FOUND 失败
+     * 拉整份统计报表并在 Default 调度器上解析，避免在界面线程遍历数据。
+     * 未选实例时以 NOT_FOUND 失败。
      *
-     * Fetches the full statistics report; fails with NOT_FOUND when no
-     * instance is selected. IO 调度器上执行 / Runs on the IO dispatcher.
+     * Fetches and parses the full statistics report on Default, avoiding traversal on the UI thread.
+     * Fails with NOT_FOUND when no instance is selected.
      */
-    suspend fun statisticsReport(query: AzurPilotStatsQuery): Result<AzurPilotStatisticsReport> {
-        val instance = _selectedInstance.value
-            ?: return Result.failure(AzurPilotException("NOT_FOUND", "未选择实例"))
-        val params = JSONObject()
-            .put("instance", instance)
-            .put("category", query.category.key)
-            .put("days", query.days)
-            .put("period", query.period)
-            .put("series", query.series)
-            .put("scope", query.scope)
-        query.month?.let { params.put("month", it) }
-        query.task?.let { params.put("task", it) }
-        val reply = gateway.call("statistics.report", params)
-        if (reply !is AzurPilotGateway.Reply.Ok) return reply.asFailure()
-        val data = reply.obj
-        return Result.success(
-            AzurPilotStatisticsReport(
-            instance = data.optString("instance"),
-            category = data.optString("category"),
-            month = data.optString("month"),
-            metrics = data.optJSONArray("metrics")?.let { array ->
-                List(array.length()) { index ->
-                    val item = array.optJSONObject(index) ?: return@List null
-                    AzurPilotMetric(
-                        label = item.optString("label"),
-                        value = (item.opt("value") as? Number)?.toDouble(),
-                        unit = item.optString("unit"),
-                        icon = item.optText("icon"),
-                    )
-                }.filterNotNull()
-            }.orEmpty(),
-            series = data.optJSONArray("series")?.let { array ->
-                List(array.length()) { index ->
-                    val item = array.optJSONObject(index) ?: return@List null
-                    AzurPilotStatSeries(
-                        key = item.optString("key"),
-                        label = item.optString("label"),
-                        points = item.optJSONArray("points")?.let { points ->
-                            List(points.length()) { p ->
-                                val point = points.optJSONObject(p) ?: return@List null
-                                AzurPilotStatPoint(
-                                    time = point.optString("time"),
-                                    value = (point.opt("value") as? Number)?.toDouble() ?: 0.0,
-                                    source = point.optText("source"),
-                                )
-                            }.filterNotNull()
-                        }.orEmpty(),
-                    )
-                }.filterNotNull()
-            }.orEmpty(),
-            tables = data.optJSONArray("tables")?.let { array ->
-                List(array.length()) { index ->
-                    val item = array.optJSONObject(index) ?: return@List null
-                    val sort = item.optJSONObject("defaultSort")
-                    AzurPilotStatTable(
-                        title = item.optString("title"),
-                        columns = item.optJSONArray("columns")?.let { c ->
-                            List(c.length()) { c.optString(it) }
-                        }.orEmpty(),
-                        rows = item.optJSONArray("rows")?.let { rows ->
-                            List(rows.length()) { r ->
-                                rows.optJSONArray(r)?.toValueList().orEmpty()
+    suspend fun statisticsReport(query: AzurPilotStatsQuery): Result<AzurPilotStatisticsReport> =
+        withContext(AppDispatchers.Default) {
+            val instance =
+                _selectedInstance.value
+                    ?: return@withContext Result.failure(AzurPilotException("NOT_FOUND", "未选择实例"))
+            val params =
+                JSONObject()
+                    .put("instance", instance)
+                    .put("category", query.category.key)
+                    .put("days", query.days)
+                    .put("period", query.period)
+                    .put("series", query.series)
+                    .put("scope", query.scope)
+            query.month?.let { params.put("month", it) }
+            query.task?.let { params.put("task", it) }
+            val reply = gateway.call("statistics.report", params)
+            if (reply !is AzurPilotGateway.Reply.Ok) return@withContext reply.asFailure()
+            val data = reply.obj
+            Result.success(
+                AzurPilotStatisticsReport(
+                    instance = data.optString("instance"),
+                    category = data.optString("category"),
+                    month = data.optString("month"),
+                    metrics =
+                        data
+                            .optJSONArray("metrics")
+                            ?.let { array ->
+                                List(array.length()) { index ->
+                                        val item = array.optJSONObject(index) ?: return@List null
+                                        AzurPilotMetric(
+                                            label = item.optString("label"),
+                                            value = (item.opt("value") as? Number)?.toDouble(),
+                                            unit = item.optString("unit"),
+                                            icon = item.optText("icon"),
+                                        )
+                                    }
+                                    .filterNotNull()
                             }
-                        }.orEmpty(),
-                        note = item.optString("note"),
-                        defaultSortIndex = sort?.optInt("index"),
-                        defaultSortDescending = sort?.optBoolean("descending") ?: false,
-                    )
-                }.filterNotNull()
-            }.orEmpty(),
-            notes = data.optJSONArray("notes")?.let { array ->
-                List(array.length()) { array.optString(it) }
-            }.orEmpty(),
-            taskOptions = data.optJSONArray("taskOptions")?.let { array ->
-                List(array.length()) { index ->
-                    val item = array.optJSONObject(index) ?: return@List null
-                    AzurPilotTaskOption(
-                        key = item.optString("key"),
-                        label = item.optString("label"),
-                        count = item.optInt("count"),
-                    )
-                }.filterNotNull()
-            }.orEmpty(),
-        )
-        )
-    }
+                            .orEmpty(),
+                    series =
+                        data
+                            .optJSONArray("series")
+                            ?.let { array ->
+                                List(array.length()) { index ->
+                                        val item = array.optJSONObject(index) ?: return@List null
+                                        AzurPilotStatSeries(
+                                            key = item.optString("key"),
+                                            label = item.optString("label"),
+                                            points =
+                                                item
+                                                    .optJSONArray("points")
+                                                    ?.let { points ->
+                                                        List(points.length()) { p ->
+                                                                val point =
+                                                                    points.optJSONObject(p)
+                                                                        ?: return@List null
+                                                                AzurPilotStatPoint(
+                                                                    time = point.optString("time"),
+                                                                    value =
+                                                                        (point.opt("value") as? Number)
+                                                                            ?.toDouble() ?: 0.0,
+                                                                    source = point.optText("source"),
+                                                                )
+                                                            }
+                                                            .filterNotNull()
+                                                    }
+                                                    .orEmpty(),
+                                        )
+                                    }
+                                    .filterNotNull()
+                            }
+                            .orEmpty(),
+                    tables =
+                        data
+                            .optJSONArray("tables")
+                            ?.let { array ->
+                                List(array.length()) { index ->
+                                        val item = array.optJSONObject(index) ?: return@List null
+                                        val sort = item.optJSONObject("defaultSort")
+                                        AzurPilotStatTable(
+                                            title = item.optString("title"),
+                                            columns =
+                                                item
+                                                    .optJSONArray("columns")
+                                                    ?.let { c ->
+                                                        List(c.length()) { c.optString(it) }
+                                                    }
+                                                    .orEmpty(),
+                                            rows =
+                                                item
+                                                    .optJSONArray("rows")
+                                                    ?.let { rows ->
+                                                        List(rows.length()) { r ->
+                                                            rows
+                                                                .optJSONArray(r)
+                                                                ?.toValueList()
+                                                                .orEmpty()
+                                                        }
+                                                    }
+                                                    .orEmpty(),
+                                            note = item.optString("note"),
+                                            defaultSortIndex = sort?.optInt("index"),
+                                            defaultSortDescending =
+                                                sort?.optBoolean("descending") ?: false,
+                                        )
+                                    }
+                                    .filterNotNull()
+                            }
+                            .orEmpty(),
+                    notes =
+                        data
+                            .optJSONArray("notes")
+                            ?.let { array ->
+                                List(array.length()) { array.optString(it) }
+                            }
+                            .orEmpty(),
+                    taskOptions =
+                        data
+                            .optJSONArray("taskOptions")
+                            ?.let { array ->
+                                List(array.length()) { index ->
+                                        val item = array.optJSONObject(index) ?: return@List null
+                                        AzurPilotTaskOption(
+                                            key = item.optString("key"),
+                                            label = item.optString("label"),
+                                            count = item.optInt("count"),
+                                        )
+                                    }
+                                    .filterNotNull()
+                            }
+                            .orEmpty(),
+                )
+            )
+        }
 
     /**
      * 让网关重扫战利品数据；完成后 [statisticsTick] 自增驱动界面重取

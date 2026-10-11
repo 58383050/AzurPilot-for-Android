@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -25,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,8 +42,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.AppDispatchers
 import com.azurpilot.ghio.domain.license.LicenseRepository
 import com.azurpilot.ghio.domain.license.OpenSourceComponent
+import com.azurpilot.ghio.domain.license.OpenSourceLicense
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppFieldLabel
@@ -55,6 +59,7 @@ import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 import com.azurpilot.ghio.ui.ksu.AppTextField as OutlinedTextField
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
 /**
@@ -82,7 +87,9 @@ fun OpenSourceLicensesPage(
     // 0: 全部 / All, 1: 核心与内置 / Core, 2: 运行库 / Libraries
     var filterIndex by rememberSaveable { mutableIntStateOf(0) }
 
-    val allComponents = remember { repository.getAllComponents() }
+    val allComponents by produceState(emptyList<OpenSourceComponent>(), repository) {
+        value = withContext(AppDispatchers.IO) { repository.getAllComponents() }
+    }
     val filteredComponents =
         remember(searchQuery, filterIndex, allComponents) {
             val base =
@@ -311,8 +318,17 @@ fun LicenseDetailPage(
     repository: LicenseRepository = koinInject(),
     snackbarHostState: SnackbarHostState? = null,
 ) {
-    val component = remember(componentId) { repository.getComponent(componentId) }
-    val license = remember(component) { component?.let { repository.getLicense(it.licenseId) } }
+    val document by
+        produceState<LicenseDocument?>(null, componentId, repository) {
+            value =
+                withContext(AppDispatchers.IO) {
+                    val component = repository.getComponent(componentId)
+                    val license = component?.let { repository.getLicense(it.licenseId) }
+                    LicenseDocument(component, license, license?.text?.split("\n\n").orEmpty())
+                }
+        }
+    val component = document?.component
+    val license = document?.license
     val uriHandler = LocalUriHandler.current
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -324,12 +340,15 @@ fun LicenseDetailPage(
             onBack = onBack,
             modifier = modifier,
         ) {
-            AppCard {
-                Text(
-                    text = stringResource(R.string.settings_license_component_not_found),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
+            if (document == null) {
+                com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator()
+            } else
+                AppCard {
+                    Text(
+                        text = stringResource(R.string.settings_license_component_not_found),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
         }
         return
     }
@@ -338,85 +357,110 @@ fun LicenseDetailPage(
         title = component.name,
         onBack = onBack,
         modifier = modifier,
-        scrollable = true,
+        scrollable = false,
     ) {
-        // 组件概览卡片
-        AppCard {
-            Text(
-                text = component.name,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            AppInfoRow(stringResource(R.string.settings_version), component.version)
-            AppInfoRow(
-                stringResource(R.string.settings_project),
-                "${component.group}:${component.artifact}",
-            )
-            AppInfoRow(
-                stringResource(R.string.settings_license_spdx),
-                "${license.name} (${component.licenseId})",
-            )
-            if (component.description.isNotBlank()) {
-                Text(
-                    text = component.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = AppTokens.Spacing.xs),
-                )
-            }
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = AppTokens.Spacing.xs),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-            AppNavigationRow(
-                label = stringResource(R.string.settings_license_view_source),
-                description = component.url,
-                onClick = { uriHandler.openUri(component.url) },
-            )
-        }
+        SelectionContainer(Modifier.weight(1f)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
+                // 组件概览卡片
+                item(key = "metadata", contentType = "metadata") {
+                    AppCard {
+                        Text(
+                            text = component.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        AppInfoRow(stringResource(R.string.settings_version), component.version)
+                        AppInfoRow(
+                            stringResource(R.string.settings_project),
+                            "${component.group}:${component.artifact}",
+                        )
+                        AppInfoRow(
+                            stringResource(R.string.settings_license_spdx),
+                            "${license.name} (${component.licenseId})",
+                        )
+                        if (component.description.isNotBlank()) {
+                            Text(
+                                text = component.description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = AppTokens.Spacing.xs),
+                            )
+                        }
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = AppTokens.Spacing.xs),
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                        )
+                        AppNavigationRow(
+                            label = stringResource(R.string.settings_license_view_source),
+                            description = component.url,
+                            onClick = { uriHandler.openUri(component.url) },
+                        )
+                    }
+                }
 
-        // 协议正文卡片
-        AppCard {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                AppFieldLabel(stringResource(R.string.settings_license_text_title))
-                IconButton(
-                    onClick = {
-                        clipboardManager.setText(AnnotatedString(license.text))
-                        snackbarHostState?.let { host ->
-                            scope.launch { host.showSnackbar(copiedText) }
+                // 协议正文卡片
+                item(key = "copy", contentType = "copy") {
+                    AppCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            AppFieldLabel(stringResource(R.string.settings_license_text_title))
+                            IconButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(license.text))
+                                    snackbarHostState?.let { host ->
+                                        scope.launch { host.showSnackbar(copiedText) }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription =
+                                        stringResource(R.string.settings_license_text_title),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = stringResource(R.string.settings_license_text_title),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
                 }
-            }
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-            ) {
-                SelectionContainer {
-                    Text(
-                        text = license.text,
-                        modifier = Modifier.padding(AppTokens.Spacing.md),
-                        style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                lineHeight = MaterialTheme.typography.bodySmall.lineHeight * 1.3f,
-                            ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                // 只排版可见段落；复制动作仍保留资产中的完整原文。
+                itemsIndexed(
+                    document?.paragraphs.orEmpty(),
+                    key = { index, _ -> index },
+                    contentType = { _, _ -> "paragraph" },
+                ) { _, paragraph ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ) {
+                        Text(
+                            text = paragraph,
+                            modifier = Modifier.padding(AppTokens.Spacing.md),
+                            style =
+                                MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    lineHeight =
+                                        MaterialTheme.typography.bodySmall.lineHeight * 1.3f,
+                                ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/**
+ * 后台加载的许可证与正文段落，避免首次打开时同步读资产或排版整篇协议。
+ *
+ * License metadata and paragraphs loaded off main to avoid synchronous assets and full-text layout.
+ */
+private data class LicenseDocument(
+    val component: OpenSourceComponent?,
+    val license: OpenSourceLicense?,
+    val paragraphs: List<String>,
+)

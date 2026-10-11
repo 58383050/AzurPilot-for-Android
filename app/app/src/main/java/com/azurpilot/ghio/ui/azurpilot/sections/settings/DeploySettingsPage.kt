@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -42,9 +44,10 @@ import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.sameValueAs
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.azurpilot.ApErrorState
-import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
+import com.azurpilot.ghio.ui.azurpilot.apContentWidth
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.ksu.appSettingsGroup
 import com.azurpilot.ghio.ui.ksu.AppButton as Button
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
 import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
@@ -85,54 +88,75 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
     val deploy by repository.deploySettings.collectAsStateWithLifecycle()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        ApSectionColumn {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().apContentWidth(),
+            contentPadding =
+                PaddingValues(
+                    start = AppTokens.Spacing.lg,
+                    end = AppTokens.Spacing.lg,
+                    top = AppTokens.Spacing.sm,
+                    bottom = if (draft.isNotEmpty()) 96.dp else AppTokens.Spacing.xl,
+                ),
+        ) {
             if (loading) {
-                AppCard(modifier = Modifier) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
-                        ExpressiveLoadingIndicator()
+                item(key = "loading") {
+                    AppCard(modifier = Modifier) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            ExpressiveLoadingIndicator()
+                        }
                     }
                 }
-                return@ApSectionColumn
+                return@LazyColumn
             }
             val data =
                 deploy
                     ?: run {
-                        AppCard { ApErrorState(error ?: stringResource(R.string.ap_waiting_data)) }
-                        return@ApSectionColumn
+                        item(key = "error") {
+                            AppCard {
+                                ApErrorState(error ?: stringResource(R.string.ap_waiting_data))
+                            }
+                        }
+                        return@LazyColumn
                     }
             if (data.notice.isNotEmpty()) {
-                AppCard {
-                    Text(
-                        text = data.notice,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                item(key = "notice") {
+                    AppCard {
+                        Text(
+                            text = data.notice,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             if (data.demo) {
-                AppCard {
-                    Text(
-                        text = stringResource(R.string.ap_deploy_demo),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                item(key = "demo") {
+                    AppCard {
+                        Text(
+                            text = stringResource(R.string.ap_deploy_demo),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
             data.groups.forEach { group ->
-                com.azurpilot.ghio.ui.ksu.AppSettingsGroup(title = group.label) {
-                    group.fields.forEach { field ->
-                        item(key = field.key) {
-                            DeployFieldRow(
-                                field = field,
-                                draft = draft[field.key],
-                                enabled = !data.demo,
-                                onDraft = { draft[field.key] = it },
-                            )
-                        }
-                    }
+                appSettingsGroup(
+                    key = group.key,
+                    values = group.fields,
+                    title = { group.label },
+                    itemKey = { it.key },
+                    contentType = "deployField",
+                ) { field ->
+                    DeployFieldRow(
+                        field = field,
+                        draft = draft[field.key],
+                        enabled = !data.demo,
+                        onDraft = { draft[field.key] = it },
+                    )
                 }
             }
         }

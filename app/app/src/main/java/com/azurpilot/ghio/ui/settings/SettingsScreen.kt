@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -40,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.BuildConfig
+import com.azurpilot.ghio.AppDispatchers
 import com.azurpilot.ghio.R
 import com.azurpilot.ghio.auth.AppLockManager
 import com.azurpilot.ghio.constant.ProjectLinks
@@ -85,6 +90,7 @@ import java.util.Collections
 import java.util.Locale
 import kotlin.math.round
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
 /**
@@ -156,13 +162,20 @@ fun SettingsScreen(
         modifier = modifier,
         onBack = onBack,
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
+            contentPadding =
+                PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = bottomInnerPadding + 13.dp,
+                ),
         ) {
-            com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp)
-            ) {
-                item {
+            item(key = "uiMode", contentType = "uiMode") {
+                com.azurpilot.ghio.ui.ksu.AppLazySettingsItem(
+                    index = 0,
+                    count = SettingsSection.entries.size + 1,
+                ) {
                     com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
                         title = stringResource(R.string.ksu_settings_ui_mode),
                         items = listOf("Miuix", "Material"),
@@ -176,35 +189,43 @@ fun SettingsScreen(
                         },
                     )
                 }
-                SettingsSection.entries.forEach { section ->
+            }
+            itemsIndexed(
+                SettingsSection.entries,
+                key = { _, section -> section.name },
+                contentType = { _, _ -> "settingsNavigation" },
+            ) { index, section ->
+                com.azurpilot.ghio.ui.ksu.AppLazySettingsItem(
+                    index = index + 1,
+                    count = SettingsSection.entries.size + 1,
+                ) {
+                    AppNavigationRow(
+                        label = stringResource(section.titleRes),
+                        description = stringResource(section.descRes),
+                        onClick = { onOpenSection(section) },
+                    )
+                }
+            }
+            item(key = "feedback", contentType = "feedback") {
+                com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
+                    modifier = Modifier.padding(top = 13.dp)
+                ) {
                     item {
                         AppNavigationRow(
-                            label = stringResource(section.titleRes),
-                            description = stringResource(section.descRes),
-                            onClick = { onOpenSection(section) },
+                            label = stringResource(R.string.settings_feedback_bug),
+                            description = stringResource(R.string.settings_feedback_bug_desc),
+                            onClick = { uriHandler.openUri(ProjectLinks.ISSUES) },
+                        )
+                    }
+                    item {
+                        AppNavigationRow(
+                            label = stringResource(R.string.settings_feedback_group),
+                            description = stringResource(R.string.settings_feedback_group_desc),
+                            onClick = { uriHandler.openUri(ProjectLinks.QQ_FEEDBACK_GROUP) },
                         )
                     }
                 }
             }
-            com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp)
-            ) {
-                item {
-                    AppNavigationRow(
-                        label = stringResource(R.string.settings_feedback_bug),
-                        description = stringResource(R.string.settings_feedback_bug_desc),
-                        onClick = { uriHandler.openUri(ProjectLinks.ISSUES) },
-                    )
-                }
-                item {
-                    AppNavigationRow(
-                        label = stringResource(R.string.settings_feedback_group),
-                        description = stringResource(R.string.settings_feedback_group_desc),
-                        onClick = { uriHandler.openUri(ProjectLinks.QQ_FEEDBACK_GROUP) },
-                    )
-                }
-            }
-            androidx.compose.foundation.layout.Spacer(Modifier.height(bottomInnerPadding))
         }
     }
 }
@@ -885,7 +906,9 @@ fun AboutSettingsPage(
     licenseRepository: LicenseRepository = koinInject(),
 ) {
     val uriHandler = LocalUriHandler.current
-    val components = remember { licenseRepository.getAllComponents() }
+    val components by produceState(emptyList<com.azurpilot.ghio.domain.license.OpenSourceComponent>(), licenseRepository) {
+        value = withContext(AppDispatchers.IO) { licenseRepository.getAllComponents() }
+    }
     val links =
         listOf(
             com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
@@ -981,7 +1004,10 @@ fun RuntimeSettingsPage(
     val prootState by prootHost.state.collectAsStateWithLifecycle()
     var showHourDialog by remember { mutableStateOf(false) }
     var showRestartConfirm by remember { mutableStateOf(false) }
-    val installedVersion = provisioner.installedVersion()
+    val installedVersionState by produceState<String?>(null, prootState.phase) {
+        value = withContext(AppDispatchers.IO) { provisioner.installedVersion() }
+    }
+    val installedVersion = installedVersionState
     // 会话正处在准备/启动链上即视为忙：重启按钮置灰并切到「正在重启」文案
     val sessionBusy =
         prootState.phase == ProotPhase.PREPARING ||
@@ -989,11 +1015,11 @@ fun RuntimeSettingsPage(
             prootState.phase == ProotPhase.STARTING
     // 局域网地址取本机站点内 IPv4；口令是上游公网监听时自动生成的 password.txt。
     // 两者都以 phase 为 key：重启完成状态一变就重算，不用退出页面重进
-    val lanAddress =
-        remember(lanControlEnabled, prootState.phase) {
-            if (!lanControlEnabled) return@remember null
-            runCatching {
-                val interfaces = NetworkInterface.getNetworkInterfaces() ?: return@remember null
+    val lanAddress by
+        produceState<String?>(null, lanControlEnabled, prootState.phase) {
+            value = if (!lanControlEnabled) null else withContext(AppDispatchers.IO) {
+                runCatching {
+                val interfaces = NetworkInterface.getNetworkInterfaces() ?: return@runCatching null
                 Collections.list(interfaces)
                     .asSequence()
                     .filter { it.isUp && !it.isLoopback }
@@ -1004,10 +1030,11 @@ fun RuntimeSettingsPage(
                     ?.let { "http://$it:${ProotHost.WEBUI_PORT}" }
             }
                 .getOrNull()
+            }
         }
-    val webUiPassword =
-        remember(lanControlEnabled, prootState.phase) {
-            if (!lanControlEnabled) return@remember null
+    val webUiPasswordState by
+        produceState<String?>(null, lanControlEnabled, prootState.phase) {
+            value = if (!lanControlEnabled) null else withContext(AppDispatchers.IO) {
             // 与 ProotHost 的 installDir 同约定：guest 的 /opt/azurpilot 映射到 files/rootfs/opt/azurpilot
             runCatching {
                 File(context.filesDir, "rootfs/opt/azurpilot/password.txt")
@@ -1016,14 +1043,16 @@ fun RuntimeSettingsPage(
                     .takeIf { it.isNotEmpty() }
             }
                 .getOrNull()
+            }
         }
+    val webUiPassword = webUiPasswordState
     val remoteAccessEnabled by settings.remoteAccessEnabled.collectAsStateWithLifecycle()
     var remoteStatus by remember { mutableStateOf<RemoteAccessUiState?>(null) }
     // 远程入口的访问口令与 WebUI 是同一个（App 在开启时确保非空）；LAN 开启时
     // password.txt 与它一致，这里直接读 deploy.yaml 的权威值
-    val remotePassword =
-        remember(remoteAccessEnabled, prootState.phase) {
-            if (!remoteAccessEnabled) return@remember null
+    val remotePasswordState by
+        produceState<String?>(null, remoteAccessEnabled, prootState.phase) {
+            value = if (!remoteAccessEnabled) null else withContext(AppDispatchers.IO) {
             runCatching {
                 val text =
                     File(context.filesDir, "rootfs/opt/azurpilot/config/deploy.yaml").readText()
@@ -1036,7 +1065,9 @@ fun RuntimeSettingsPage(
                     ?.takeUnless { it.isEmpty() || it.equals("null", true) }
             }
                 .getOrNull()
+            }
         }
+    val remotePassword = remotePasswordState
     // 重启完成（phase 变化）后 gateway 重连与隧道注册都要一拍，稍候再取状态
     LaunchedEffect(remoteAccessEnabled, prootState.phase) {
         if (!remoteAccessEnabled) {

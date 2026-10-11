@@ -5,7 +5,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -450,21 +451,26 @@ private fun CategoryControls(
 @Composable
 private fun ApLineChart(series: List<AzurPilotStatSeries>) {
     val colors = chartPalette()
-    val valid = remember(series) {
-        series.map { line -> line.points.filter { it.value.isFinite() } }
-    }
-    val values = valid.flatten().map { it.value }
+    val valid =
+        remember(series) {
+            series.map { line -> line.points.filter { it.value.isFinite() } }
+        }
+    val values = remember(valid) { valid.flatten().map { it.value } }
     if (values.isEmpty()) return
 
     // 横坐标依据真实时间戳，而非各系列自己的数据下标。
     val allTimes = remember(valid) { valid.flatten().map { it.time }.distinct().sorted() }
-    val numericTime = remember(allTimes) {
-        allTimes.map { parseChartTime(it) }
-    }
+    val numericTime =
+        remember(allTimes) {
+            allTimes.map { parseChartTime(it) }
+        }
     val hasActualTime = numericTime.all { it != null }
-    val timeMap = if (hasActualTime) {
-        allTimes.zip(numericTime.filterNotNull()).toMap()
-    } else emptyMap()
+    val timeMap =
+        remember(allTimes, numericTime, hasActualTime) {
+            if (hasActualTime) {
+                allTimes.zip(numericTime.filterNotNull()).toMap()
+            } else emptyMap()
+        }
     val timeStart = numericTime.filterNotNull().minOrNull() ?: 0.0
     val timeEnd = numericTime.filterNotNull().maxOrNull() ?: 0.0
     val minValue = values.minOrNull() ?: 0.0
@@ -473,36 +479,44 @@ private fun ApLineChart(series: List<AzurPilotStatSeries>) {
     val timeIndex = remember(allTimes) { allTimes.withIndex().associate { it.value to it.index } }
 
     Column(verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
-        Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
-            fun xAt(time: String): Float {
-                val ratio =
-                    if (hasActualTime && timeEnd > timeStart) {
-                        ((timeMap[time] ?: timeStart) - timeStart) / (timeEnd - timeStart)
-                    } else if (allTimes.size > 1) {
-                        (timeIndex[time] ?: 0).toDouble() / (allTimes.size - 1)
-                    } else 0.5
-                return size.width * ratio.coerceIn(0.0, 1.0).toFloat()
-            }
-            fun yAt(value: Double): Float =
-                size.height * (1f - ((value - minValue) / span).toFloat().coerceIn(0f, 1f))
-
-            series.forEachIndexed { index, line ->
-                val points = valid[index].sortedBy { xAt(it.time) }
-                if (points.isEmpty()) return@forEachIndexed
-                val color = colors[index % colors.size]
-                if (points.size == 1) {
-                    drawCircle(color, radius = 4f, center = Offset(xAt(points[0].time), yAt(points[0].value)))
-                } else {
-                    val path = Path()
-                    points.forEachIndexed { i, point ->
-                        val x = xAt(point.time)
-                        val y = yAt(point.value)
-                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        Spacer(
+            modifier =
+                Modifier.fillMaxWidth().height(180.dp).drawWithCache {
+                    fun xAt(time: String): Float {
+                        val ratio =
+                            if (hasActualTime && timeEnd > timeStart) {
+                                ((timeMap[time] ?: timeStart) - timeStart) / (timeEnd - timeStart)
+                            } else if (allTimes.size > 1) {
+                                (timeIndex[time] ?: 0).toDouble() / (allTimes.size - 1)
+                            } else 0.5
+                        return size.width * ratio.coerceIn(0.0, 1.0).toFloat()
                     }
-                    drawPath(path, color, style = Stroke(width = 3f, cap = StrokeCap.Round))
+                    fun yAt(value: Double): Float =
+                        size.height * (1f - ((value - minValue) / span).toFloat().coerceIn(0f, 1f))
+
+                    // 滚动和入场动画会重复绘制同一图表，曲线仅在数据或尺寸变化时重新分配。
+                    val points = valid.map { line ->
+                        line.sortedBy { xAt(it.time) }.map { Offset(xAt(it.time), yAt(it.value)) }
+                    }
+                    val paths = points.map { line ->
+                        Path().apply {
+                            line.forEachIndexed { index, point ->
+                                if (index == 0) moveTo(point.x, point.y)
+                                else lineTo(point.x, point.y)
+                            }
+                        }
+                    }
+                    val stroke = Stroke(width = 3f, cap = StrokeCap.Round)
+                    onDrawBehind {
+                        points.forEachIndexed { index, line ->
+                            val color = colors[index % colors.size]
+                            if (line.size == 1) drawCircle(color, radius = 4f, center = line[0])
+                            else if (line.isNotEmpty())
+                                drawPath(paths[index], color, style = stroke)
+                        }
+                    }
                 }
-            }
-        }
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

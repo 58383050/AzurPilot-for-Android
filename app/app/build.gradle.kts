@@ -280,7 +280,10 @@ tasks.matching { it.name.startsWith("package") || it.name.startsWith("assemble")
 
 dependencies {
     implementation(libs.hidden.api.bypass)
-    implementation(project(":miuix-runtime"))
+    // 项目已内置 shader 源码；squircle 的传递副本会让 R8 报重复类。
+    implementation(project(":miuix-runtime")) {
+        exclude(group = "top.yukonga.miuix.kmp", module = "miuix-shader")
+    }
     implementation(libs.material.kolor)
     implementation(libs.litert)
     // 隐藏框架 API 的实现只在运行时的平台上存在，编译期仅需签名镜像，故 compileOnly
@@ -311,7 +314,9 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.core)
     implementation(libs.androidx.material.icons.extended)
-    implementation(project(":navigation-runtime"))
+    implementation(project(":navigation-runtime")) {
+        exclude(group = "top.yukonga.miuix.kmp", module = "miuix-shader")
+    }
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.window)

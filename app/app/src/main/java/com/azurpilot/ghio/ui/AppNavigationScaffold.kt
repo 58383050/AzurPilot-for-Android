@@ -12,12 +12,12 @@ import androidx.compose.foundation.pager.PagerDefaults.flingBehavior
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuOpen
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.DashboardCustomize
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.outlined.DashboardCustomize
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PhoneAndroid
-import androidx.compose.material.icons.outlined.PlayCircle
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
@@ -52,9 +52,9 @@ internal enum class TopDestination(
     val filledIcon: ImageVector,
 ) {
     /** 主页。 / Home. */
-    Hangar(R.string.nav_hangar, Icons.Outlined.PlayCircle, Icons.Filled.PlayCircle),
+    Hangar(R.string.nav_hangar, Icons.Outlined.Home, Icons.Filled.Home),
     /** 运行时控制台。 / Runtime console. */
-    AzurPilot(R.string.nav_azurpilot, Icons.Outlined.Public, Icons.Filled.Public),
+    AzurPilot(R.string.nav_azurpilot, Icons.Outlined.DashboardCustomize, Icons.Filled.DashboardCustomize),
     /** 虚拟屏。 / Virtual display. */
     Screen(R.string.nav_screen, Icons.Outlined.PhoneAndroid, Icons.Filled.PhoneAndroid),
 }

@@ -23,11 +23,14 @@ import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -229,7 +232,7 @@ fun ApFieldRow(
                 StatusIndicator(status)
             }
             if (!help.isNullOrBlank()) {
-                var helpExpanded by remember(group, argument) { mutableStateOf(false) }
+                var helpExpanded by rememberSaveable(group, argument) { mutableStateOf(false) }
                 Text(
                     text = help,
                     style = MaterialTheme.typography.bodySmall,
@@ -542,13 +545,25 @@ private fun TextControl(
             field.type == "task_priority" ||
             field.mode == "yaml" ||
             field.mode == "restricted_lua"
-    var text by remember(field) { mutableStateOf(fieldTextOf(value)) }
-    var touched by remember(field) { mutableStateOf(false) }
-    var invalid by remember(field) { mutableStateOf(false) }
-    var scriptError by remember(field) { mutableStateOf<String?>(null) }
-    var scriptChecked by remember(field) { mutableStateOf(false) }
+    var text by rememberSaveable(field) { mutableStateOf(fieldTextOf(value)) }
+    var touched by rememberSaveable(field) { mutableStateOf(false) }
+    var invalid by rememberSaveable(field) { mutableStateOf(false) }
+    var scriptError by rememberSaveable(field) { mutableStateOf<String?>(null) }
+    var scriptChecked by rememberSaveable(field) { mutableStateOf(false) }
     var checking by remember(field) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val currentValue by rememberUpdatedState(value)
+    val currentCommit by rememberUpdatedState(onCommit)
+
+    // 懒列表回收行时会取消防抖协程；先提交合法草稿，非法输入由可保存状态保留。
+    DisposableEffect(field) {
+        onDispose {
+            if (touched) {
+                val payload = prepareFieldValue(field, text).payload
+                if (payload != null && !payload.sameValueAs(currentValue)) currentCommit(payload)
+            }
+        }
+    }
 
     // 值来自服务端（配置刚加载完、或换了实例）时同步进来；用户动过的框不再覆盖
     LaunchedEffect(value) {

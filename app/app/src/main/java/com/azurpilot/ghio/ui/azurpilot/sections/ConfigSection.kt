@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -25,7 +24,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,11 +50,8 @@ import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotStartup
 import com.azurpilot.ghio.proot.toValueMap
 import com.azurpilot.ghio.theme.AppTokens
-import com.azurpilot.ghio.theme.ksu.LocalUiMode
-import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.azurpilot.ApEmptyState
 import com.azurpilot.ghio.ui.azurpilot.ApErrorState
-import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApTopBarAction
 import com.azurpilot.ghio.ui.azurpilot.apContentWidth
 import com.azurpilot.ghio.ui.components.AppCard
@@ -61,6 +59,7 @@ import com.azurpilot.ghio.ui.components.AppCardSurface
 import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.components.AppNavigationRow
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.ksu.appSettingsGroup
 import com.azurpilot.ghio.ui.ksu.AppButton as Button
 import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
 import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
@@ -121,54 +120,64 @@ fun ConfigSection(repository: AzurPilotRepository, onOpenTask: (String) -> Unit)
     val schemaError by repository.schemaError.collectAsStateWithLifecycle()
     val selected by repository.selectedInstance.collectAsStateWithLifecycle()
 
-    LaunchedEffect(selected) { selected?.let { repository.configEditor.load(it) } }
-
-    ApSectionColumn {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().apContentWidth(),
+        contentPadding =
+            PaddingValues(
+                start = AppTokens.Spacing.lg,
+                end = AppTokens.Spacing.lg,
+                top = AppTokens.Spacing.sm,
+                bottom = AppTokens.Spacing.xl,
+            ),
+    ) {
         when {
             selected == null ->
-                AppCard {
-                    ApEmptyState(
-                        icon = Icons.Filled.Build,
-                        title = stringResource(R.string.ap_overview_no_instance),
-                        hint = stringResource(R.string.ap_instance_none),
-                    )
+                item(key = "empty") {
+                    AppCard {
+                        ApEmptyState(
+                            icon = Icons.Filled.Build,
+                            title = stringResource(R.string.ap_overview_no_instance),
+                            hint = stringResource(R.string.ap_instance_none),
+                        )
+                    }
                 }
 
             schema == null && schemaError != null ->
-                AppCard {
-                    ApErrorState(schemaError!!) { repository.ensureSchema(force = true) }
+                item(key = "error") {
+                    AppCard {
+                        ApErrorState(schemaError!!) { repository.ensureSchema(force = true) }
+                    }
                 }
 
             schema == null ->
-                AppCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
-                        ExpressiveLoadingIndicator()
+                item(key = "loading") {
+                    AppCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            ExpressiveLoadingIndicator()
+                        }
                     }
                 }
 
             else -> {
                 val data = schema!!
                 data.menu.forEach { group ->
-                    com.azurpilot.ghio.ui.ksu.AppSettingsGroup(
-                        title = data.menuTitle(group.key),
-                    ) {
-                        group.tasks.forEach { task ->
-                            item {
-                                AppNavigationRow(
-                                    label = data.taskTitle(task),
-                                    description =
-                                        if (group.isTool) {
-                                            stringResource(R.string.ap_config_tool_hint)
-                                        } else {
-                                            task
-                                        },
-                                    onClick = { onOpenTask(task) },
-                                )
-                            }
-                        }
+                    appSettingsGroup(
+                        key = group.key,
+                        values = group.tasks,
+                        title = { data.menuTitle(group.key) },
+                        itemKey = { it },
+                    ) { task ->
+                        AppNavigationRow(
+                            label = data.taskTitle(task),
+                            description =
+                                if (group.isTool) {
+                                    stringResource(R.string.ap_config_tool_hint)
+                                } else task,
+                            onClick = { onOpenTask(task) },
+                        )
                     }
                 }
             }
@@ -208,8 +217,6 @@ fun TaskConfigPage(
     val schema by repository.schema.collectAsStateWithLifecycle()
     val editor by repository.configEditor.state.collectAsStateWithLifecycle()
     val selected by repository.selectedInstance.collectAsStateWithLifecycle()
-    val logs by repository.logs.collectAsStateWithLifecycle()
-    val startup by repository.startup.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     // rememberSaveable：分屏 / 深色切换重建 Activity 后，搜索词不丢（运行连续性）
     var query by rememberSaveable { mutableStateOf("") }
@@ -282,7 +289,14 @@ fun TaskConfigPage(
     val listState = rememberLazyListState()
     val startupCard = task == STARTUP_TASK && query.isBlank()
     // 头部整项滚出屏幕之后，才由顶栏接管搜索入口
-    val headerGone = listState.firstVisibleItemIndex > 0
+    val headerGone by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+
+    DisposableEffect(topBarAction) {
+        onDispose {
+            topBarAction?.visible = false
+            topBarAction?.onClick = null
+        }
+    }
 
     LaunchedEffect(topBarAction, listState) {
         if (topBarAction == null) return@LaunchedEffect
@@ -322,7 +336,6 @@ fun TaskConfigPage(
                 top = AppTokens.Spacing.sm,
                 bottom = AppTokens.Spacing.xl,
             ),
-        verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md),
     ) {
         item(key = "header") {
             Row(
@@ -342,7 +355,8 @@ fun TaskConfigPage(
                     GroupDirectoryMenu(
                         titles = groups.map { data.groupTitle(it.first) },
                         onJump = { index ->
-                            scope.launch { listState.animateScrollToItem(groupsStart + index) }
+                            val offset = groups.take(index).sumOf { it.second.size + 1 }
+                            scope.launch { listState.animateScrollToItem(groupsStart + offset) }
                         },
                     )
                 }
@@ -377,7 +391,10 @@ fun TaskConfigPage(
         }
 
         if (startupCard) {
-            item { StartupCard(repository, startup) }
+            item(key = "startup") {
+                val startup by repository.startup.collectAsStateWithLifecycle()
+                StartupCard(repository, startup)
+            }
         }
 
         if (groups.isEmpty()) {
@@ -401,53 +418,59 @@ fun TaskConfigPage(
             }
         }
 
-        itemsIndexed(groups, key = { _, item -> item.first }) { _, (group, fields) ->
-            com.azurpilot.ghio.ui.ksu.AppSettingsGroup(title = data.groupTitle(group)) {
-                fields.entries.forEach { (argument, field) ->
-                    val path = "$task.$group.$argument"
-                    item {
-                        val renderField: @Composable () -> Unit = {
-                            ApFieldRow(
-                        schema = data,
-                        group = group,
-                        argument = argument,
-                        field = field,
-                        value = taskValues[group]?.get(argument) ?: field.value,
-                        status = fieldStatus(path, editor),
-                        statusError = editor.failed[path],
-                        onChange = { repository.configEditor.update(task, group, argument, it) },
-                        onRetry = { repository.configEditor.retry(path) },
-                        // 「立刻运行」＝把调度时间回落到默认的过去时间（WebUI 用 prepareValue('')
-                        // 得到的是同一个值）；直接提交空串会被服务端的日期格式校验拒绝
-                        onRunNow =
-                            if (group == "Scheduler" && argument == "NextRun") {
-                                {
-                                    repository.configEditor.update(
-                                        task,
-                                        group,
-                                        argument,
-                                        field.value,
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                        onCheckScript =
-                            if (field.mode == "restricted_lua") {
-                                { script -> checkScript(repository, task, script) }
-                            } else {
-                                null
-                            },
-                            )
+        groups.forEach { (group, fields) ->
+            appSettingsGroup(
+                key = group,
+                values = fields.entries.toList(),
+                title = { data.groupTitle(group) },
+                itemKey = { it.key },
+                contentType = "configField",
+            ) { (argument, field) ->
+                val path = "$task.$group.$argument"
+                ApFieldRow(
+                    schema = data,
+                    group = group,
+                    argument = argument,
+                    field = field,
+                    value = taskValues[group]?.get(argument) ?: field.value,
+                    status = fieldStatus(path, editor),
+                    statusError = editor.failed[path],
+                    onChange = {
+                        // 回收旧实例的行时不能把草稿提交到刚切换的新实例。
+                        if (selected != null && repository.selectedInstance.value == selected &&
+                            repository.configEditor.state.value.instance == selected) {
+                            repository.configEditor.update(task, group, argument, it)
                         }
-                        renderField()
-                    }
-                }
+                    },
+                    onRetry = { repository.configEditor.retry(path) },
+                    // 「立刻运行」＝把调度时间回落到默认的过去时间（WebUI 用 prepareValue('')
+                    // 得到的是同一个值）；直接提交空串会被服务端的日期格式校验拒绝
+                    onRunNow =
+                        if (group == "Scheduler" && argument == "NextRun") {
+                            {
+                                repository.configEditor.update(
+                                    task,
+                                    group,
+                                    argument,
+                                    field.value,
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                    onCheckScript =
+                        if (field.mode == "restricted_lua") {
+                            { script -> checkScript(repository, task, script) }
+                        } else {
+                            null
+                        },
+                )
             }
         }
 
         if (isTool) {
-            item {
+            item(key = "toolLogs") {
+                val logs by repository.logs.collectAsStateWithLifecycle()
                 AppCard(title = stringResource(R.string.ap_tool_logs)) {
                     Button(
                         onClick = { pendingRun = task },
