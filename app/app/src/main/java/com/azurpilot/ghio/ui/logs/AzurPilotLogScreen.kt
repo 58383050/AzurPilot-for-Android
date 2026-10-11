@@ -1,27 +1,13 @@
 package com.azurpilot.ghio.ui.logs
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -33,25 +19,23 @@ import com.azurpilot.ghio.log.AzurPilotDailyLogInfo
 import com.azurpilot.ghio.log.AzurPilotErrorDirInfo
 import com.azurpilot.ghio.log.AzurPilotLogViewModel
 import com.azurpilot.ghio.theme.AppTokens
+import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 import org.koin.androidx.compose.koinViewModel
 
 /**
  * 渲染 AzurPilot 日志列表（二级页面）：直读内部存储的 `rootfs/opt/azurpilot/log`，不走 wrapper HTTP
  *
- * 两个分区：「错误记录」是 AzurPilot 出错时落的时间戳现场（log.txt + 截图），
- * 「按天日志」是整天 append 的 txt
+ * 两个分区：「错误记录」是 AzurPilot 出错时落的时间戳现场（log.txt + 截图）， 「按天日志」是整天 append 的 txt
  *
  * Renders the AzurPilot log list (second-level page): reads the on-device
  * `rootfs/opt/azurpilot/log` directly, no wrapper HTTP in between.
  *
- * Two sections: "error records" are the timestamped scenes dropped when AzurPilot
- * fails (log.txt + screenshots); "daily logs" are txt files appended across the
- * day.
+ * Two sections: "error records" are the timestamped scenes dropped when AzurPilot fails (log.txt +
+ * screenshots); "daily logs" are txt files appended across the day.
  *
- * @param onOpenDaily 点开按天日志时回传文件名 / invoked with the file name when a
- *   daily log is tapped
- * @param onOpenError 点开错误现场时回传目录名 / invoked with the directory name when
- *   an error scene is tapped
+ * @param onOpenDaily 点开按天日志时回传文件名 / invoked with the file name when a daily log is tapped
+ * @param onOpenError 点开错误现场时回传目录名 / invoked with the directory name when an error scene is tapped
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,51 +46,32 @@ fun AzurPilotLogScreen(
     viewModel: AzurPilotLogViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.azurpilot_log_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back),
-                        )
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-            )
-        },
+    com.azurpilot.ghio.ui.ksu.AppPageScaffold(
+        title = stringResource(R.string.azurpilot_log_title),
+        onBack = onBack,
     ) { padding ->
         val empty = state.errorDirs.isEmpty() && state.dailyLogs.isEmpty()
         if (empty) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(AppTokens.Spacing.lg),
+                modifier = Modifier.fillMaxSize().padding(padding).padding(AppTokens.Spacing.lg),
                 contentAlignment = Alignment.TopStart,
             ) {
                 Text(
-                    text = stringResource(
-                        if (state.loading) R.string.common_loading else R.string.azurpilot_log_empty,
-                    ),
+                    text =
+                        stringResource(
+                            if (state.loading) R.string.common_loading
+                            else R.string.azurpilot_log_empty
+                        ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            return@Scaffold
+            return@AppPageScaffold
         }
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(vertical = AppTokens.Spacing.sm),
         ) {
             if (state.errorDirs.isNotEmpty()) {
@@ -115,7 +80,8 @@ fun AzurPilotLogScreen(
                 }
                 // 同一批记录是一条列表，不是一堆并列的独立卡片：逐行套卡会把
                 // 「它们属于同一处」这层意思抹掉，还多出一圈没有信息量的框
-                itemsIndexed(state.errorDirs, key = { _, dir -> "error_${dir.name}" }) { index, dir ->
+                itemsIndexed(state.errorDirs, key = { _, dir -> "error_${dir.name}" }) { index, dir
+                    ->
                     if (index > 0) {
                         HorizontalDivider(modifier = Modifier.padding(start = AppTokens.Spacing.lg))
                     }
@@ -126,7 +92,9 @@ fun AzurPilotLogScreen(
                 item(key = "header_daily") {
                     AzurPilotLogSectionHeader(stringResource(R.string.azurpilot_log_section_daily))
                 }
-                itemsIndexed(state.dailyLogs, key = { _, file -> "daily_${file.name}" }) { index, file ->
+                itemsIndexed(state.dailyLogs, key = { _, file -> "daily_${file.name}" }) {
+                    index,
+                    file ->
                     if (index > 0) {
                         HorizontalDivider(modifier = Modifier.padding(start = AppTokens.Spacing.lg))
                     }
@@ -140,8 +108,8 @@ fun AzurPilotLogScreen(
 /**
  * 渲染分区标题：与列表行的首列文字对齐，读的人才能把标题和它下面那批连起来
  *
- * Renders a section header: aligned with the rows' first text column so the
- * heading visually binds to the batch below it.
+ * Renders a section header: aligned with the rows' first text column so the heading visually binds
+ * to the batch below it.
  */
 @Composable
 private fun AzurPilotLogSectionHeader(title: String) {
@@ -149,12 +117,13 @@ private fun AzurPilotLogSectionHeader(title: String) {
         text = title,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(
-            start = AppTokens.Spacing.lg,
-            end = AppTokens.Spacing.lg,
-            top = AppTokens.Spacing.md,
-            bottom = AppTokens.Spacing.xs,
-        ),
+        modifier =
+            Modifier.padding(
+                start = AppTokens.Spacing.lg,
+                end = AppTokens.Spacing.lg,
+                top = AppTokens.Spacing.md,
+                bottom = AppTokens.Spacing.xs,
+            ),
     )
 }
 
@@ -171,29 +140,21 @@ private fun AzurPilotErrorDirRow(dir: AzurPilotErrorDirInfo, onClick: () -> Unit
 private fun AzurPilotDailyLogRow(file: AzurPilotDailyLogInfo, onClick: () -> Unit) {
     AzurPilotLogRow(
         title = file.name,
-        subtitle = stringResource(
-            R.string.app_log_meta,
-            formatFileSize(file.sizeBytes),
-            logTimestamp(file.lastModified),
-        ),
+        subtitle =
+            stringResource(
+                R.string.app_log_meta,
+                formatFileSize(file.sizeBytes),
+                logTimestamp(file.lastModified),
+            ),
         onClick = onClick,
     )
 }
 
 @Composable
 private fun AzurPilotLogRow(title: String, subtitle: String, onClick: () -> Unit) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        // 尾箭头：这一行通向别处，与设置页的导航行同一套提示
-        trailingContent = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(AppTokens.IconSize.md),
-            )
-        },
-        modifier = Modifier.clickable(onClick = onClick),
+    com.azurpilot.ghio.ui.components.AppNavigationRow(
+        label = title,
+        description = subtitle,
+        onClick = onClick,
     )
 }

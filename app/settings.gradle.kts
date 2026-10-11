@@ -54,6 +54,9 @@ dependencyResolutionManagement {
 rootProject.name = "AzurPilotApp"
 include(":app")
 include(":hidden-api")
+include(":navigation-runtime")
 // Preferences DataStore 的 schema 代码生成（@PrefSchema / @PrefKey）
 include(":annotation-api")
 include(":ksp-processor")
+
+include(":miuix-runtime")

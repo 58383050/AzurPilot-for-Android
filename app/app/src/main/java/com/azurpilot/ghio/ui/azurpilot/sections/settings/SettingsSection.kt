@@ -3,9 +3,7 @@ package com.azurpilot.ghio.ui.azurpilot.sections.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -16,23 +14,21 @@ import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.ui.azurpilot.ApKeyValueRow
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.instanceStatusText
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppNavigationRow
+import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 
 /**
  * 设置：实例、公告、指挥喵、运行时更新、部署设置
  *
- * 这里是「全局性」的东西；任务参数在配置分区里。分隔的依据是**作用域**：
- * 改了只影响一个实例的归配置，影响整个运行环境的归这里。
+ * 这里是「全局性」的东西；任务参数在配置分区里。分隔的依据是**作用域**： 改了只影响一个实例的归配置，影响整个运行环境的归这里。
  *
- * The Settings section: instances, announcement, Meowfficer, runtime updater,
- * and deploy settings.
+ * The Settings section: instances, announcement, Meowfficer, runtime updater, and deploy settings.
  *
- * This page holds the "global" things; task arguments live in the Config
- * section. The split criterion is **scope**: changes that affect a single
- * instance belong to Config, changes that affect the whole runtime environment
- * belong here.
+ * This page holds the "global" things; task arguments live in the Config section. The split
+ * criterion is **scope**: changes that affect a single instance belong to Config, changes that
+ * affect the whole runtime environment belong here.
  *
  * @param repository 网关仓库 / the gateway repository
  * @param onOpenInstances 打开实例管理页 / opens the instance-management page
@@ -59,7 +55,7 @@ fun SettingsSection(
     ApSectionColumn {
         AppCard(
             title = stringResource(R.string.ap_title_instances),
-            modifier = Modifier.apEnter(0),
+            modifier = Modifier,
         ) {
             AppNavigationRow(
                 label = stringResource(R.string.ap_settings_instances_manage),
@@ -70,17 +66,19 @@ fun SettingsSection(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 ApKeyValueRow(
                     label = stringResource(R.string.ap_settings_current_instance),
-                    value = instances.firstOrNull { it.name == name }
-                        ?.let { "$name · ${instanceStatusText(it.status)}" }
-                        ?: name,
+                    value =
+                        instances
+                            .firstOrNull { it.name == name }
+                            ?.let { "$name · ${instanceStatusText(it.status)}" } ?: name,
                 )
             }
         }
 
-        AppCard(modifier = Modifier.apEnter(1)) {
+        AppCard(modifier = Modifier) {
             AppNavigationRow(
                 label = stringResource(R.string.ap_title_announcement),
-                description = announcement?.title ?: stringResource(R.string.ap_settings_announcement_empty),
+                description =
+                    announcement?.title ?: stringResource(R.string.ap_settings_announcement_empty),
                 onClick = onOpenAnnouncement,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -93,40 +91,49 @@ fun SettingsSection(
 
         AppCard(
             title = stringResource(R.string.ap_title_updater),
-            modifier = Modifier.apEnter(2),
+            modifier = Modifier,
         ) {
             AppNavigationRow(
-                label = updater?.let { it.localHead?.take(10) ?: it.state } ?: stringResource(R.string.ap_waiting_data),
-                description = when {
-                    updater == null -> stringResource(R.string.ap_waiting_data)
-                    updater!!.managedByAndroid -> stringResource(R.string.ap_updater_managed)
-                    updater!!.behind > 0 -> stringResource(R.string.ap_updater_behind, updater!!.behind)
-                    else -> stringResource(R.string.ap_updater_current)
-                },
+                label =
+                    updater?.let { it.localHead?.take(10) ?: it.state }
+                        ?: stringResource(R.string.ap_waiting_data),
+                description =
+                    when {
+                        updater == null -> stringResource(R.string.ap_waiting_data)
+                        updater!!.managedByAndroid -> stringResource(R.string.ap_updater_managed)
+                        updater!!.behind > 0 ->
+                            stringResource(R.string.ap_updater_behind, updater!!.behind)
+                        else -> stringResource(R.string.ap_updater_current)
+                    },
                 onClick = onOpenUpdater,
             )
         }
 
         AppCard(
             title = stringResource(R.string.ap_title_deploy),
-            modifier = Modifier.apEnter(3),
+            modifier = Modifier,
         ) {
             if (deploy == null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
-                ) { Text(stringResource(R.string.ap_waiting_data)) }
+                ) {
+                    Text(stringResource(R.string.ap_waiting_data))
+                }
             } else {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_settings_deploy_open),
-                    description = stringResource(R.string.ap_settings_deploy_count, deploy!!.groups.size),
+                    description =
+                        stringResource(R.string.ap_settings_deploy_count, deploy!!.groups.size),
                     onClick = onOpenDeploy,
                 )
                 deploy!!.remote?.let { remote ->
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     ApKeyValueRow(
                         label = stringResource(R.string.ap_settings_remote),
-                        value = if (remote.enabled) remote.state else stringResource(R.string.ap_settings_remote_off),
+                        value =
+                            if (remote.enabled) remote.state
+                            else stringResource(R.string.ap_settings_remote_off),
                     )
                 }
             }

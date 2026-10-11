@@ -1,13 +1,11 @@
 package com.azurpilot.ghio.ui.azurpilot.sections.settings
 
-
-import androidx.compose.foundation.layout.Arrangement
-import com.azurpilot.ghio.ui.azurpilot.ApMotion
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,19 +18,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,23 +43,28 @@ import com.azurpilot.ghio.proot.sameValueAs
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.azurpilot.ApErrorState
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
+import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
+import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextField as OutlinedTextField
 
 /**
  * 部署设置（`config/deploy.yaml`）
  *
- * 与任务参数不同，这些是**运行环境**的配置：改完大多要重启 AzurPilot 才生效，
- * 所以这里不逐字段自动保存，而是攒到一份草稿里，由底部的「保存」一次提交——
+ * 与任务参数不同，这些是**运行环境**的配置：改完大多要重启 AzurPilot 才生效， 所以这里不逐字段自动保存，而是攒到一份草稿里，由底部的「保存」一次提交——
  * 半套应用的设置比没保存更难排查。
  *
  * The deploy-settings page (`config/deploy.yaml`).
  *
- * Unlike task arguments these configure the **runtime environment**: most take
- * effect only after AzurPilot restarts. So nothing auto-saves per field —
- * edits accumulate into a draft committed in one go by the bottom "save" bar;
- * a half-applied set of settings is harder to debug than an unsaved one.
+ * Unlike task arguments these configure the **runtime environment**: most take effect only after
+ * AzurPilot restarts. So nothing auto-saves per field — edits accumulate into a draft committed in
+ * one go by the bottom "save" bar; a half-applied set of settings is harder to debug than an
+ * unsaved one.
  *
  * @param repository 网关仓库 / the gateway repository
  */
@@ -95,17 +87,22 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
     Box(modifier = Modifier.fillMaxSize()) {
         ApSectionColumn {
             if (loading) {
-                AppCard(modifier = Modifier.apEnter(0)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                AppCard(modifier = Modifier) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
                         ExpressiveLoadingIndicator()
                     }
                 }
                 return@ApSectionColumn
             }
-            val data = deploy ?: run {
-                AppCard { ApErrorState(error ?: stringResource(R.string.ap_waiting_data)) }
-                return@ApSectionColumn
-            }
+            val data =
+                deploy
+                    ?: run {
+                        AppCard { ApErrorState(error ?: stringResource(R.string.ap_waiting_data)) }
+                        return@ApSectionColumn
+                    }
             if (data.notice.isNotEmpty()) {
                 AppCard {
                     Text(
@@ -128,7 +125,7 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                 AppCard(
                     title = group.label,
                     collapsible = true,
-                    modifier = Modifier.apEnter(index + 1),
+                    modifier = Modifier,
                 ) {
                     group.fields.forEach { field ->
                         DeployFieldRow(
@@ -147,17 +144,17 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
             visible = draft.isNotEmpty(),
             // 定位与 inset 挂在 AnimatedVisibility 上：它才是 Box 的直接子项，
             // 写在里面的 Surface 上等于让被包裹的那层去对齐外层的 Box，位移会跑偏
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .imePadding(),
-            enter = slideInVertically(
-                animationSpec = ApMotion.spatial(),
-                initialOffsetY = { it },
-            ) + fadeIn(ApMotion.effects(ApMotion.Short4)),
-            exit = slideOutVertically(
-                animationSpec = ApMotion.resize(),
-                targetOffsetY = { it },
-            ) + fadeOut(ApMotion.effects(ApMotion.Short2, ApMotion.StandardAccelerate)),
+            modifier = Modifier.align(Alignment.BottomCenter).imePadding(),
+            enter =
+                slideInVertically(
+                    animationSpec = androidx.compose.animation.core.spring(),
+                    initialOffsetY = { it },
+                ) + fadeIn(androidx.compose.animation.core.spring()),
+            exit =
+                slideOutVertically(
+                    animationSpec = androidx.compose.animation.core.spring(),
+                    targetOffsetY = { it },
+                ) + fadeOut(androidx.compose.animation.core.spring()),
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -165,9 +162,7 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                 tonalElevation = 3.dp,
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(AppTokens.Spacing.lg),
+                    modifier = Modifier.fillMaxWidth().padding(AppTokens.Spacing.lg),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md),
                 ) {
@@ -188,8 +183,8 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                     ) {
                         Text(
                             stringResource(
-                                if (saving) R.string.ap_deploy_saving else R.string.ap_deploy_save,
-                            ),
+                                if (saving) R.string.ap_deploy_saving else R.string.ap_deploy_save
+                            )
                         )
                     }
                 }
@@ -201,14 +196,13 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
 /**
  * 单个部署字段行，控件按字段类型挑（开关 / 下拉 / 密码 / 整数 / 文本）
  *
- * One deploy-field row; the control is picked by the field's type (switch /
- * dropdown / password / integer / text).
+ * One deploy-field row; the control is picked by the field's type (switch / dropdown / password /
+ * integer / text).
  *
  * @param field 字段定义 / the field definition
- * @param draft 草稿值；null 表示尚未改动，显示回落到 [AzurPilotDeployField.value] —
- *   ApValue 本身就是可空类型，不要再叠一层 `?` / the draft value; null means
- *   unmodified and falls back to [AzurPilotDeployField.value] — ApValue is
- *   already nullable, do not stack another `?` on it
+ * @param draft 草稿值；null 表示尚未改动，显示回落到 [AzurPilotDeployField.value] — ApValue 本身就是可空类型，不要再叠一层 `?` /
+ *   the draft value; null means unmodified and falls back to [AzurPilotDeployField.value] — ApValue
+ *   is already nullable, do not stack another `?` on it
  * @param enabled 演示模式下整体禁用 / false disables the row (demo mode)
  * @param onDraft 写入草稿 / writes into the draft
  */
@@ -222,9 +216,7 @@ private fun DeployFieldRow(
 ) {
     val current = draft ?: field.value
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = AppTokens.Spacing.xs),
+        modifier = Modifier.fillMaxWidth().padding(vertical = AppTokens.Spacing.xs),
         verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xs),
     ) {
         Text(text = field.label, style = MaterialTheme.typography.bodyLarge)
@@ -237,45 +229,27 @@ private fun DeployFieldRow(
         }
 
         when {
-            field.type == "bool" -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(
-                    checked = current as? Boolean ?: false,
-                    enabled = enabled,
-                    onCheckedChange = { onDraft(it) },
-                )
-            }
+            field.type == "bool" ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(
+                        checked = current as? Boolean ?: false,
+                        enabled = enabled,
+                        onCheckedChange = { onDraft(it) },
+                    )
+                }
 
             field.options.isNotEmpty() -> {
-                var expanded by remember { mutableStateOf(false) }
-                val known = field.options.any { it.sameValueAs(current) }
-                ExposedDropdownMenuBox(
-                    expanded = expanded && enabled,
-                    onExpandedChange = { if (enabled) expanded = it },
-                ) {
-                    OutlinedTextField(
-                        value = if (known) optionText(current) else optionText(field.value),
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = enabled,
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                    )
-                    ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
-                        field.options.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(optionText(option)) },
-                                onClick = {
-                                    expanded = false
-                                    onDraft(option)
-                                },
-                            )
-                        }
-                    }
-                }
+                val options =
+                    if (field.options.any { it.sameValueAs(current) }) field.options
+                    else listOf(current) + field.options
+                com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
+                    title = "",
+                    items = options.map { optionText(it) },
+                    selectedIndex =
+                        options.indexOfFirst { it.sameValueAs(current) }.coerceAtLeast(0),
+                    enabled = enabled,
+                    onSelectedIndexChange = { onDraft(options[it]) },
+                )
             }
 
             field.type == "password" -> {
@@ -285,17 +259,20 @@ private fun DeployFieldRow(
                     onValueChange = { onDraft(it) },
                     enabled = enabled,
                     singleLine = true,
-                    visualTransformation = if (visible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                    placeholder = { Text(stringResource(R.string.ap_deploy_password_hint)) },
+                    visualTransformation =
+                        if (visible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
+                    placeholderText = stringResource(R.string.ap_deploy_password_hint),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     trailingIcon = {
                         IconButton(onClick = { visible = !visible }) {
                             Icon(
-                                imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                imageVector =
+                                    if (visible) Icons.Filled.VisibilityOff
+                                    else Icons.Filled.Visibility,
                                 contentDescription = null,
                                 modifier = Modifier.size(AppTokens.IconSize.md),
                             )
@@ -305,29 +282,35 @@ private fun DeployFieldRow(
                 )
             }
 
-            field.type == "int" -> OutlinedTextField(
-                value = (current as? Number)?.toLong()?.toString() ?: "",
-                onValueChange = { text -> text.toIntOrNull()?.let(onDraft) },
-                enabled = enabled,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            field.type == "int" ->
+                OutlinedTextField(
+                    value = (current as? Number)?.toLong()?.toString() ?: "",
+                    onValueChange = { text -> text.toIntOrNull()?.let(onDraft) },
+                    enabled = enabled,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
-            else -> OutlinedTextField(
-                value = current as? String ?: "",
-                onValueChange = { onDraft(it) },
-                enabled = enabled,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            else ->
+                OutlinedTextField(
+                    value = current as? String ?: "",
+                    onValueChange = { onDraft(it) },
+                    enabled = enabled,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
         }
     }
 }
 
-/** 选项的显示文本：空串给占位符，其余按字符串渲染 / The display text of an option: an empty string becomes a placeholder, everything else renders as a string. */
-private fun optionText(value: ApValue): String = when (value) {
-    null -> ""
-    is String -> value.ifEmpty { "—" }
-    else -> value.toString()
-}
+/**
+ * 选项的显示文本：空串给占位符，其余按字符串渲染 / The display text of an option: an empty string becomes a placeholder,
+ * everything else renders as a string.
+ */
+private fun optionText(value: ApValue): String =
+    when (value) {
+        null -> ""
+        is String -> value.ifEmpty { "—" }
+        else -> value.toString()
+    }

@@ -9,11 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.NightsStay
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,6 +22,10 @@ import com.azurpilot.ghio.domain.RunMode
 import com.azurpilot.ghio.overlay.screensaver.ScreenSaverOverlayManager
 import com.azurpilot.ghio.settings.AppSettingsManager
 import com.azurpilot.ghio.theme.AppTokens
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTonalButton as FilledTonalButton
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -50,17 +50,25 @@ fun ScreenSaverButton(
         onClick = {
             if (!Settings.canDrawOverlays(context)) {
                 context.startActivity(
-                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")),
+                    Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:${context.packageName}"),
+                    )
                 )
             } else {
                 scope.launch {
                     if (!manager.show()) {
-                        Toast.makeText(context, R.string.screensaver_show_failed, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                                context,
+                                R.string.screensaver_show_failed,
+                                Toast.LENGTH_SHORT,
+                            )
+                            .show()
                     }
                 }
             }
         },
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
     ) {
         Icon(
             imageVector = Icons.Outlined.NightsStay,
@@ -77,8 +85,8 @@ fun ScreenSaverButton(
 /**
  * 渲染显示设置中的自动遮罩开关；默认关闭，保存后从下一次任务启动生效。
  *
- * Renders the automatic screensaver switch in display settings; it defaults to off and applies
- * from the next run after saving. A missing overlay permission opens system settings first.
+ * Renders the automatic screensaver switch in display settings; it defaults to off and applies from
+ * the next run after saving. A missing overlay permission opens system settings first.
  */
 @Composable
 fun ScreenSaverSettingsCard(settings: AppSettingsManager = koinInject()) {
@@ -95,7 +103,10 @@ fun ScreenSaverSettingsCard(settings: AppSettingsManager = koinInject()) {
                 onCheckedChange = { checked ->
                     if (checked && !Settings.canDrawOverlays(context)) {
                         context.startActivity(
-                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")),
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:${context.packageName}"),
+                            )
                         )
                     } else {
                         scope.launch { settings.setScreenSaverEnabled(checked) }

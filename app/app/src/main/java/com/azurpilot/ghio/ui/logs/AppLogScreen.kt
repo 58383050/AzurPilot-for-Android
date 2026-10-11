@@ -1,29 +1,15 @@
 package com.azurpilot.ghio.ui.logs
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +25,9 @@ import com.azurpilot.ghio.log.AppLogIntent
 import com.azurpilot.ghio.log.AppLogViewModel
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.components.AppPromptDialog
+import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -46,14 +35,14 @@ import org.koin.androidx.compose.koinViewModel
  *
  * 与运行历史同一形态的两级页；版面对齐 参考实现 的 `ErrorLogView`
  *
- * Renders the launcher log file list (second-level page): recursive walk of the
- * `log/` directory (app.log family / session.log / crash).
+ * Renders the launcher log file list (second-level page): recursive walk of the `log/` directory
+ * (app.log family / session.log / crash).
  *
- * Same two-level shape as the run history; the layout follows the reference
- * implementation's `ErrorLogView`.
+ * Same two-level shape as the run history; the layout follows the reference implementation's
+ * `ErrorLogView`.
  *
- * @param onOpen 点开某行时回传日志文件名（相对 `log/` 目录） / invoked with the log
- *   file name (relative to `log/`) when a row is tapped
+ * @param onOpen 点开某行时回传日志文件名（相对 `log/` 目录） / invoked with the log file name (relative to `log/`)
+ *   when a row is tapped
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,60 +72,40 @@ fun AppLogScreen(
     }
 
     // M3 的顶栏滚动行为：列表滚起来时顶栏换成容器色并抬起，与主 tab 页同一套
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_log_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back),
-                        )
-                    }
-                },
-                actions = {
-                    if (state.files.isNotEmpty()) {
-                        TextButton(onClick = { confirmClear = true }) {
-                            Text(
-                                text = stringResource(R.string.app_log_clear),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-            )
+    com.azurpilot.ghio.ui.ksu.AppPageScaffold(
+        title = stringResource(R.string.app_log_title),
+        onBack = onBack,
+        actions = {
+            if (state.files.isNotEmpty()) {
+                TextButton(onClick = { confirmClear = true }) {
+                    Text(
+                        text = stringResource(R.string.app_log_clear),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
         },
     ) { padding ->
         if (state.files.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(AppTokens.Spacing.lg),
+                modifier = Modifier.fillMaxSize().padding(padding).padding(AppTokens.Spacing.lg),
                 contentAlignment = Alignment.TopStart,
             ) {
                 Text(
-                    text = stringResource(
-                        if (state.loading) R.string.common_loading else R.string.app_log_empty,
-                    ),
+                    text =
+                        stringResource(
+                            if (state.loading) R.string.common_loading else R.string.app_log_empty
+                        ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            return@Scaffold
+            return@AppPageScaffold
         }
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(vertical = AppTokens.Spacing.sm),
         ) {
             // 同一批日志文件是一条列表，不是一堆并列的独立卡片：
@@ -154,26 +123,14 @@ fun AppLogScreen(
 
 @Composable
 private fun AppLogFileRow(file: AppLogFileInfo, onClick: () -> Unit) {
-    ListItem(
-        headlineContent = { Text(file.name) },
-        supportingContent = {
-            Text(
-                stringResource(
-                    R.string.app_log_meta,
-                    formatFileSize(file.sizeBytes),
-                    logTimestamp(file.lastModified),
-                ),
-            )
-        },
-        // 尾箭头：这一行通向别处，与设置页的导航行同一套提示
-        trailingContent = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(AppTokens.IconSize.md),
-            )
-        },
-        modifier = Modifier.clickable(onClick = onClick),
+    com.azurpilot.ghio.ui.components.AppNavigationRow(
+        label = file.name,
+        description =
+            stringResource(
+                R.string.app_log_meta,
+                formatFileSize(file.sizeBytes),
+                logTimestamp(file.lastModified),
+            ),
+        onClick = onClick,
     )
 }

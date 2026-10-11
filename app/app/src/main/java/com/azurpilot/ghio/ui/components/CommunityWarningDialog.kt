@@ -12,12 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,6 +27,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppCheckbox as Checkbox
+import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 import kotlinx.coroutines.delay
 
 /**
@@ -39,19 +39,17 @@ import kotlinx.coroutines.delay
  *
  * 弹窗禁止通过返回键或点击空白外部关闭；确认后由调用方落盘持久化，后续不再弹出。
  *
- * Community guidelines warning dialog: enforces a 10-second countdown display and requires
- * checking "I have read and understood" before the "Continue" button becomes enabled.
+ * Community guidelines warning dialog: enforces a 10-second countdown display and requires checking
+ * "I have read and understood" before the "Continue" button becomes enabled.
  *
- * Dismissal via back press or outside click is disabled; once confirmed, the caller persists
- * the acknowledgement state so the dialog never pops up again.
+ * Dismissal via back press or outside click is disabled; once confirmed, the caller persists the
+ * acknowledgement state so the dialog never pops up again.
  *
- * @param onAcknowledge 用户完成倒计时并勾选确认后点击继续的回调 /
- *   invoked when the user completes countdown, checks the box, and taps continue
+ * @param onAcknowledge 用户完成倒计时并勾选确认后点击继续的回调 / invoked when the user completes countdown, checks the
+ *   box, and taps continue
  */
 @Composable
-fun CommunityWarningDialog(
-    onAcknowledge: () -> Unit,
-) {
+fun CommunityWarningDialog(onAcknowledge: () -> Unit) {
     // 强制倒计时 10 秒；rememberSaveable 保证旋转屏幕或配置变更时不重置计时
     var remainingSeconds by rememberSaveable { mutableIntStateOf(10) }
     var isConfirmed by rememberSaveable { mutableStateOf(false) }
@@ -69,10 +67,11 @@ fun CommunityWarningDialog(
         onDismissRequest = {
             // 强制阅读，禁止点击外部或返回键关闭
         },
-        properties = DialogProperties(
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-        ),
+        properties =
+            DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
         icon = {
             Icon(
                 imageVector = Icons.Default.Warning,
@@ -100,11 +99,11 @@ fun CommunityWarningDialog(
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(MaterialTheme.shapes.small)
-                        .clickable { isConfirmed = !isConfirmed }
-                        .padding(vertical = 4.dp),
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .clip(MaterialTheme.shapes.small)
+                            .clickable { isConfirmed = !isConfirmed }
+                            .padding(vertical = 4.dp),
                 ) {
                     Checkbox(
                         checked = isConfirmed,
@@ -124,11 +123,15 @@ fun CommunityWarningDialog(
                 enabled = canContinue,
             ) {
                 Text(
-                    text = if (remainingSeconds > 0) {
-                        stringResource(R.string.community_warning_continue_countdown, remainingSeconds)
-                    } else {
-                        stringResource(R.string.community_warning_continue)
-                    },
+                    text =
+                        if (remainingSeconds > 0) {
+                            stringResource(
+                                R.string.community_warning_continue_countdown,
+                                remainingSeconds,
+                            )
+                        } else {
+                            stringResource(R.string.community_warning_continue)
+                        }
                 )
             }
         },

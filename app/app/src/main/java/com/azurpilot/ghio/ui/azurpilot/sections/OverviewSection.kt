@@ -1,14 +1,11 @@
 package com.azurpilot.ghio.ui.azurpilot.sections
 
-
-
-import androidx.compose.foundation.Image
-import com.azurpilot.ghio.ui.azurpilot.ApMotion
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,16 +20,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.TaskAlt
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Button
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -49,7 +39,6 @@ import com.azurpilot.ghio.proot.AzurPilotStatus
 import com.azurpilot.ghio.proot.AzurPilotTask
 import com.azurpilot.ghio.proot.AzurPilotTaskState
 import com.azurpilot.ghio.theme.AppTokens
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.azurpilot.ApEmptyState
 import com.azurpilot.ghio.ui.azurpilot.ApKeyValueRow
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
@@ -63,12 +52,18 @@ import com.azurpilot.ghio.ui.azurpilot.taskStateColor
 import com.azurpilot.ghio.ui.azurpilot.taskStateText
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppLabeledControlRow
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
+import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
+import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 
 /**
  * 总览：调度器状态、资源、实时画面、任务计划
  *
- * The Overview section: scheduler status, resources, the live preview, and the
- * task plan.
+ * The Overview section: scheduler status, resources, the live preview, and the task plan.
  *
  * @param repository 网关仓库 / the gateway repository
  */
@@ -93,7 +88,7 @@ fun OverviewSection(repository: AzurPilotRepository) {
         val data = overview
         AppCard(
             title = stringResource(R.string.ap_overview_scheduler),
-            modifier = Modifier.apEnter(0),
+            modifier = Modifier,
         ) {
             if (data == null) {
                 ApEmptyState(Icons.Filled.Schedule, stringResource(R.string.ap_waiting_data))
@@ -107,8 +102,8 @@ fun OverviewSection(repository: AzurPilotRepository) {
                     AnimatedContent(
                         targetState = data.status,
                         transitionSpec = {
-                            fadeIn(ApMotion.effects(ApMotion.Medium2, ApMotion.EmphasizedDecelerate)) togetherWith
-                                fadeOut(ApMotion.effects(ApMotion.Short2, ApMotion.StandardAccelerate))
+                            fadeIn(androidx.compose.animation.core.spring()) togetherWith
+                                fadeOut(androidx.compose.animation.core.spring())
                         },
                         label = "schedulerStatus",
                     ) { status ->
@@ -137,18 +132,18 @@ fun OverviewSection(repository: AzurPilotRepository) {
         if (data != null && data.resources.isNotEmpty()) {
             AppCard(
                 title = stringResource(R.string.ap_overview_resources),
-                modifier = Modifier.apEnter(1),
+                modifier = Modifier,
             ) {
                 ResourceGrid(data.resources)
             }
         }
 
-        PreviewCard(repository, Modifier.apEnter(2))
+        PreviewCard(repository, Modifier)
 
         if (data != null) {
             AppCard(
                 title = stringResource(R.string.ap_overview_tasks),
-                modifier = Modifier.apEnter(3),
+                modifier = Modifier,
             ) {
                 if (data.tasks.isEmpty()) {
                     ApEmptyState(
@@ -167,15 +162,13 @@ fun OverviewSection(repository: AzurPilotRepository) {
 /**
  * 调度器启停
  *
- * 总览是「一眼看状态并动手」的那一页，启停按钮必须在它上面。状态是 error 时按钮回到「启动」
- * ——那正是重试的入口；进行中的那一次会禁用按钮，stop 在服务端最长要等 30s 才回话。
+ * 总览是「一眼看状态并动手」的那一页，启停按钮必须在它上面。状态是 error 时按钮回到「启动」 ——那正是重试的入口；进行中的那一次会禁用按钮，stop 在服务端最长要等 30s 才回话。
  *
  * The scheduler start/stop button.
  *
- * Overview is the "see the status and act" page, so the start/stop button must
- * live here. When the status is error the button flips back to "start" — that
- * is exactly the retry entry; the in-flight call disables the button, since
- * stop can take up to 30 s on the server before it answers.
+ * Overview is the "see the status and act" page, so the start/stop button must live here. When the
+ * status is error the button flips back to "start" — that is exactly the retry entry; the in-flight
+ * call disables the button, since stop can take up to 30 s on the server before it answers.
  *
  * @param repository 网关仓库 / the gateway repository
  * @param running 调度器当前是否在运行 / whether the scheduler is running
@@ -195,14 +188,15 @@ private fun SchedulerButton(repository: AzurPilotRepository, running: Boolean) {
         )
         // 文案与图标一起交叉淡入：同一颗按钮的三种态，硬切会闪一下「换了个按钮」
         AnimatedContent(
-            targetState = when {
-                busy -> R.string.ap_scheduler_processing
-                running -> R.string.ap_scheduler_stop
-                else -> R.string.ap_scheduler_start
-            },
+            targetState =
+                when {
+                    busy -> R.string.ap_scheduler_processing
+                    running -> R.string.ap_scheduler_stop
+                    else -> R.string.ap_scheduler_start
+                },
             transitionSpec = {
-                fadeIn(ApMotion.effects(ApMotion.Short4, ApMotion.EmphasizedDecelerate)) togetherWith
-                    fadeOut(ApMotion.effects(ApMotion.Short2, ApMotion.StandardAccelerate))
+                fadeIn(androidx.compose.animation.core.spring()) togetherWith
+                    fadeOut(androidx.compose.animation.core.spring())
             },
             label = "schedulerAction",
         ) { label ->
@@ -218,12 +212,13 @@ private fun SchedulerButton(repository: AzurPilotRepository, running: Boolean) {
 @Composable
 private fun TaskCounts(tasks: List<AzurPilotTask>) {
     Text(
-        text = stringResource(
-            R.string.ap_overview_counts,
-            tasks.count { it.state == AzurPilotTaskState.Running },
-            tasks.count { it.state == AzurPilotTaskState.Pending },
-            tasks.count { it.state == AzurPilotTaskState.Waiting },
-        ),
+        text =
+            stringResource(
+                R.string.ap_overview_counts,
+                tasks.count { it.state == AzurPilotTaskState.Running },
+                tasks.count { it.state == AzurPilotTaskState.Pending },
+                tasks.count { it.state == AzurPilotTaskState.Waiting },
+            ),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 2,
@@ -233,8 +228,8 @@ private fun TaskCounts(tasks: List<AzurPilotTask>) {
 /**
  * 资源格：两列铺开，零值显示占位符（服务端用 0 + 哨兵时间戳表达「从未同步」）
  *
- * The resource grid: two columns; zero values render as a placeholder (the
- * server expresses "never synced" as 0 plus a sentinel timestamp).
+ * The resource grid: two columns; zero values render as a placeholder (the server expresses "never
+ * synced" as 0 plus a sentinel timestamp).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -271,10 +266,11 @@ private fun ResourceGrid(resources: List<AzurPilotResource>) {
                     val limit = resource.limit
                     if (recorded && limit != null && limit > 0) {
                         Text(
-                            text = stringResource(
-                                R.string.ap_overview_resource_limit,
-                                formatResource(limit, true),
-                            ),
+                            text =
+                                stringResource(
+                                    R.string.ap_overview_resource_limit,
+                                    formatResource(limit, true),
+                                ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -288,8 +284,7 @@ private fun ResourceGrid(resources: List<AzurPilotResource>) {
 /**
  * 实时画面：网关只在订阅期间推帧，这里不做抓拍
  *
- * The live preview: the gateway pushes frames only while subscribed; no
- * snapshot capture here.
+ * The live preview: the gateway pushes frames only while subscribed; no snapshot capture here.
  *
  * @param repository 网关仓库 / the gateway repository
  * @param modifier 应用于卡片的修饰符 / the modifier applied to the card
@@ -301,7 +296,7 @@ private fun PreviewCard(repository: AzurPilotRepository, modifier: Modifier = Mo
         // 逐帧硬换会闪；交叉淡入让「画面在动」这件事看起来是连续的
         Crossfade(
             targetState = preview?.image,
-            animationSpec = ApMotion.effects(ApMotion.Medium2, ApMotion.EmphasizedDecelerate),
+            animationSpec = androidx.compose.animation.core.spring(),
             label = "previewFrame",
         ) { image ->
             if (image == null) {
@@ -313,9 +308,7 @@ private fun PreviewCard(repository: AzurPilotRepository, modifier: Modifier = Mo
             } else {
                 // 虚拟屏是横屏 16:9，按同一比例留位，换帧时不会跳高度
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f),
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
@@ -340,8 +333,7 @@ private fun PreviewCard(repository: AzurPilotRepository, modifier: Modifier = Mo
 /**
  * 任务计划：顺序沿用网关的排序（运行中 → 待运行 → 等待）
  *
- * The task plan: the order follows the gateway's (running → pending →
- * waiting).
+ * The task plan: the order follows the gateway's (running → pending → waiting).
  *
  * @param tasks 任务列表 / the task list
  * @param onRunNow 立刻运行某任务 / runs one task immediately
@@ -354,9 +346,7 @@ private fun TaskPlan(tasks: List<AzurPilotTask>, onRunNow: (String) -> Unit) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = AppTokens.Spacing.xs),
+                modifier = Modifier.fillMaxWidth().padding(vertical = AppTokens.Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
             ) {

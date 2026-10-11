@@ -23,18 +23,7 @@ import androidx.compose.material.icons.filled.DirectionsBoat
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,31 +54,42 @@ import com.azurpilot.ghio.ui.azurpilot.ApErrorState
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApTopBarAction
 import com.azurpilot.ghio.ui.azurpilot.apContentWidth
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.components.AppNavigationRow
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
+import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
+import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
+import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
+import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
  * FleetInfo 是唯一不走通用表单的任务：它的结果是一个隐藏的 JSON 舰队快照
  *
- * FleetInfo is the only task that bypasses the generic form: its result is a
- * hidden JSON fleet snapshot.
+ * FleetInfo is the only task that bypasses the generic form: its result is a hidden JSON fleet
+ * snapshot.
  */
 private const val FLEET_INFO = "FleetInfo"
 
 /**
  * 自启开关挂在系统设置任务页上——它描述的是「整机启动时怎么办」，不属于任何一个任务参数
  *
- * The startup switches hang on the system-settings task page — they describe
- * "what happens at app start", not any single task argument.
+ * The startup switches hang on the system-settings task page — they describe "what happens at app
+ * start", not any single task argument.
  */
 private const val STARTUP_TASK = "Alas"
 
-/** 舰队快照里的角色键，与编队号一起定位一支舰队 / The role keys in a fleet snapshot; together with a fleet number they locate one fleet. */
+/**
+ * 舰队快照里的角色键，与编队号一起定位一支舰队 / The role keys in a fleet snapshot; together with a fleet number they
+ * locate one fleet.
+ */
 private val FLEET_ROLES = listOf("vanguard", "main", "submarine")
 
 /** 编队号取值范围 / The possible fleet numbers. */
@@ -101,14 +101,13 @@ private const val TOOL_LOG_LINES = 60
 /**
  * 配置：任务目录
  *
- * 目录结构与名称全部取自 `schema.get`——菜单分组由 `menu.json` 定，任务名与分组标题走运行时翻译，
- * 所以上游加了任务这里自动就有了。
+ * 目录结构与名称全部取自 `schema.get`——菜单分组由 `menu.json` 定，任务名与分组标题走运行时翻译， 所以上游加了任务这里自动就有了。
  *
  * The Config section: the task catalog.
  *
- * Catalog structure and names all come from `schema.get` — menu grouping is
- * defined by `menu.json`, and task names and group titles go through runtime
- * translation, so tasks added upstream show up here automatically.
+ * Catalog structure and names all come from `schema.get` — menu grouping is defined by `menu.json`,
+ * and task names and group titles go through runtime translation, so tasks added upstream show up
+ * here automatically.
  *
  * @param repository 网关仓库 / the gateway repository
  * @param onOpenTask 打开某任务的配置页 / opens one task's config page
@@ -123,24 +122,29 @@ fun ConfigSection(repository: AzurPilotRepository, onOpenTask: (String) -> Unit)
 
     ApSectionColumn {
         when {
-            selected == null -> AppCard {
-                ApEmptyState(
-                    icon = Icons.Filled.Build,
-                    title = stringResource(R.string.ap_overview_no_instance),
-                    hint = stringResource(R.string.ap_instance_none),
-                )
-            }
+            selected == null ->
+                AppCard {
+                    ApEmptyState(
+                        icon = Icons.Filled.Build,
+                        title = stringResource(R.string.ap_overview_no_instance),
+                        hint = stringResource(R.string.ap_instance_none),
+                    )
+                }
 
-            schema == null && schemaError != null -> AppCard {
-                ApErrorState(schemaError!!) { repository.ensureSchema(force = true) }
-            }
+            schema == null && schemaError != null ->
+                AppCard {
+                    ApErrorState(schemaError!!) { repository.ensureSchema(force = true) }
+                }
 
-            schema == null -> AppCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                ) { ExpressiveLoadingIndicator() }
-            }
+            schema == null ->
+                AppCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        ExpressiveLoadingIndicator()
+                    }
+                }
 
             else -> {
                 val data = schema!!
@@ -148,7 +152,7 @@ fun ConfigSection(repository: AzurPilotRepository, onOpenTask: (String) -> Unit)
                     AppCard(
                         title = data.menuTitle(group.key),
                         collapsible = true,
-                        modifier = Modifier.apEnter(index),
+                        modifier = Modifier,
                     ) {
                         group.tasks.forEachIndexed { taskIndex, task ->
                             if (taskIndex > 0) {
@@ -156,11 +160,12 @@ fun ConfigSection(repository: AzurPilotRepository, onOpenTask: (String) -> Unit)
                             }
                             AppNavigationRow(
                                 label = data.taskTitle(task),
-                                description = if (group.isTool) {
-                                    stringResource(R.string.ap_config_tool_hint)
-                                } else {
-                                    task
-                                },
+                                description =
+                                    if (group.isTool) {
+                                        stringResource(R.string.ap_config_tool_hint)
+                                    } else {
+                                        task
+                                    },
                                 onClick = { onOpenTask(task) },
                             )
                         }
@@ -174,29 +179,25 @@ fun ConfigSection(repository: AzurPilotRepository, onOpenTask: (String) -> Unit)
 /**
  * 一个任务的配置页
  *
- * 参数、分组、控件的形状全部由 schema 决定；界面只负责「渲染 + 提交」，
- * 所以 97 个任务、2500 多个参数不需要各写一遍。
+ * 参数、分组、控件的形状全部由 schema 决定；界面只负责「渲染 + 提交」， 所以 97 个任务、2500 多个参数不需要各写一遍。
  *
- * 布局：搜索条是列表的**第一项**，上滑就跟着内容滚走——参数动辄八九组上百项，
- * 把搜索和目录钉在顶上等于常驻吃掉一整行。滚走之后由顶栏的搜索图标把它找回来。
+ * 布局：搜索条是列表的**第一项**，上滑就跟着内容滚走——参数动辄八九组上百项， 把搜索和目录钉在顶上等于常驻吃掉一整行。滚走之后由顶栏的搜索图标把它找回来。
  *
  * One task's config page.
  *
- * Arguments, grouping, and control shapes are all decided by the schema; the
- * UI only "renders + commits", which is why 97 tasks with 2500+ arguments need
- * no per-task code.
+ * Arguments, grouping, and control shapes are all decided by the schema; the UI only "renders +
+ * commits", which is why 97 tasks with 2500+ arguments need no per-task code.
  *
- * Layout: the search bar is the list's **first item** and scrolls away with
- * the content — tasks routinely span eight or nine groups with hundreds of
- * items, and pinning search + directory to the top would permanently eat a
- * whole row. Once scrolled away, the top bar's search icon brings it back.
+ * Layout: the search bar is the list's **first item** and scrolls away with the content — tasks
+ * routinely span eight or nine groups with hundreds of items, and pinning search + directory to the
+ * top would permanently eat a whole row. Once scrolled away, the top bar's search icon brings it
+ * back.
  *
  * @param repository 网关仓库 / the gateway repository
  * @param task 任务名，来自路由参数 / the task name from the route argument
- * @param topBarAction 外壳的顶栏动作位：搜索条滚走之后，用它在顶栏显示「找回搜索」
- *   的入口；null 表示宿主没有顶栏 / the shell's top-bar action slot: once the
- *   search bar scrolls away it shows the search-recovery entry in the top bar;
- *   null when the host has no top bar
+ * @param topBarAction 外壳的顶栏动作位：搜索条滚走之后，用它在顶栏显示「找回搜索」 的入口；null 表示宿主没有顶栏 / the shell's top-bar action
+ *   slot: once the search bar scrolls away it shows the search-recovery entry in the top bar; null
+ *   when the host has no top bar
  */
 @Composable
 fun TaskConfigPage(
@@ -225,25 +226,26 @@ fun TaskConfigPage(
     val isFleetInfo = task == FLEET_INFO
 
     // 搜索按 分组名 / 参数显示名 / 原始 `Group.Arg` 匹配——中文翻译想不起来时可以直接敲参数名
-    val groups = remember(data, taskValues, query, task, isFleetInfo) {
-        if (isFleetInfo) {
-            emptyList()
-        } else {
-            data.groupsOf(task).mapNotNull { (group, fields) ->
-                val visible = fields.filter { (argument, field) ->
-                    if (!isFieldVisible(argument, field, taskValues[group]?.get(argument))) {
-                        return@filter false
+    val groups =
+        remember(data, taskValues, query, task, isFleetInfo) {
+            if (isFleetInfo) {
+                emptyList()
+            } else {
+                data.groupsOf(task).mapNotNull { (group, fields) ->
+                    val visible = fields.filter { (argument, field) ->
+                        if (!isFieldVisible(argument, field, taskValues[group]?.get(argument))) {
+                            return@filter false
+                        }
+                        if (query.isBlank()) return@filter true
+                        val label = data.fieldLabel(group, argument)
+                        label.contains(query, ignoreCase = true) ||
+                            "$group.$argument".contains(query, ignoreCase = true) ||
+                            argument.contains(query, ignoreCase = true)
                     }
-                    if (query.isBlank()) return@filter true
-                    val label = data.fieldLabel(group, argument)
-                    label.contains(query, ignoreCase = true) ||
-                        "$group.$argument".contains(query, ignoreCase = true) ||
-                        argument.contains(query, ignoreCase = true)
+                    if (visible.isEmpty()) null else group to visible
                 }
-                if (visible.isEmpty()) null else group to visible
             }
         }
-    }
 
     // 运行会真的接管游戏，先确认；确认后还要等编辑队列落盘——调度器读的是磁盘上的配置，
     // 手上还有没保存的改动就直接起，跑的是上一版参数
@@ -260,13 +262,19 @@ fun TaskConfigPage(
             title = { Text(stringResource(R.string.ap_run_title, data.taskTitle(what))) },
             text = { Text(stringResource(R.string.ap_run_warning)) },
             confirmButton = {
-                TextButton(onClick = {
-                    pendingRun = null
-                    run(what)
-                }) { Text(stringResource(R.string.ap_run_confirm)) }
+                TextButton(
+                    onClick = {
+                        pendingRun = null
+                        run(what)
+                    }
+                ) {
+                    Text(stringResource(R.string.ap_run_confirm))
+                }
             },
             dismissButton = {
-                TextButton(onClick = { pendingRun = null }) { Text(stringResource(R.string.ap_cancel)) }
+                TextButton(onClick = { pendingRun = null }) {
+                    Text(stringResource(R.string.ap_cancel))
+                }
             },
         )
     }
@@ -297,30 +305,28 @@ fun TaskConfigPage(
     }
 
     // 分组卡在列表里的起始下标：头部一项，加上可能出现的加载 / 错误 / 自启 / 空态
-    val groupsStart = 1 +
-        (if (editor.loading) 1 else 0) +
-        (if (editor.error != null) 1 else 0) +
-        (if (startupCard) 1 else 0) +
-        (if (groups.isEmpty()) 1 else 0)
+    val groupsStart =
+        1 +
+            (if (editor.loading) 1 else 0) +
+            (if (editor.error != null) 1 else 0) +
+            (if (startupCard) 1 else 0) +
+            (if (groups.isEmpty()) 1 else 0)
 
     LazyColumn(
         state = listState,
-        modifier = Modifier
-            .fillMaxSize()
-            .apContentWidth(),
-        contentPadding = PaddingValues(
-            start = AppTokens.Spacing.lg,
-            end = AppTokens.Spacing.lg,
-            top = AppTokens.Spacing.sm,
-            bottom = AppTokens.Spacing.xl,
-        ),
+        modifier = Modifier.fillMaxSize().apContentWidth(),
+        contentPadding =
+            PaddingValues(
+                start = AppTokens.Spacing.lg,
+                end = AppTokens.Spacing.lg,
+                top = AppTokens.Spacing.sm,
+                bottom = AppTokens.Spacing.xl,
+            ),
         verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md),
     ) {
         item(key = "header") {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = AppTokens.Spacing.xs),
+                modifier = Modifier.fillMaxWidth().padding(vertical = AppTokens.Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
             ) {
@@ -349,7 +355,9 @@ fun TaskConfigPage(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
-                    ) { ExpressiveLoadingIndicator() }
+                    ) {
+                        ExpressiveLoadingIndicator()
+                    }
                 }
             }
         }
@@ -412,16 +420,25 @@ fun TaskConfigPage(
                         onRetry = { repository.configEditor.retry(path) },
                         // 「立刻运行」＝把调度时间回落到默认的过去时间（WebUI 用 prepareValue('')
                         // 得到的是同一个值）；直接提交空串会被服务端的日期格式校验拒绝
-                        onRunNow = if (group == "Scheduler" && argument == "NextRun") {
-                            { repository.configEditor.update(task, group, argument, field.value) }
-                        } else {
-                            null
-                        },
-                        onCheckScript = if (field.mode == "restricted_lua") {
-                            { script -> checkScript(repository, task, script) }
-                        } else {
-                            null
-                        },
+                        onRunNow =
+                            if (group == "Scheduler" && argument == "NextRun") {
+                                {
+                                    repository.configEditor.update(
+                                        task,
+                                        group,
+                                        argument,
+                                        field.value,
+                                    )
+                                }
+                            } else {
+                                null
+                            },
+                        onCheckScript =
+                            if (field.mode == "restricted_lua") {
+                                { script -> checkScript(repository, task, script) }
+                            } else {
+                                null
+                            },
                     )
                 }
             }
@@ -459,22 +476,21 @@ fun TaskConfigPage(
 /**
  * 紧凑搜索条
  *
- * 自绘 Surface + BasicTextField，而不是 OutlinedTextField：后者带标签与 supportingText 的内边距，
- * 单行也要 56dp 起步，在这个位置太贵。全圆角与 MD3 的 search bar 一致。
+ * 自绘 Surface + BasicTextField，而不是 OutlinedTextField：后者带标签与 supportingText 的内边距， 单行也要 56dp
+ * 起步，在这个位置太贵。全圆角与 MD3 的 search bar 一致。
  *
  * A compact search field.
  *
- * A hand-rolled Surface + BasicTextField instead of OutlinedTextField: the
- * latter carries label and supportingText padding — 56 dp minimum even for a
- * single line — too expensive in this spot. The fully rounded shape matches
- * the MD3 search bar.
+ * A hand-rolled Surface + BasicTextField instead of OutlinedTextField: the latter carries label and
+ * supportingText padding — 56 dp minimum even for a single line — too expensive in this spot. The
+ * fully rounded shape matches the MD3 search bar.
  *
  * @param value 当前搜索词 / the current query
  * @param onValueChange 搜索词变化回调 / invoked when the query changes
  * @param placeholder 占位文案 / the placeholder text
  * @param modifier 应用于搜索条的修饰符 / the modifier applied to the field
- * @param focusRequester 外部请求聚焦用（如顶栏找回搜索） / lets the outside
- *   request focus (e.g. the top-bar search recovery)
+ * @param focusRequester 外部请求聚焦用（如顶栏找回搜索） / lets the outside request focus (e.g. the top-bar search
+ *   recovery)
  */
 @Composable
 private fun ApCompactSearchField(
@@ -505,9 +521,10 @@ private fun ApCompactSearchField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
-                ),
+                textStyle =
+                    MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 decorationBox = { inner ->
                     Box {
@@ -521,12 +538,13 @@ private fun ApCompactSearchField(
                         inner()
                     }
                 },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = AppTokens.Spacing.sm)
-                    .then(
-                        if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier,
-                    ),
+                modifier =
+                    Modifier.weight(1f)
+                        .padding(start = AppTokens.Spacing.sm)
+                        .then(
+                            if (focusRequester != null) Modifier.focusRequester(focusRequester)
+                            else Modifier
+                        ),
             )
             if (value.isNotEmpty()) {
                 IconButton(
@@ -548,53 +566,35 @@ private fun ApCompactSearchField(
 /**
  * 分组目录：一眼看全分组，且不占配置区的高度
  *
- * The group directory: every group visible at a glance without occupying any
- * config-area height.
+ * The group directory: every group visible at a glance without occupying any config-area height.
  *
  * @param titles 分组标题，顺序与列表一致 / the group titles, in list order
  * @param onJump 跳到第 index 组的卡片 / jumps to the index-th group's card
  */
 @Composable
 private fun GroupDirectoryMenu(titles: List<String>, onJump: (Int) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.List,
-                contentDescription = stringResource(R.string.ap_config_directory),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            titles.forEachIndexed { index, title ->
-                DropdownMenuItem(
-                    text = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    onClick = {
-                        expanded = false
-                        onJump(index)
-                    },
-                )
-            }
-        }
-    }
+    com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
+        title = stringResource(R.string.ap_config_directory),
+        items = titles,
+        selectedIndex = 0,
+        onSelectedIndexChange = onJump,
+    )
 }
 
 /**
  * 自启开关
  *
- * 「启动时自动运行」与「启动时记忆运行」是两个不同的策略，WebUI 把它们并排放在系统设置任务页上；
- * 这里照做——只在别处给一个「自动运行」会让人以为记忆功能不存在。
+ * 「启动时自动运行」与「启动时记忆运行」是两个不同的策略，WebUI 把它们并排放在系统设置任务页上； 这里照做——只在别处给一个「自动运行」会让人以为记忆功能不存在。
  *
  * The startup-switches card.
  *
- * "Auto-run at start" and "remember the run at start" are two different
- * policies; the WebUI puts them side by side on the system-settings task page,
- * and this card does the same — offering "auto-run" alone elsewhere would make
- * people believe the remember feature does not exist.
+ * "Auto-run at start" and "remember the run at start" are two different policies; the WebUI puts
+ * them side by side on the system-settings task page, and this card does the same — offering
+ * "auto-run" alone elsewhere would make people believe the remember feature does not exist.
  *
  * @param repository 网关仓库 / the gateway repository
- * @param startup 自启配置；null 表示尚未加载，此时开关禁用 / the startup config;
- *   null while not yet loaded, in which case the switches are disabled
+ * @param startup 自启配置；null 表示尚未加载，此时开关禁用 / the startup config; null while not yet loaded, in which
+ *   case the switches are disabled
  */
 @Composable
 private fun StartupCard(repository: AzurPilotRepository, startup: AzurPilotStartup?) {
@@ -637,14 +637,13 @@ private fun StartupCard(repository: AzurPilotRepository, startup: AzurPilotStart
 /**
  * 舰队扫描结果
  *
- * `FleetInfo.Result` 是 `display: hide` 的 `stored` 字段，通用表单看不见它，所以这个任务页
- * 必须单独渲染——否则点进去只有一句「没有可配置项」。
+ * `FleetInfo.Result` 是 `display: hide` 的 `stored` 字段，通用表单看不见它，所以这个任务页 必须单独渲染——否则点进去只有一句「没有可配置项」。
  *
  * The fleet-scan result card.
  *
- * `FleetInfo.Result` is a `stored` field with `display: hide` that the generic
- * form cannot see, so this task page must render it on its own — otherwise the
- * page shows nothing but "nothing to configure".
+ * `FleetInfo.Result` is a `stored` field with `display: hide` that the generic form cannot see, so
+ * this task page must render it on its own — otherwise the page shows nothing but "nothing to
+ * configure".
  *
  * @param value `FleetInfo.Result` 的原始值 / the raw `FleetInfo.Result` value
  */
@@ -652,59 +651,67 @@ private fun StartupCard(repository: AzurPilotRepository, startup: AzurPilotStart
 private fun FleetInfoCard(value: ApValue) {
     val snapshot = remember(value) { parseFleetInfo(value) }
     when {
-        snapshot == null -> AppCard {
-            ApEmptyState(
-                icon = Icons.Filled.DirectionsBoat,
-                title = stringResource(R.string.ap_fleet_invalid),
-                hint = stringResource(R.string.ap_fleet_invalid_hint),
-            )
-        }
+        snapshot == null ->
+            AppCard {
+                ApEmptyState(
+                    icon = Icons.Filled.DirectionsBoat,
+                    title = stringResource(R.string.ap_fleet_invalid),
+                    hint = stringResource(R.string.ap_fleet_invalid_hint),
+                )
+            }
 
-        snapshot.roles.isEmpty() -> AppCard {
-            ApEmptyState(
-                icon = Icons.Filled.DirectionsBoat,
-                title = stringResource(R.string.ap_fleet_empty),
-                hint = stringResource(R.string.ap_fleet_empty_hint),
-            )
-        }
+        snapshot.roles.isEmpty() ->
+            AppCard {
+                ApEmptyState(
+                    icon = Icons.Filled.DirectionsBoat,
+                    title = stringResource(R.string.ap_fleet_empty),
+                    hint = stringResource(R.string.ap_fleet_empty_hint),
+                )
+            }
 
-        else -> FLEET_NUMBERS.forEach { number ->
-            AppCard(title = stringResource(R.string.ap_fleet_title, number)) {
-                val roles = snapshot.roles.mapNotNull { (role, byFleet) ->
-                    byFleet[number]?.let { role to it }
-                }
-                if (roles.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.ap_fleet_no_record),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    roles.forEach { (role, ships) ->
-                        Column(verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xxs)) {
-                            Text(
-                                text = stringResource(fleetRoleLabel(role)),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            ships.forEach { ship ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
-                                ) {
-                                    Text(
-                                        text = ship.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    ship.level?.let {
+        else ->
+            FLEET_NUMBERS.forEach { number ->
+                AppCard(title = stringResource(R.string.ap_fleet_title, number)) {
+                    val roles =
+                        snapshot.roles.mapNotNull { (role, byFleet) ->
+                            byFleet[number]?.let { role to it }
+                        }
+                    if (roles.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.ap_fleet_no_record),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        roles.forEach { (role, ships) ->
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.xxs)
+                            ) {
+                                Text(
+                                    text = stringResource(fleetRoleLabel(role)),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                ships.forEach { ship ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement =
+                                            Arrangement.spacedBy(AppTokens.Spacing.sm),
+                                    ) {
                                         Text(
-                                            text = stringResource(R.string.ap_fleet_level, it),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            text = ship.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f),
                                         )
+                                        ship.level?.let {
+                                            Text(
+                                                text = stringResource(R.string.ap_fleet_level, it),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -712,16 +719,16 @@ private fun FleetInfoCard(value: ApValue) {
                     }
                 }
             }
-        }
     }
 }
 
 /** 角色键 → 分区标题资源 / Maps a role key to its section-title resource. */
-private fun fleetRoleLabel(role: String): Int = when (role) {
-    "vanguard" -> R.string.ap_fleet_vanguard
-    "main" -> R.string.ap_fleet_main
-    else -> R.string.ap_fleet_submarine
-}
+private fun fleetRoleLabel(role: String): Int =
+    when (role) {
+        "vanguard" -> R.string.ap_fleet_vanguard
+        "main" -> R.string.ap_fleet_main
+        else -> R.string.ap_fleet_submarine
+    }
 
 /** 一艘船：名字 + 可选等级 / One ship: a name plus an optional level. */
 private data class FleetShip(val name: String, val level: Int?)
@@ -732,27 +739,27 @@ private data class FleetSnapshot(val roles: Map<String, Map<Int, List<FleetShip>
 /**
  * 解析舰队快照
  *
- * 服务端存的是 `{vanguard: {"1": [{name, level}]}, main: …, submarine: …}`，但历史上也存过
- * JSON 字符串。两种都收；返回 null 表示内容根本不像舰队记录（与「记录为空」区分开）。
+ * 服务端存的是 `{vanguard: {"1": [{name, level}]}, main: …, submarine: …}`，但历史上也存过 JSON 字符串。两种都收；返回 null
+ * 表示内容根本不像舰队记录（与「记录为空」区分开）。
  *
  * Parses a fleet snapshot.
  *
- * The server stores `{vanguard: {"1": [{name, level}]}, main: …, submarine:
- * …}`, but historically it also stored a JSON string. Both are accepted;
- * returning null means the content does not look like a fleet record at all
- * (kept distinct from "the record is empty").
+ * The server stores `{vanguard: {"1": [{name, level}]}, main: …, submarine: …}`, but historically
+ * it also stored a JSON string. Both are accepted; returning null means the content does not look
+ * like a fleet record at all (kept distinct from "the record is empty").
  */
 private fun parseFleetInfo(value: ApValue): FleetSnapshot? {
-    val map: Map<*, *> = when (value) {
-        null -> return FleetSnapshot(emptyMap())
-        is Map<*, *> -> value
-        is String -> {
-            if (value.isBlank()) return FleetSnapshot(emptyMap())
-            runCatching { JSONObject(value).toValueMap() }.getOrNull() ?: return null
-        }
+    val map: Map<*, *> =
+        when (value) {
+            null -> return FleetSnapshot(emptyMap())
+            is Map<*, *> -> value
+            is String -> {
+                if (value.isBlank()) return FleetSnapshot(emptyMap())
+                runCatching { JSONObject(value).toValueMap() }.getOrNull() ?: return null
+            }
 
-        else -> return null
-    }
+            else -> return null
+        }
     if (map.isEmpty()) return FleetSnapshot(emptyMap())
     val roles = LinkedHashMap<String, Map<Int, List<FleetShip>>>()
     FLEET_ROLES.forEach { role ->
@@ -760,16 +767,20 @@ private fun parseFleetInfo(value: ApValue): FleetSnapshot? {
         val parsed = LinkedHashMap<Int, List<FleetShip>>()
         byFleet.forEach { (key, ships) ->
             val number = key?.toString()?.toIntOrNull() ?: return@forEach
-            val list = (ships as? List<*>)?.mapNotNull { item ->
-                when (item) {
-                    is String -> FleetShip(item, null)
-                    is Map<*, *> -> (item["name"] as? String)?.let {
-                        FleetShip(it, (item["level"] as? Number)?.toInt())
-                    }
+            val list =
+                (ships as? List<*>)
+                    ?.mapNotNull { item ->
+                        when (item) {
+                            is String -> FleetShip(item, null)
+                            is Map<*, *> ->
+                                (item["name"] as? String)?.let {
+                                    FleetShip(it, (item["level"] as? Number)?.toInt())
+                                }
 
-                    else -> null
-                }
-            }.orEmpty()
+                            else -> null
+                        }
+                    }
+                    .orEmpty()
             if (list.isNotEmpty()) parsed[number] = list
         }
         if (parsed.isNotEmpty()) roles[role] = parsed
@@ -780,12 +791,11 @@ private fun parseFleetInfo(value: ApValue): FleetSnapshot? {
 /**
  * 受限 Lua 脚本的检查：返回 null 表示通过，否则是可直接显示的诊断文案
  *
- * Validates a restricted Lua script: null means it passed; otherwise the
- * return value is a diagnostic ready to display.
+ * Validates a restricted Lua script: null means it passed; otherwise the return value is a
+ * diagnostic ready to display.
  *
  * @param repository 网关仓库 / the gateway repository
- * @param task 任务名，随校验请求回传 / the task name, sent with the validation
- *   request
+ * @param task 任务名，随校验请求回传 / the task name, sent with the validation request
  * @param script 脚本内容 / the script content
  * @return 诊断文案；通过时为 null / the diagnostic text, or null when valid
  */
@@ -806,25 +816,25 @@ private suspend fun checkScript(
 }
 
 /** 由编辑器状态推导某参数行的展示状态 / Derives a field row's display status from the editor state. */
-private fun fieldStatus(path: String, editor: AzurPilotEditorState): ApFieldStatus = when {
-    editor.failed.containsKey(path) -> ApFieldStatus.Failed
-    path in editor.saving -> ApFieldStatus.Saving
-    path in editor.saved -> ApFieldStatus.Saved
-    else -> ApFieldStatus.Idle
-}
+private fun fieldStatus(path: String, editor: AzurPilotEditorState): ApFieldStatus =
+    when {
+        editor.failed.containsKey(path) -> ApFieldStatus.Failed
+        path in editor.saving -> ApFieldStatus.Saving
+        path in editor.saved -> ApFieldStatus.Saved
+        else -> ApFieldStatus.Idle
+    }
 
 /**
  * 一个参数要不要显示
  *
- * 与 WebUI 的 `isFieldVisible` 同一套规则：`display: hide` 不显示；空的 `storage`
- * 既不生成字段也不生成分组——旧版 `put_arg_storage` 就是这么做的，空存储区显示出来只会是噪音。
+ * 与 WebUI 的 `isFieldVisible` 同一套规则：`display: hide` 不显示；空的 `storage` 既不生成字段也不生成分组——旧版
+ * `put_arg_storage` 就是这么做的，空存储区显示出来只会是噪音。
  *
  * Whether an argument should be shown.
  *
- * Same rules as the WebUI's `isFieldVisible`: `display: hide` is not shown;
- * an empty `storage` produces neither a field nor a group — the legacy
- * `put_arg_storage` behaves the same, and an empty storage area would be pure
- * noise on screen.
+ * Same rules as the WebUI's `isFieldVisible`: `display: hide` is not shown; an empty `storage`
+ * produces neither a field nor a group — the legacy `put_arg_storage` behaves the same, and an
+ * empty storage area would be pure noise on screen.
  */
 private fun isFieldVisible(argument: String, field: AzurPilotField, value: ApValue): Boolean {
     if (argument == "_info" || field.hidden) return false

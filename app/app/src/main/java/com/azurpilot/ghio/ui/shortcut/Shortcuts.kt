@@ -39,7 +39,7 @@ object ShortcutIntents {
 
 /**
  * 桌面快捷方式的导航请求总线：MainActivity 收到跳转型快捷方式后在此登记，
- * 由 [com.azurpilot.ghio.ui.AppRoot] 消费——pager 与 NavHost 都活在组合里，
+ * 由 [com.azurpilot.ghio.ui.AppRoot] 消费——主页面与导航栈 都活在组合里，
  * Activity 摸不到，只能经总线转交
  *
  * 状态流天然带「待办」语义：rootfs 部署门或应用锁挡住时请求留在里面，
@@ -47,7 +47,7 @@ object ShortcutIntents {
  *
  * Navigation request bus for the launcher shortcuts: MainActivity registers
  * navigation-type shortcuts here and [com.azurpilot.ghio.ui.AppRoot] consumes
- * them — both the pager and the NavHost live inside composition, unreachable
+ * them — both main pages and navigation stack live inside composition, unreachable
  * from the Activity, so the bus is the hand-off.
  *
  * The state flow carries pending semantics for free: requests blocked by the

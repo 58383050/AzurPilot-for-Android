@@ -1,14 +1,11 @@
 package com.azurpilot.ghio.ui.azurpilot.sections
 
-
-import androidx.compose.foundation.Canvas
-import com.azurpilot.ghio.ui.azurpilot.ApMotion
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -30,14 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SecondaryScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,13 +42,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
-import com.azurpilot.ghio.proot.ApValue
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotStatCategory
 import com.azurpilot.ghio.proot.AzurPilotStatSeries
@@ -71,9 +61,13 @@ import com.azurpilot.ghio.ui.azurpilot.ApErrorState
 import com.azurpilot.ghio.ui.azurpilot.ApMetricCard
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.prettyCell
-import com.azurpilot.ghio.ui.azurpilot.apEnter
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.ksu.AppFilterChip as FilterChip
+import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
+import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
+import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
+import com.azurpilot.ghio.ui.ksu.AppText as Text
 
 /** 「近 N 天」的候选档位 / The choices offered for the "last N days" filter. */
 private val DAY_CHOICES = listOf(1, 7, 30, 90, 365)
@@ -84,16 +78,14 @@ private val PERIOD_CHOICES = listOf("day", "week", "month")
 /**
  * 统计：7 个分类，口径与 WebUI 一致（同一套 `statistics.report` 参数）
  *
- * 图表用 Canvas 自绘：项目里没有图表库，而这里只需要折线——为一条折线引入 ECharts 级别的
- * 依赖不划算。表格给横向滚动，列多的时候不挤成一团。
+ * 图表用 Canvas 自绘：项目里没有图表库，而这里只需要折线——为一条折线引入 ECharts 级别的 依赖不划算。表格给横向滚动，列多的时候不挤成一团。
  *
- * The Statistics section: 7 categories with the same accounting as the WebUI
- * (the same `statistics.report` parameters).
+ * The Statistics section: 7 categories with the same accounting as the WebUI (the same
+ * `statistics.report` parameters).
  *
- * Charts are hand-drawn on a Canvas: the project has no chart library and only
- * needs line charts — pulling in an ECharts-scale dependency for one polyline
- * is not worth it. Tables scroll horizontally so many columns never squeeze
- * into an unreadable crush.
+ * Charts are hand-drawn on a Canvas: the project has no chart library and only needs line charts —
+ * pulling in an ECharts-scale dependency for one polyline is not worth it. Tables scroll
+ * horizontally so many columns never squeeze into an unreadable crush.
  *
  * @param repository 网关仓库 / the gateway repository
  */
@@ -114,16 +106,17 @@ fun StatisticsSection(repository: AzurPilotRepository) {
     val selected by repository.selectedInstance.collectAsStateWithLifecycle()
     val tick by repository.statisticsTick.collectAsStateWithLifecycle()
 
-    val query = remember(category, days, period, scope, series, task) {
-        AzurPilotStatsQuery(
-            category = category,
-            days = days,
-            period = period,
-            scope = scope,
-            series = series,
-            task = task,
-        )
-    }
+    val query =
+        remember(category, days, period, scope, series, task) {
+            AzurPilotStatsQuery(
+                category = category,
+                days = days,
+                period = period,
+                scope = scope,
+                series = series,
+                task = task,
+            )
+        }
 
     LaunchedEffect(query, selected, tick) {
         if (selected == null) {
@@ -132,7 +125,8 @@ fun StatisticsSection(repository: AzurPilotRepository) {
         }
         loading = true
         error = null
-        repository.statisticsReport(query)
+        repository
+            .statisticsReport(query)
             .onSuccess { report = it }
             .onFailure {
                 report = null
@@ -142,19 +136,11 @@ fun StatisticsSection(repository: AzurPilotRepository) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SecondaryScrollableTabRow(
+        com.azurpilot.ghio.ui.ksu.AppTabRow(
             selectedTabIndex = category.ordinal,
-            edgePadding = AppTokens.Spacing.lg,
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            AzurPilotStatCategory.entries.forEach { entry ->
-                Tab(
-                    selected = entry == category,
-                    onClick = { category = entry },
-                    text = { Text(stringResource(statCategoryLabel(entry)), maxLines = 1) },
-                )
-            }
-        }
+            tabs = AzurPilotStatCategory.entries.map { stringResource(statCategoryLabel(it)) },
+            onTabClick = { category = AzurPilotStatCategory.entries[it] },
+        )
 
         ApSectionColumn {
             CategoryControls(
@@ -170,76 +156,89 @@ fun StatisticsSection(repository: AzurPilotRepository) {
                 task = task,
                 taskOptions = report?.taskOptions.orEmpty(),
                 onTask = { task = it },
-                onRefresh = if (category == AzurPilotStatCategory.Loot) {
-                    { repository.refreshLoot() }
-                } else {
-                    null
-                },
+                onRefresh =
+                    if (category == AzurPilotStatCategory.Loot) {
+                        { repository.refreshLoot() }
+                    } else {
+                        null
+                    },
             )
 
             // 加载 / 出错 / 有内容 是三种互斥状态，硬切会让人分不清「刚才是没数据还是没加载完」
             AnimatedContent(
-                targetState = when {
-                    selected == null -> StatsStage.NoInstance
-                    loading && report == null -> StatsStage.Loading
-                    report == null -> StatsStage.Error
-                    else -> StatsStage.Content
-                },
+                targetState =
+                    when {
+                        selected == null -> StatsStage.NoInstance
+                        loading && report == null -> StatsStage.Loading
+                        report == null -> StatsStage.Error
+                        else -> StatsStage.Content
+                    },
                 transitionSpec = {
-                    fadeIn(ApMotion.effects(ApMotion.Medium2, ApMotion.EmphasizedDecelerate)) togetherWith
-                        fadeOut(ApMotion.effects(ApMotion.Short2, ApMotion.StandardAccelerate))
+                    fadeIn(androidx.compose.animation.core.spring()) togetherWith
+                        fadeOut(androidx.compose.animation.core.spring())
                 },
                 label = "statsStage",
             ) { stage ->
-            when (stage) {
-                StatsStage.NoInstance -> AppCard {
-                    Text(stringResource(R.string.ap_stats_no_instance))
-                }
-
-                StatsStage.Loading -> AppCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                    ) { ExpressiveLoadingIndicator() }
-                }
-
-                StatsStage.Error -> AppCard {
-                    ApErrorState(error ?: stringResource(R.string.ap_waiting_data))
-                }
-
-                StatsStage.Content -> {
-                    val data = report!!
-                    val charted = data.series.filter { it.points.isNotEmpty() }
-                    // 指标、曲线、表格全空时要说清「这一类还没有数据」：
-                    // 留一片空白会让人以为是界面坏了，而实际上是任务还没跑过
-                    if (data.metrics.isEmpty() && charted.isEmpty() && data.tables.isEmpty()) {
+                when (stage) {
+                    StatsStage.NoInstance ->
                         AppCard {
-                            ApEmptyState(
-                                icon = Icons.Filled.BarChart,
-                                title = stringResource(R.string.ap_stats_no_data),
-                                hint = stringResource(R.string.ap_stats_no_data_hint),
-                            )
+                            Text(stringResource(R.string.ap_stats_no_instance))
                         }
-                    }
-                    if (data.metrics.isNotEmpty()) {
-                        MetricsGrid(data)
-                    }
-                    if (charted.isNotEmpty()) {
-                        AppCard(
-                            title = stringResource(R.string.ap_stats_trend),
-                            modifier = Modifier.apEnter(2),
-                        ) {
-                            ApLineChart(charted)
+
+                    StatsStage.Loading ->
+                        AppCard {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                            ) {
+                                ExpressiveLoadingIndicator()
+                            }
                         }
-                    }
-                    data.tables.forEachIndexed { index, table ->
-                        StatTableCard(table, Modifier.apEnter(index + 3))
-                    }
-                    data.notes.forEach { note ->
-                        AppCard { Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+
+                    StatsStage.Error ->
+                        AppCard {
+                            ApErrorState(error ?: stringResource(R.string.ap_waiting_data))
+                        }
+
+                    StatsStage.Content -> {
+                        val data = report!!
+                        val charted = data.series.filter { it.points.isNotEmpty() }
+                        // 指标、曲线、表格全空时要说清「这一类还没有数据」：
+                        // 留一片空白会让人以为是界面坏了，而实际上是任务还没跑过
+                        if (data.metrics.isEmpty() && charted.isEmpty() && data.tables.isEmpty()) {
+                            AppCard {
+                                ApEmptyState(
+                                    icon = Icons.Filled.BarChart,
+                                    title = stringResource(R.string.ap_stats_no_data),
+                                    hint = stringResource(R.string.ap_stats_no_data_hint),
+                                )
+                            }
+                        }
+                        if (data.metrics.isNotEmpty()) {
+                            MetricsGrid(data)
+                        }
+                        if (charted.isNotEmpty()) {
+                            AppCard(
+                                title = stringResource(R.string.ap_stats_trend),
+                                modifier = Modifier,
+                            ) {
+                                ApLineChart(charted)
+                            }
+                        }
+                        data.tables.forEachIndexed { index, table ->
+                            StatTableCard(table, Modifier)
+                        }
+                        data.notes.forEach { note ->
+                            AppCard {
+                                Text(
+                                    note,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
-            }
             }
         }
     }
@@ -248,10 +247,15 @@ fun StatisticsSection(repository: AzurPilotRepository) {
 /**
  * 统计区的四种互斥状态；用枚举而不是散落的布尔组合，转场才能只盯一个值
  *
- * The four mutually exclusive stages of the statistics area; an enum instead
- * of scattered booleans so the transition can key on a single value.
+ * The four mutually exclusive stages of the statistics area; an enum instead of scattered booleans
+ * so the transition can key on a single value.
  */
-private enum class StatsStage { NoInstance, Loading, Error, Content }
+private enum class StatsStage {
+    NoInstance,
+    Loading,
+    Error,
+    Content,
+}
 
 /** 指标摘要：两列数字卡 / The metrics summary: a two-column grid of metric cards. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -259,7 +263,7 @@ private enum class StatsStage { NoInstance, Loading, Error, Content }
 private fun MetricsGrid(report: AzurPilotStatisticsReport) {
     AppCard(
         title = stringResource(R.string.ap_stats_summary),
-        modifier = Modifier.apEnter(1),
+        modifier = Modifier,
     ) {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -282,25 +286,21 @@ private fun MetricsGrid(report: AzurPilotStatisticsReport) {
 /**
  * 每个分类各自的控制项；没有可调项的分类就不显示这一行
  *
- * The per-category controls; a category with nothing to tune shows no row at
- * all.
+ * The per-category controls; a category with nothing to tune shows no row at all.
  *
  * @param category 当前分类 / the current category
  * @param days 当前「近 N 天」 / the current "last N days" choice
  * @param onDays 改选天数 / picks a day count
  * @param period 当前聚合粒度 / the current aggregation period
  * @param onPeriod 改选粒度 / picks a period
- * @param scope 当前口径（科研：系列 / 消耗品） / the current scope (research:
- *   series / consumable)
+ * @param scope 当前口径（科研：系列 / 消耗品） / the current scope (research: series / consumable)
  * @param onScope 改选口径 / picks a scope
  * @param series 当前选择的研究期数 / the current research period selection
  * @param onSeries 改选期数 / picks a research period
  * @param task 当前筛选的任务；null 表示全部 / the task filter; null means all
- * @param taskOptions 任务筛选候选（战利品分类） / the task-filter candidates
- *   (loot category)
+ * @param taskOptions 任务筛选候选（战利品分类） / the task-filter candidates (loot category)
  * @param onTask 改选任务 / picks a task
- * @param onRefresh 手动刷新入口；仅战利品分类提供 / the manual refresh entry,
- *   offered only for the loot category
+ * @param onRefresh 手动刷新入口；仅战利品分类提供 / the manual refresh entry, offered only for the loot category
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -319,13 +319,15 @@ private fun CategoryControls(
     onTask: (String?) -> Unit,
     onRefresh: (() -> Unit)?,
 ) {
-    val showsDays = category == AzurPilotStatCategory.Resources || category == AzurPilotStatCategory.Action
-    val showsPeriod = category == AzurPilotStatCategory.Commission || category == AzurPilotStatCategory.Ships
+    val showsDays =
+        category == AzurPilotStatCategory.Resources || category == AzurPilotStatCategory.Action
+    val showsPeriod =
+        category == AzurPilotStatCategory.Commission || category == AzurPilotStatCategory.Ships
     val showsScope = category == AzurPilotStatCategory.Research
     val showsTask = category == AzurPilotStatCategory.Loot && taskOptions.isNotEmpty()
     if (!showsDays && !showsPeriod && !showsScope && !showsTask && onRefresh == null) return
 
-    AppCard(modifier = Modifier.apEnter(0)) {
+    AppCard(modifier = Modifier) {
         if (showsDays) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
                 DAY_CHOICES.forEach { choice ->
@@ -350,8 +352,8 @@ private fun CategoryControls(
                                         "day" -> R.string.ap_stats_period_day
                                         "week" -> R.string.ap_stats_period_week
                                         else -> R.string.ap_stats_period_month
-                                    },
-                                ),
+                                    }
+                                )
                             )
                         },
                     )
@@ -386,7 +388,7 @@ private fun CategoryControls(
                                     stringResource(R.string.ap_stats_series_latest)
                                 } else {
                                     stringResource(R.string.ap_stats_series_n, index)
-                                },
+                                }
                             )
                         },
                     )
@@ -400,13 +402,15 @@ private fun CategoryControls(
                     onClick = { onTask(null) },
                     label = { Text(stringResource(R.string.ap_stats_task_all)) },
                 )
-                taskOptions.filter { it.count > 0 }.forEach { option ->
-                    FilterChip(
-                        selected = task == option.key,
-                        onClick = { onTask(if (task == option.key) null else option.key) },
-                        label = { Text("${option.label} (${option.count})") },
-                    )
-                }
+                taskOptions
+                    .filter { it.count > 0 }
+                    .forEach { option ->
+                        FilterChip(
+                            selected = task == option.key,
+                            onClick = { onTask(if (task == option.key) null else option.key) },
+                            label = { Text("${option.label} (${option.count})") },
+                        )
+                    }
             }
         }
         if (onRefresh != null) {
@@ -418,7 +422,10 @@ private fun CategoryControls(
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = onRefresh) {
-                    Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.ap_stats_refresh))
+                    Icon(
+                        Icons.Filled.Refresh,
+                        contentDescription = stringResource(R.string.ap_stats_refresh),
+                    )
                 }
             }
         }
@@ -428,24 +435,26 @@ private fun CategoryControls(
 /**
  * 折线图：多条序列共用一套纵轴，颜色按固定次序取（同一份数据每次画出来一致）
  *
- * The line chart: all series share one vertical axis, and colors come from a
- * fixed order so the same data always renders identically.
+ * The line chart: all series share one vertical axis, and colors come from a fixed order so the
+ * same data always renders identically.
  *
- * @param series 要画的序列，空点序列已被过滤 / the series to draw; empty ones
- *   are filtered out by the caller
+ * @param series 要画的序列，空点序列已被过滤 / the series to draw; empty ones are filtered out by the caller
  */
 @Composable
 private fun ApLineChart(series: List<AzurPilotStatSeries>) {
     val colors = chartPalette()
     // 数据换了就重播一次描线：曲线「画出来」比直接出现更容易看出是同一张图的延续。
     // 签名只取形状（键 / 点数 / 末值），避免每来一帧就重画
-    val signature = remember(series) {
-        series.joinToString("|") { "${it.key}:${it.points.size}:${it.points.lastOrNull()?.value}" }
-    }
+    val signature =
+        remember(series) {
+            series.joinToString("|") {
+                "${it.key}:${it.points.size}:${it.points.lastOrNull()?.value}"
+            }
+        }
     val progress = remember(signature) { Animatable(0f) }
     LaunchedEffect(signature) {
         progress.snapTo(0f)
-        progress.animateTo(1f, ApMotion.effects(ApMotion.Long2, ApMotion.EmphasizedDecelerate))
+        progress.animateTo(1f, androidx.compose.animation.core.spring())
     }
     val allValues = series.flatMap { line -> line.points.map { it.value } }
     val minValue = allValues.minOrNull() ?: 0.0
@@ -453,35 +462,36 @@ private fun ApLineChart(series: List<AzurPilotStatSeries>) {
     val span = (maxValue - minValue).takeIf { it > 0.0 } ?: 1.0
 
     Column(verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp),
-        ) {
+        Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
             // 擦除式揭示：按进度裁掉右侧还没画到的部分
             clipRect(right = size.width * progress.value) {
-            series.forEachIndexed { index, line ->
-                val points = line.points
-                if (points.size < 2) {
-                    // 单点画不出折线，给一个圆点，否则这条序列看起来像不存在
-                    if (points.size == 1) {
-                        val y = size.height * (1f - ((points[0].value - minValue) / span).toFloat())
-                        drawCircle(colors[index % colors.size], radius = 4f, center = Offset(size.width / 2f, y))
+                series.forEachIndexed { index, line ->
+                    val points = line.points
+                    if (points.size < 2) {
+                        // 单点画不出折线，给一个圆点，否则这条序列看起来像不存在
+                        if (points.size == 1) {
+                            val y =
+                                size.height * (1f - ((points[0].value - minValue) / span).toFloat())
+                            drawCircle(
+                                colors[index % colors.size],
+                                radius = 4f,
+                                center = Offset(size.width / 2f, y),
+                            )
+                        }
+                        return@forEachIndexed
                     }
-                    return@forEachIndexed
+                    val path = Path()
+                    points.forEachIndexed { pointIndex, point ->
+                        val x = size.width * pointIndex / (points.size - 1).toFloat()
+                        val y = size.height * (1f - ((point.value - minValue) / span).toFloat())
+                        if (pointIndex == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    }
+                    drawPath(
+                        path = path,
+                        color = colors[index % colors.size],
+                        style = Stroke(width = 3f, cap = StrokeCap.Round),
+                    )
                 }
-                val path = Path()
-                points.forEachIndexed { pointIndex, point ->
-                    val x = size.width * pointIndex / (points.size - 1).toFloat()
-                    val y = size.height * (1f - ((point.value - minValue) / span).toFloat())
-                    if (pointIndex == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                }
-                drawPath(
-                    path = path,
-                    color = colors[index % colors.size],
-                    style = Stroke(width = 3f, cap = StrokeCap.Round),
-                )
-            }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
@@ -520,9 +530,12 @@ private fun FlowRowChips(series: List<AzurPilotStatSeries>, colors: List<Color>)
         series.forEachIndexed { index, line ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier
-                        .size(AppTokens.Indicator.dot)
-                        .background(colors[index % colors.size], androidx.compose.foundation.shape.CircleShape),
+                    modifier =
+                        Modifier.size(AppTokens.Indicator.dot)
+                            .background(
+                                colors[index % colors.size],
+                                androidx.compose.foundation.shape.CircleShape,
+                            )
                 )
                 Text(
                     text = line.label,
@@ -536,14 +549,15 @@ private fun FlowRowChips(series: List<AzurPilotStatSeries>, colors: List<Color>)
 
 /** 曲线取色的固定次序，按序列下标循环使用 / The fixed color order for chart lines, cycled by series index. */
 @Composable
-private fun chartPalette(): List<Color> = listOf(
-    MaterialTheme.colorScheme.primary,
-    MaterialTheme.colorScheme.tertiary,
-    MaterialTheme.colorScheme.secondary,
-    MaterialTheme.colorScheme.error,
-    MaterialTheme.colorScheme.primaryContainer,
-    MaterialTheme.colorScheme.tertiaryContainer,
-)
+private fun chartPalette(): List<Color> =
+    listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.error,
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer,
+    )
 
 /**
  * 明细表：横向滚动 + 竖向滚动
@@ -552,8 +566,8 @@ private fun chartPalette(): List<Color> = listOf(
  *
  * A detail table: horizontal plus vertical scrolling.
  *
- * The column count is decided by the server (up to 9); a phone's width cannot
- * fit that, and horizontal scrolling reads better than shrinking the type.
+ * The column count is decided by the server (up to 9); a phone's width cannot fit that, and
+ * horizontal scrolling reads better than shrinking the type.
  *
  * @param table 表格数据 / the table data
  * @param modifier 应用于卡片的修饰符 / the modifier applied to the card
@@ -572,22 +586,22 @@ private fun StatTableCard(table: AzurPilotStatTable, modifier: Modifier = Modifi
             val horizontal = rememberScrollState()
             val vertical = rememberScrollState()
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 360.dp)
-                    .verticalScroll(vertical)
-                    .horizontalScroll(horizontal),
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(vertical)
+                        .horizontalScroll(horizontal)
             ) {
-                Row(modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                Row(
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) {
                     table.columns.forEach { column ->
                         Text(
                             text = column,
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .width(CELL_WIDTH)
-                                .padding(AppTokens.Spacing.xs),
+                            modifier = Modifier.width(CELL_WIDTH).padding(AppTokens.Spacing.xs),
                         )
                     }
                 }
@@ -597,12 +611,13 @@ private fun StatTableCard(table: AzurPilotStatTable, modifier: Modifier = Modifi
                         table.columns.indices.forEach { index ->
                             Text(
                                 text = row.getOrNull(index).prettyCell(),
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                style =
+                                    MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = FontFamily.Monospace
+                                    ),
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .width(CELL_WIDTH)
-                                    .padding(AppTokens.Spacing.xs),
+                                modifier = Modifier.width(CELL_WIDTH).padding(AppTokens.Spacing.xs),
                             )
                         }
                     }
@@ -623,21 +638,22 @@ private fun StatTableCard(table: AzurPilotStatTable, modifier: Modifier = Modifi
 private val CELL_WIDTH = 108.dp
 
 /** 分类 → 标签资源 / Maps a category to its tab-label resource. */
-private fun statCategoryLabel(category: AzurPilotStatCategory): Int = when (category) {
-    AzurPilotStatCategory.Resources -> R.string.ap_stats_cat_resources
-    AzurPilotStatCategory.Action -> R.string.ap_stats_cat_action
-    AzurPilotStatCategory.Opsi -> R.string.ap_stats_cat_opsi
-    AzurPilotStatCategory.Commission -> R.string.ap_stats_cat_commission
-    AzurPilotStatCategory.Ships -> R.string.ap_stats_cat_ships
-    AzurPilotStatCategory.Loot -> R.string.ap_stats_cat_loot
-    AzurPilotStatCategory.Research -> R.string.ap_stats_cat_research
-}
+private fun statCategoryLabel(category: AzurPilotStatCategory): Int =
+    when (category) {
+        AzurPilotStatCategory.Resources -> R.string.ap_stats_cat_resources
+        AzurPilotStatCategory.Action -> R.string.ap_stats_cat_action
+        AzurPilotStatCategory.Opsi -> R.string.ap_stats_cat_opsi
+        AzurPilotStatCategory.Commission -> R.string.ap_stats_cat_commission
+        AzurPilotStatCategory.Ships -> R.string.ap_stats_cat_ships
+        AzurPilotStatCategory.Loot -> R.string.ap_stats_cat_loot
+        AzurPilotStatCategory.Research -> R.string.ap_stats_cat_research
+    }
 
 /**
  * 统计数字统一不给小数尾巴；小数只在真的存在时保留一位
  *
- * Statistics numbers never carry a dangling decimal tail; a fraction keeps one
- * decimal only when it actually exists.
+ * Statistics numbers never carry a dangling decimal tail; a fraction keeps one decimal only when it
+ * actually exists.
  */
 internal fun formatNumber(value: Double): String =
     if (value == value.toLong().toDouble()) {
