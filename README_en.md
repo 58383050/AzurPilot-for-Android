@@ -390,7 +390,7 @@ graph TD
 
 ## Quick Start
 
-Once a signed CNB build completes, APKs are also available from [CNB downloads](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases). Choose the full APK for your device architecture for a first installation. See [CNB build setup](doc/cnb-ci.md).
+Signed GitHub build artifacts are mirrored to [CNB downloads](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases). Choose the full APK for your device architecture for a first installation. See [CNB release setup](doc/cnb-ci.md).
 
 <table width="100%">
   <tr>

@@ -105,9 +105,9 @@ Key subsystems:
 
 ## CI
 
-- **`rootfs.yml`** — builds the Ubuntu rootfs per ABI (arm64-v8a, x86_64), assembles APK, optionally publishes to the dev update channel. Runs on push to `main` and manual dispatch.
+- **`rootfs.yml`** — builds the Ubuntu rootfs per ABI (arm64-v8a, x86_64), assembles APK, and publishes the same verified signed artifacts to GitHub and CNB Releases. Runs on push to `main` and manual dispatch.
 - **`check-upstream.yml`** — polls upstream AzurPilot for changes.
-- **`.cnb.yml`** — builds both native rootfs architectures daily at 03:17 Asia/Shanghai or on manual request, assembles APKs, and publishes signed releases for domestic downloads. Pushes do not trigger builds. Setup: `doc/cnb-ci.md`.
+- **`publish-cnb.yml`** — manually mirrors an existing signed GitHub release to CNB without rebuilding. CNB native build and schedule entries are disabled. Setup: `doc/cnb-ci.md`.
 - x86_64 PRoot libs are fetched by `app/scripts/fetch-proot-libs.sh` (pinned Termux packages), not committed.
 
 ## Gotchas

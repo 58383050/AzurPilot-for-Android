@@ -1,248 +1,174 @@
-# CNB 构建与国内下载 / CNB builds and domestic downloads
+# GitHub 产物分发到 CNB Releases / Mirroring GitHub artifacts to CNB Releases
 
 ## 中文
 
-### 下载入口
+GitHub Actions 负责构建、签名和校验，CNB Releases 提供国内下载。
+两个平台使用相同的 APK、双架构 Runtime 和前端归档字节；CNB 清单只改写下载地址。
 
-正式构建完成后，安装包发布到
-[CNB Releases](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases)。
-首次安装选设备架构对应的完整包；已有运行环境时可用轻量包覆盖安装。
-下载文件的 SHA-256 记录在同一发布的 `SHA256SUMS` 中。
+- GitHub 仓库：[`wess09/AzurPilot-for-Android`](https://github.com/wess09/AzurPilot-for-Android)。
+- CNB 仓库：[`azurpilot/AzurPilot-for-Android`](https://cnb.cool/azurpilot/AzurPilot-for-Android)。
+- 国内下载：[CNB Releases](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases)。
 
-| 文件 | 用途 |
-|---|---|
-| `AzurPilot-Android-<version>-arm64-v8a-full.apk` | ARM64 手机完整安装包 |
-| `AzurPilot-Android-<version>-x86_64-full.apk` | x86_64 设备完整安装包 |
-| `AzurPilot-Android-<version>-update.apk` | 双架构轻量更新包，不含运行时 |
-| `rootfs-<abi>.tar.xz` | 对应架构的 Ubuntu / AzurPilot 运行时 |
-| `BUILD_MANIFEST-<abi>.json` | 运行时来源和架构信息 |
-| `frontend-<commit>.tar.xz` / `.sha256` | 预构建前端和校验和 |
-| `latest.json` / `SHA256SUMS` | 下载清单及完整性校验 |
+### 配置访问令牌
 
-CNB 自行构建产物，下载附件由 CNB 提供。源码和构建依赖仍需要访问
-GitHub、Google、Ubuntu、Termux 等上游。
-App 内现有更新源仍使用 GitHub；CNB 下载入口适合手动安装完整包。
-轻量包首次安装仍会经 App 原有更新源下载运行时。
+在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 配置 `CNB_TOKEN`。
+仓库已有源码同步用的同名 Secret，可以复用，但令牌必须有目标 CNB 仓库的
+`repo-release:rw` 权限。源码同步还需要原有的 `repo-contents:rw` 权限，更新令牌时保留它。
+令牌所属账号也必须有该仓库的 Release 写权限。
 
-### 触发与执行
+参考 CNB 官方[访问令牌说明](https://docs.cnb.cool/en/guide/access-token.html)、
+[仓库角色权限](https://docs.cnb.cool/en/guide/role-permissions.html)及
+[OpenAPI](https://docs.cnb.cool/en/develops/openapi.html)。
+只读令牌或只有源码写权限的令牌不能发布 Release；上传步骤会明确报告权限不足。
 
-仓库根目录 `.cnb.yml` 声明每日和手动构建入口：
+正式签名和设备上报凭据继续使用 GitHub 上现有的六个 Secrets。
+CNB 不需要私密凭据文件或 Android 签名密钥，因为分发步骤不会重新构建、重新签名。
+App 版本沿用 GitHub 的 `1.3.*` 版本规则，见[发布通道](release-channel.md)。
 
-- `main` 推送：只同步源码，不触发 CNB 构建，避免频繁提交消耗额度。
-- `web_trigger_android`：CNB 主分支页面的「构建 Android 安装包」按钮，可指定
-  AzurPilot dev 的完整提交 SHA，也可强制重建。
-- `crontab: 17 3 * * *`：北京时间每天 03:17 固定构建一次双架构 Runtime 和 APK。
-  定时入口通过 `cnb:apply` 调用 `api_trigger_android`，传入 `FORCE=true`。
-  `git:release` 不支持直接用于 `crontab` 事件，因此完整构建与发布放在自定义事件中。
+### 自动发布
 
-解析步骤将上游 dev 固定到具体提交，与上一次成功发布的 `latest.json` 比较。
-比较范围为 `app/`、`rootfs/`、`.cnb.yml` 和 `.cnb/`。
-手动构建默认跳过无变化的输入；每日构建不受此比较限制，固定重新构建。
-应用版本规则与 GitHub CI 一致：无 Android 改动时沿用上次应用版本，
-否则使用完整提交历史计算版本名，并保证版本号高于上一发布版。
+`.github/workflows/rootfs.yml` 的 `publish` 作业在正式 GitHub Release 发布后，
+调用 `tools/cnb_release.py publish` 分发当前作业的产物：
 
-`cnb:apply` 同步运行 `.cnb/rootfs.yml` 的两个原生子流水线：
-ARM64 使用 `cnb:arch:arm64:v8`，x86_64 使用 `cnb:arch:amd64`。
-各自用 `.cnb/Dockerfile.rootfs` 作为构建环境，通过 `ROOTFS_EXECUTOR=proot`
-运行共用 rootfs 脚本。PRoot 使用用户态路径绑定，不需要嵌套 Docker、特权容器
-或内核挂载，避免 CNB 拒绝挂载 `/sys`。GitHub CI 默认仍使用 chroot。
-构建环境从固定提交编译 PRoot 5.4.1，支持现代 glibc 的 `clone3` 子进程调用。
-DNS 和 uv 缓存只在 guest 执行期间绑定，不进入最终 rootfs。
+- 更新用轻量 APK，以及 ARM64、x86_64 完整 APK。
+- `rootfs-arm64-v8a.tar.xz`、`rootfs-x86_64.tar.xz` 及各自的 `BUILD_MANIFEST`。
+- 构建产物中存在的前端归档与对应校验文件。
+- 指向 CNB 附件的 `latest.json`，以及重新生成的 `SHA256SUMS`。
 
-部分 x86_64 构建容器拒绝 `faccessat2`，会让 APT 把可读公钥误判为缺失。
-构建镜像为 PRoot 加入兼容补丁，将这次调用的 `EPERM` 转成 `ENOSYS`，
-让 glibc 回退到旧权限检查；检测到限制时使用 ptrace 跟踪，软件源验签仍然执行。
-wheel 精简同时检查动态符号和 ELF 加载段，包括空段的页对齐；GNU strip 2.40
-破坏加载段时保留原文件，并在 `RUNTIME_SIZE_REPORT.json` 记录跳过原因。
+脚本核对 GitHub 清单中的大小、SHA-256、当前主机提交及 Runtime 元数据。
+大型文件以流式方式上传；每次重试重新取得预签名地址，上传后通过 API 确认附件。
+CNB 访问令牌只发送到目标仓库的 CNB API，不发送到附件对象存储。
 
-构建镜像通过 GitHub Releases 下载对应架构的 uv 二进制，避免本次 CNB 构建中
-`ghcr.io` 令牌端点证书校验失败造成的镜像拉取错误。
+每次发布使用唯一标签 `github-android-<GitHub Run ID>-<Run Attempt>`，
+以主机提交为目标创建草稿。全部附件上传完成，且服务端附件大小和可用哈希校验通过后，
+才公开 Release 并设为 Latest。失败时保留草稿，已有 CNB Latest 不变。
+原始 APK、Runtime 和前端归档的校验和与 GitHub 完全一致；CNB 下载地址包含唯一标签，
+后续发布不会覆盖这些附件。清单保留旧版 App 使用的 ARM64 扁平字段。
 
-中间附件以父流水线构建编号命名，保留 7 天。APK 流水线等待两架构均成功后，
-下载本次附件，校验 SHA-256、ABI、上游提交和宿主提交，再构建三种 APK。
-Gradle 使用 JDK 25 守护进程，Java / JVM 编译目标仍为 17。
-镜像使用 Command-line Tools 23.0，安装 Compile SDK 37（官方包名
-`platforms;android-37.0`）、Build Tools 36.0.0 和 CMake 3.22.1；NDK 由 AGP 安装。
+`.github/workflows/sync-cnb.yml` 继续同步源码，不清理 CNB Release 标签。
+创建 Release 所需的主机提交必须已经同步到 CNB。
+自动发布与手动补传共用 `cnb-release-publish` 并发组，避免发布期间相互覆盖下载源。
 
-### 配置正式凭据
+### 手动补传已有产物
 
-GitHub Secrets 不会随代码同步到 CNB。首次启用正式发布前：
+在 GitHub **Actions → Publish existing GitHub release to CNB → Run workflow** 执行。
+`github_tag` 默认 `azurpilot-android-latest`；该 GitHub Release 必须包含正式签名的
+轻量 APK、两个架构的完整 APK、两个 Runtime 和有效的 `latest.json`。
 
-1. 在 CNB 建立私密仓库 `azurpilot/build-secrets`，创建 `android.yml`。
-2. 复制 GitHub CI 当前使用的六个凭据；签名必须用同一 keystore，才能覆盖安装原来的正式包。
-3. 在私密文件的授权配置中，只允许本项目读取。按 CNB
-   [文件引用授权](https://docs.cnb.cool/zh/build/file-reference.html) 配置仓库访问权限。
-4. 在 `.cnb.yml` 的 `imports` 中启用已预留的私密文件地址。
-   若私密仓库或文件名不同，调整地址。
-5. 在 CNB 主分支页面点击构建按钮并开启强制重建。
+该工作流只下载清单对应的当前版本资产，校验后上传 CNB，不运行 Gradle 或 Runtime 构建。
+旧发布只有一份 `BUILD_MANIFEST`、没有双架构元数据附件时也可补传；已有前端归档仍需校验。
+GitHub Release 保留的历史版本 APK 不会一起下载。
 
-私密文件结构如下，真实值只能填写在私密仓库：
+若自动上传失败，GitHub 的构建和 Release 已完成，可通过此入口重试分发。
+出现 `CNB_TOKEN requires repo-release:rw` 时，给令牌增加权限并更新 GitHub Secret，
+然后重跑补传工作流。失败草稿可以在确认补传成功后手动清理。
 
-```yaml
-AZURPILOT_ANDROID_KEYSTORE_BASE64: '<与 GitHub 相同的 keystore base64>'
-AZURPILOT_ANDROID_KEYSTORE_PASSWORD: '<keystore 密码>'
-AZURPILOT_ANDROID_KEY_ALIAS: '<签名 alias>'
-AZURPILOT_ANDROID_KEY_PASSWORD: '<签名 key 密码>'
-AZURPILOT_DEVICE_REPORT_CERT_BASE64: '<上报证书 base64>'
-AZURPILOT_DEVICE_REPORT_KEY_BASE64: '<上报私钥 base64>'
-```
+### 停用 CNB 原生构建
 
-本仓 `.cnb/env.yml` 只有空默认值。四个签名值全部为空时，每日和手动构建生成
-带 `-debug.apk` 后缀的调试包，只作为提交附件保留 14 天。
-调试产物生成 `build-info.json`，不会生成正式 `latest.json` 或创建 Release；
-每日构建也遵循同样的正式签名规则，不会把调试包作为正式版本发布。
-签名值不完整、上报证书和私钥缺一、正式签名缺少上报凭据时均提前失败。
+`.cnb.yml` 和 `.cnb/rootfs.yml` 为空配置；`.cnb/web_trigger.yml` 没有构建按钮。
+原来的每日 03:17 构建、API 触发和手动构建入口均已停用。
+旧 `.cnb/` 构建脚本仅保留为历史实现，不由任何活动流水线调用。
 
-上报证书在构建前检查有效期和公私钥匹配；APK 构建后验证 OCR、离线机型表及
-凭据资产，并按 API 范围验证 v1 / v2 / v3 签名。
-临时 keystore 和上报凭据在脚本退出及流水线结束时清理。
-
-### 发布完成与维护
-
-每次正式发布使用独立标签 `cnb-android-<build-id>`。
-创建 Release、上传附件全部成功后才标记为 Latest，旧版本保留用于回滚。
-`latest.json` 中的下载 URL 指向该版本的 CNB 附件，并保留 arm64 的旧版兼容字段。
-维护者可按需要手动清理历史 Release。
-完整构建使用 6 小时互斥锁，手动和每日构建按顺序执行。
-每日调度入口不持有该锁，避免同步等待子流水线时形成死锁。
-
-原有 GitHub 构建、上游检查和代码同步工作流继续保留。
-CNB 发布标签不会由当前同步工作流修剪。
-本地可执行以下验证；不能代替 CNB 上的首次双架构完整构建：
+本地验证上传协议和失败行为：
 
 ```powershell
-uv run --no-project python .cnb/tests/test_artifacts.py
-cd app
-.\gradlew.bat :app:compileDebugKotlin -x verifyBundledAzurPilotRuntime
+uv run --no-project python tools/tests/test_cnb_release.py
 ```
 
-CNB 配置应按官方
-[配置 Schema](https://docs.cnb.cool/conf-schema-en.json) 和
-[手动按钮 Schema](https://docs.cnb.cool/web-trigger-schema-en.json) 校验。
+修改 CI 时还需检查 GitHub 工作流的 YAML 和 Bash 语法，及 CNB 的官方
+[流水线 schema](https://docs.cnb.cool/conf-schema-en.json)和
+[手动按钮 schema](https://docs.cnb.cool/web-trigger-schema-en.json)。
+本地模拟测试不能确认线上令牌的实际权限；首次上传结果以 GitHub Actions 为准。
 
 ## English
 
-### Downloads
+GitHub Actions builds, signs, and verifies artifacts; CNB Releases provides domestic downloads.
+Both platforms serve identical APK, dual-architecture Runtime, and frontend archive bytes.
+The CNB index changes only their download URLs.
 
-Successful signed builds publish APKs to
-[CNB Releases](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases).
-Choose the full APK matching the device architecture for a first installation.
-Use the slim APK to update a device with an existing runtime.
-The release's `SHA256SUMS` records each download's SHA-256.
+- GitHub repository: [`wess09/AzurPilot-for-Android`](https://github.com/wess09/AzurPilot-for-Android).
+- CNB repository: [`azurpilot/AzurPilot-for-Android`](https://cnb.cool/azurpilot/AzurPilot-for-Android).
+- Domestic downloads: [CNB Releases](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases).
 
-| File | Purpose |
-|---|---|
-| `AzurPilot-Android-<version>-arm64-v8a-full.apk` | Full installation for ARM64 phones |
-| `AzurPilot-Android-<version>-x86_64-full.apk` | Full installation for x86_64 devices |
-| `AzurPilot-Android-<version>-update.apk` | Universal slim update without a runtime |
-| `rootfs-<abi>.tar.xz` | Ubuntu / AzurPilot runtime for that ABI |
-| `BUILD_MANIFEST-<abi>.json` | Runtime provenance and architecture |
-| `frontend-<commit>.tar.xz` / `.sha256` | Prebuilt frontend and checksum |
-| `latest.json` / `SHA256SUMS` | Download manifest and integrity checks |
+### Configure the access token
 
-CNB builds the artifacts itself and serves their attachments. Source and build dependencies still
-require upstream access to GitHub, Google, Ubuntu, Termux, and other providers.
-The app's existing update source continues to use GitHub; CNB serves manual full-APK installations.
-A first installation using the slim APK still downloads its runtime through the app's existing source.
+Configure `CNB_TOKEN` under the GitHub repository's
+**Settings → Secrets and variables → Actions**.
+The existing source-mirroring Secret can be reused, provided its token has `repo-release:rw`
+for the target CNB repository. Keep the existing `repo-contents:rw` permission needed for
+source mirroring when updating the token. Its account must also have Release write access.
 
-### Triggers and execution
+See CNB's official [access-token guide](https://docs.cnb.cool/en/guide/access-token.html),
+[repository role permissions](https://docs.cnb.cool/en/guide/role-permissions.html), and
+[OpenAPI documentation](https://docs.cnb.cool/en/develops/openapi.html).
+Read-only tokens or tokens granting only source write access cannot publish Releases;
+the upload step reports permission failures explicitly.
 
-The repository's `.cnb.yml` provides daily and manual builds:
+The six existing GitHub Secrets continue to supply signing and device-reporting credentials.
+CNB needs no private credential file or Android signing key because distribution does not
+rebuild or re-sign artifacts. App versions follow GitHub's `1.3.*` rules; see
+[release channels](release-channel.md).
 
-- `main` pushes only synchronize source and do not start CNB builds, conserving quota.
-- `web_trigger_android`, exposed through the Android build button on the CNB main branch.
-  It accepts a full AzurPilot dev commit SHA and a force-rebuild switch.
-- `crontab: 17 3 * * *`, rebuilding both Runtime architectures and APKs once a day at 03:17
-  Asia/Shanghai. The scheduler calls `api_trigger_android` through `cnb:apply` with `FORCE=true`.
-  Since `git:release` does not support `crontab` directly, the custom event builds and publishes.
+### Automatic publication
 
-Resolution pins upstream dev to a commit and compares it against the last published `latest.json`.
-Input comparisons cover `app/`, `rootfs/`, `.cnb.yml`, and `.cnb/`.
-Manual builds skip unchanged inputs by default; daily builds always rebuild.
-App versions follow GitHub CI: retain the previous app version when Android inputs are unchanged;
-otherwise derive the name from full Git history and advance beyond the previous version code.
+After publishing the signed GitHub Release, the `publish` job in
+`.github/workflows/rootfs.yml` calls `tools/cnb_release.py publish` with this job's artifacts:
 
-Synchronous `cnb:apply` runs both native child pipelines in `.cnb/rootfs.yml`:
-`cnb:arch:arm64:v8` for ARM64 and `cnb:arch:amd64` for x86_64.
-Each uses `.cnb/Dockerfile.rootfs` as its build environment and runs the shared rootfs script
-with `ROOTFS_EXECUTOR=proot`. PRoot uses user-space path bindings, avoiding nested Docker,
-privileged containers, and kernel mounts that CNB rejects for `/sys`.
-GitHub CI still defaults to chroot. The environment compiles PRoot 5.4.1 from a pinned commit
-to support modern glibc's `clone3` subprocess calls. DNS and uv caches are bound only during
-guest execution and stay out of the final rootfs.
+- The slim update APK and both ARM64 and x86_64 full APKs.
+- `rootfs-arm64-v8a.tar.xz`, `rootfs-x86_64.tar.xz`, and their `BUILD_MANIFEST` files.
+- Frontend archives and checksum files present in the build outputs.
+- `latest.json` pointing to CNB assets and a regenerated `SHA256SUMS`.
 
-Some x86_64 build containers reject `faccessat2`, causing APT to treat readable signing keys
-as missing. The build image patches PRoot to translate that call's `EPERM` into `ENOSYS`,
-letting glibc fall back to older permission checks. Restricted containers use ptrace tracing;
-repository signature verification remains enabled. Wheel compaction checks dynamic symbols
-and ELF load segments, including page alignment of empty segments. If GNU strip 2.40 damages
-a segment, the original file is kept and the skip is recorded in `RUNTIME_SIZE_REPORT.json`.
+The script checks sizes, SHA-256 hashes, the current host commit, and Runtime metadata
+against the GitHub index. Large files are streamed. Each retry obtains a fresh presigned URL,
+and uploaded assets are confirmed through the API. The CNB token is sent only to the target
+repository's CNB API, never to attachment object storage.
 
-Build images download the matching uv binary from GitHub Releases, avoiding the ghcr.io token
-endpoint certificate-verification failure observed in this CNB build.
+Each publication creates a draft targeting the host commit with the unique tag
+`github-android-<GitHub Run ID>-<Run Attempt>`. It becomes public and Latest only after all
+uploads complete and server-side asset sizes and available hashes pass verification.
+Failures leave a draft and preserve the previous CNB Latest.
+Original APK, Runtime, and frontend checksums match GitHub exactly. Download URLs include
+the unique tag, so later publications do not overwrite those assets. The index retains
+legacy flat ARM64 fields for older App versions.
 
-Intermediate attachments include the parent build ID and expire after seven days.
-After both architectures succeed, the APK pipeline downloads this build's attachments and verifies
-checksums, ABI, upstream commit, and host commit before building the three APKs.
-Gradle runs on a JDK 25 daemon while Java / JVM compilation still targets 17.
-The image uses Command-line Tools 23.0 and installs Compile SDK 37 (the official package name is
-`platforms;android-37.0`), Build Tools 36.0.0, and CMake 3.22.1; AGP installs its NDK.
+`.github/workflows/sync-cnb.yml` continues to mirror source without pruning CNB Release tags.
+The host commit must already exist on CNB before the Release can be created.
+Automatic publishing and manual backfills share the `cnb-release-publish` concurrency group,
+preventing conflicting publication and changes to the download source during a backfill.
 
-### Release credentials
+### Backfill existing artifacts manually
 
-GitHub Secrets are not mirrored with source code. Before enabling signed releases:
+Open GitHub **Actions → Publish existing GitHub release to CNB → Run workflow**.
+The `github_tag` input defaults to `azurpilot-android-latest`. That GitHub Release must contain
+the signed update APK, both full APKs, both Runtimes, and a valid `latest.json`.
 
-1. Create the private CNB repository `azurpilot/build-secrets` and its `android.yml` file.
-2. Copy the six credentials used by GitHub CI. Use the same keystore to allow replacement
-   installation over existing release APKs.
-3. Authorize this project to read the private file according to CNB's
-   [file-reference access rules](https://docs.cnb.cool/en/build/file-reference.html).
-4. Enable the reserved private-file URL in `.cnb.yml` under `imports`.
-   Adjust the URL if using another private repository or filename.
-5. Trigger the build button on CNB's main branch with force rebuilding enabled.
+The workflow downloads only the current assets referenced by the index, verifies them,
+and uploads to CNB without running Gradle or building Runtimes. Older releases with only one
+`BUILD_MANIFEST` and no per-architecture metadata attachments are supported. Any existing
+frontend archive must still pass checksum verification. Historical APK versions retained
+in the GitHub Release are excluded.
 
-The private file has this structure; enter real values only in the private repository:
+If automatic uploading fails, the GitHub build and Release have already completed;
+retry distribution through this workflow. For `CNB_TOKEN requires repo-release:rw`, grant
+the permission, update the GitHub Secret, and rerun the backfill workflow.
+Failed drafts can be removed manually after confirming a successful backfill.
 
-```yaml
-AZURPILOT_ANDROID_KEYSTORE_BASE64: '<same keystore base64 as GitHub>'
-AZURPILOT_ANDROID_KEYSTORE_PASSWORD: '<keystore password>'
-AZURPILOT_ANDROID_KEY_ALIAS: '<signing alias>'
-AZURPILOT_ANDROID_KEY_PASSWORD: '<signing key password>'
-AZURPILOT_DEVICE_REPORT_CERT_BASE64: '<reporting certificate base64>'
-AZURPILOT_DEVICE_REPORT_KEY_BASE64: '<reporting private key base64>'
-```
+### Disable CNB native builds
 
-The checked-in `.cnb/env.yml` contains empty defaults. When all four signing values are empty,
-daily and manual builds produce `-debug.apk` files kept as commit attachments for 14 days.
-Debug outputs include `build-info.json`, never a release `latest.json` or a Release.
-Daily builds follow the same signing rules and never publish debug APKs as release versions.
-Partial signing inputs, unpaired reporting credentials, or missing reporting credentials for
-signed builds fail before runtime construction.
+`.cnb.yml` and `.cnb/rootfs.yml` contain empty configurations; `.cnb/web_trigger.yml` has no
+build buttons. The former daily 03:17 build, API triggers, and manual build entry points
+are disabled. Old `.cnb/` build scripts remain as historical implementations and are not
+called by active pipelines.
 
-Reporting credentials are checked for certificate expiry and matching public keys before building.
-Finished APKs undergo OCR, offline device-catalog, and credential-asset verification, followed by
-v1 / v2 / v3 signature checks per API range.
-Temporary signing and reporting files are cleared on script exit and pipeline completion.
-
-### Publication and maintenance
-
-Each signed release gets a unique `cnb-android-<build-id>` tag.
-It becomes Latest only after release creation and attachment uploads succeed. Earlier releases
-remain available for rollback. Download URLs in `latest.json` point at that version's CNB
-attachments and retain legacy arm64 fields. Maintainers can remove older releases when needed.
-A six-hour lock serializes complete builds from daily and manual triggers. The scheduler itself
-does not hold that lock, avoiding a deadlock while synchronously waiting for its child pipeline.
-
-Existing GitHub build, upstream-check, and mirror workflows remain available.
-The current mirror workflow does not prune CNB release tags.
-Run these local checks, then validate the first complete dual-architecture build on CNB:
+Validate upload ordering and failure behavior locally:
 
 ```powershell
-uv run --no-project python .cnb/tests/test_artifacts.py
-cd app
-.\gradlew.bat :app:compileDebugKotlin -x verifyBundledAzurPilotRuntime
+uv run --no-project python tools/tests/test_cnb_release.py
 ```
 
-Validate CNB configurations against the official
-[pipeline schema](https://docs.cnb.cool/conf-schema-en.json) and
+CI changes also require GitHub workflow YAML and Bash syntax checks, plus validation against
+CNB's official [pipeline schema](https://docs.cnb.cool/conf-schema-en.json) and
 [manual-button schema](https://docs.cnb.cool/web-trigger-schema-en.json).
+Local simulations cannot confirm the live token's permissions; the first GitHub Actions
+upload determines whether they are sufficient.

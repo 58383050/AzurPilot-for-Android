@@ -24,8 +24,9 @@
 ### 版本号规则（CI `resolve` 步）
 
 1. 读取上一份已发布 `latest.json` 的 `versionCode`/`versionName`/`appCommit`。
-2. GitHub CI、CNB 与本地构建按 `1.3.<X>` 计算候选 `versionName`，其中
+2. GitHub CI 与本地构建按 `1.3.<X>` 计算候选 `versionName`，其中
    `X = max(提交计数 − 303, 0)`；第 303 个提交为 `1.3.0`。候选 `versionCode` 是 HEAD 提交时间戳。
+   CNB 直接分发 GitHub 产物，保留同一套版本名与版本号。
 3. 若 `appCommit` 可达且为本仓祖先，并且 `git diff --quiet "$app_commit" HEAD -- app` 成功，则 Android 工程输入未变：沿用已发布的 app 版本号，并可仅更新 Runtime。
 4. 若 `app/` 有变更且已有可用的上次版本，则 `versionCode = max(旧值 + 1, HEAD 时间戳)`，
    `versionName` 采用第 2 步的候选值，`appCommit` 更新为当前提交。上次版本可来自 `1.1.*`、`1.2.*`
@@ -82,9 +83,9 @@ they must stay valid — the publish step pins them to the arm64 entry.
 ### Version rules (CI `resolve` step)
 
 1. Read `versionCode`, `versionName`, and `appCommit` from the last published `latest.json`.
-2. GitHub CI, CNB, and local builds calculate a candidate `versionName` as `1.3.<X>`, where
+2. GitHub CI and local builds calculate a candidate `versionName` as `1.3.<X>`, where
    `X = max(commit count − 303, 0)`; commit 303 is `1.3.0`. The candidate `versionCode` is the
-   HEAD commit timestamp.
+   HEAD commit timestamp. CNB distributes the GitHub artifacts with the same version name and code.
 3. If `appCommit` is reachable, is an ancestor of HEAD, and `git diff --quiet "$app_commit" HEAD -- app` succeeds, Android-project inputs are unchanged: retain the published app version and optionally publish a Runtime-only update.
 4. If `app/` changed and a comparable previous version exists, set
    `versionCode = max(previous + 1, HEAD timestamp)`, use the candidate `versionName` from step 2,

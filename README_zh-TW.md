@@ -390,7 +390,7 @@ graph TD
 
 ## 快速開始
 
-CNB 正式建置完成後，可從 [國內下載（CNB）](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases) 取得安裝包；首次安裝請選擇對應架構的完整包。[建置設定說明](doc/cnb-ci.md)。
+GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases)；首次安裝請選擇對應架構的完整包。[發佈設定說明](doc/cnb-ci.md)。
 
 <table width="100%">
   <tr>

@@ -390,7 +390,7 @@ graph TD
 
 ## クイックスタート
 
-CNB の正式ビルド完了後は、[CNB ダウンロード](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases)からも APK を取得できます。初回は端末のアーキテクチャに対応する完全版を選んでください。[ビルド設定](doc/cnb-ci.md)。
+GitHub でビルドした正式な成果物は [CNB ダウンロード](https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases)に同期されます。初回は端末のアーキテクチャに対応する完全版を選んでください。[公開設定](doc/cnb-ci.md)。
 
 <table width="100%">
   <tr>
