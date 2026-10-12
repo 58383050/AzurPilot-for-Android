@@ -1,5 +1,7 @@
 package com.azurpilot.ghio;
 
+import android.os.ParcelFileDescriptor;
+
 import android.view.Surface;
 import com.azurpilot.ghio.ITouchEventCallback;
 import com.azurpilot.ghio.IRunnerCallback;
@@ -328,4 +330,12 @@ interface RemoteService {
 
     /** Actual UID of the privileged process; used for cloud-ROM backend compatibility. */
     int processUid() = 77;
+
+    /**
+     * 接管 App 已接受的截图连接 FD；每个连接只传一次，后续像素不走 Binder 或 TCP。
+     *
+     * Adopts an app-accepted capture connection FD once per connection; subsequent pixels do
+     * not pass through Binder or TCP.
+     */
+    void openSharedFrameChannel(in ParcelFileDescriptor connection) = 78;
 }

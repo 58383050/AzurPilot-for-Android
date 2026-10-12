@@ -538,7 +538,7 @@ class ProotHost(
      * asset, say) only logs and keeps the rootfs's existing copy.
      */
     private fun syncHostOverlay() {
-        listOf(HOST_OVERLAY_NAME, "sitecustomize.py", "android_ocr.py", "android_equipment.py", "android_update.py").forEach { name ->
+        listOf(HOST_OVERLAY_NAME, "sitecustomize.py", "android_ocr.py", "android_equipment.py", "android_capture.py", "android_update.py").forEach { name ->
             runCatching {
                 val target = File(installDir, name)
                 val tmp = File(installDir, "$name.tmp")

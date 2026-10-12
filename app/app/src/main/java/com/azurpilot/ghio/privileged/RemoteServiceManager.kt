@@ -172,6 +172,12 @@ object RemoteServiceManager : PrivilegedServicePort {
             }
             runCatching { service.heartbeat(Process.myPid()) }
                 .onFailure { Timber.w(it, "heartbeat failed") }
+            runCatching {
+                synchronized(lock) {
+                    if (currentBinder.get() === binder) SharedFrameHost.start(service)
+                }
+            }
+                .onFailure { Timber.w(it, "Shared-memory capture setup failed; using TCP") }
         }
 
         override fun onDisconnected(backend: RemoteBackend) {
@@ -260,6 +266,7 @@ object RemoteServiceManager : PrivilegedServicePort {
      * [lock] held.
      */
     private fun clearCurrentBinderLocked() {
+        SharedFrameHost.stop()
         val binder = currentBinder.getAndSet(null)
         val recipient = currentDeathRecipient
         currentDeathRecipient = null

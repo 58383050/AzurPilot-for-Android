@@ -67,6 +67,11 @@ std::string GetFrameReadDiagnostics();
 // Copies the current BGR frame into an ARGB_8888 Java Bitmap; returns null when no frame exists.
 jobject CreateFrameBufferBitmap(JNIEnv *env);
 
+// 将最新帧复制到调用方的持久映射，返回同一帧的宽、高、长度和序号；失败不写入。
+// Copies the latest frame into a caller-owned persistent mapping, returning its width, height,
+// length, and sequence. Failure leaves the destination untouched.
+bool CopyFrameToBuffer(void *destination, size_t capacity, int64_t metadata[4]);
+
 // 返回当前已初始化帧缓冲生命周期内，已分配给成功转换帧的递增序号。
 //
 // 释放或重新初始化时计数会归零；该值在 read 指针发布前递增，只能比较本轮进度，不能单独证明

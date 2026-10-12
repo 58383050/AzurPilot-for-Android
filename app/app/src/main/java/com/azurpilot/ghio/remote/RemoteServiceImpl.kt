@@ -10,6 +10,7 @@ import com.azurpilot.ghio.constant.DisplayMode
 import com.azurpilot.ghio.remote.internal.ActivityUtils
 import com.azurpilot.ghio.remote.internal.AppWatchdog
 import com.azurpilot.ghio.remote.internal.BridgeServer
+import com.azurpilot.ghio.remote.internal.SharedFrameServer
 import com.azurpilot.ghio.remote.internal.PermissionGrantHelper
 import com.azurpilot.ghio.service.AccessibilityHelperService
 import com.azurpilot.ghio.remote.internal.PowerController
@@ -26,6 +27,7 @@ import com.azurpilot.ghio.third.wrappers.ServiceManager
 import com.azurpilot.ghio.third.Workarounds
 import android.view.Surface
 import android.os.Process
+import android.os.ParcelFileDescriptor
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -54,6 +56,15 @@ import kotlin.system.exitProcess
  * heartbeat watchdog is its own daemon thread.
  */
 class RemoteServiceImpl : RemoteService.Stub() {
+
+    /**
+     * 在 Binder 线程接管已连接 FD，复制后关闭传入的句柄。
+     *
+     * Adopts a connection on the Binder thread, closing the incoming handle after duplicating it.
+     */
+    override fun openSharedFrameChannel(connection: ParcelFileDescriptor) {
+        connection.use { SharedFrameServer.open(it) }
+    }
 
     private val virtualDisplayMode = AtomicInteger(DisplayMode.BACKGROUND)
     private val appPid = AtomicInteger(0)

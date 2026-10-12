@@ -27,6 +27,10 @@ if os.environ.get("AZURPILOT_ANDROID") == "1":
 
     install_equipment()
 
+    from android_capture import install as install_capture
+
+    install_capture()
+
     from android_update import install as install_update
 
     install_update()

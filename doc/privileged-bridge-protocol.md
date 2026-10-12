@@ -33,6 +33,30 @@
 
 未知或缺失 `method` 返回 `ok=false`。请求参数类型错误由 JSON 访问器抛出后返回错误响应；客户端不得依赖具体错误文案。
 
+### 共享内存截图 v1
+
+`ping` 的 `capabilities.sharedMemoryScreencap` 表示特权端支持共享内存，
+`sharedFrameSocket` 为抽象 Unix 地址 `com.azurpilot.ghio.frames.v1`。
+App 接受本 UID 的连接后，以固定 Binder transaction 78 (`openSharedFrameChannel`)
+交付已连接 FD；特权进程无需执行跨 SELinux 域的 connect/listen/accept/setopt。
+socket 超时由 App 在交付前设置为 60 秒。旧 TCP `screencap` 保持不变。
+
+客户端先发送 `{"method":"open","version":1}`，响应包含 `ok`、`version=1` 和
+`capacity`，并通过 `SCM_RIGHTS` 携带一个仅可只读 mmap 的匿名内存 FD。
+之后发送 `{"method":"screencap"}`，响应包含 `width`、`height`、`channels=3`、
+`length`、`frames` 和 `transport="shared_memory"`；没有随附像素字节。
+元数据和像素来自同一 native 帧槽，响应前完成 memcpy。
+
+每个连接拥有独立映射，下一次请求才会覆盖该连接的帧。客户端必须先复制成自有 RGB
+数组，才能发送下一条截图请求；保留映射视图或管线化请求会破坏这个保证。
+此通道不取得输入锁，因此其它连接的滑动与截图互不阻塞。
+分辨率扩大超出容量时返回 `ok=false,reopen=true`，客户端重连重新分配。
+上限为 8 个连接、每个映射 32 MiB、请求行 4 KiB；连接结束释放 FD 和映射。
+
+`rootfs/overlays/android_capture.py` 自动安装此通道，首次失败重连一次后回退到上游
+TCP，30 秒后重试。远程或自定义代理地址继续使用 TCP；环境变量
+`AZURPILOT_ANDROID_CAPTURE=tcp` 可强制旧通道。详见 [共享内存截图](shared-memory-capture.md)。
+
 ### 并发与修改规则
 
 服务为每个客户端使用一个守护线程。`screencap`、`click`、`swipe` 及装备码接口共享设备锁，因而会相互串行；`shell` 不占用该锁。不要把该实现细节当作客户端并发授权，客户端应在自身侧保持单个设备操作序列有序。
@@ -76,6 +100,33 @@ The current service implementation and this document define compatibility. No hi
 | `shell` | `cmd` | `ok`, `code`, `stdout`, `stderr` | Optional `timeout` is seconds; each output stream retains at most 64 KiB, and timeout returns an error. |
 
 An unknown or missing `method` returns `ok=false`. Type errors in request fields become an error response; clients must not depend on exact error wording.
+
+### Shared-memory capture v1
+
+`ping` exposes privileged-side support through `capabilities.sharedMemoryScreencap` and the
+abstract Unix address `com.azurpilot.ghio.frames.v1` through `sharedFrameSocket`.
+The app accepts same-UID connections and hands connected FDs to the privileged service through
+fixed Binder transaction 78 (`openSharedFrameChannel`). The privileged process does not perform
+cross-domain connect/listen/accept/setopt; the app sets the socket timeout to 60 seconds before
+handoff. Legacy TCP `screencap` remains unchanged.
+
+Clients first send `{"method":"open","version":1}`. The response includes `ok`, `version=1`,
+and `capacity`, with one anonymous-memory FD delivered through `SCM_RIGHTS` and restricted to
+read-only mmap. Subsequent `{"method":"screencap"}` responses include `width`, `height`,
+`channels=3`, `length`, `frames`, and `transport="shared_memory"`, without trailing pixel bytes.
+Metadata and pixels come from the same native slot; memcpy finishes before the response.
+
+Each connection owns its mapping, which is overwritten only on its next request. Clients must
+copy into an owned RGB array before requesting again; retaining mapping views or pipelining
+requests violates that guarantee. This channel does not take the input lock, so another
+connection's swipe cannot block capture. Growth beyond capacity returns `ok=false,reopen=true`,
+requiring reconnection. Limits are 8 connections, 32 MiB per mapping, and 4 KiB request lines.
+Connection teardown releases FDs and mappings.
+
+`rootfs/overlays/android_capture.py` installs capture automatically, reconnecting once on initial
+failure before falling back to upstream TCP and retrying after 30 seconds. Remote or customized
+proxy addresses retain TCP; `AZURPILOT_ANDROID_CAPTURE=tcp` forces the legacy channel.
+See [shared-memory capture](shared-memory-capture.md).
 
 ### Concurrency and change rules
 

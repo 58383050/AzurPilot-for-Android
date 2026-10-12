@@ -14,6 +14,8 @@
 #include "bridge_internal.h"
 #include "bridge_preview.h"
 
+#include <android/sharedmem_jni.h>
+
 // 返回固定库标记，供 Kotlin 侧确认 JNI 加载成功。
 // Returns the fixed library marker used by Kotlin to confirm JNI loading.
 static jstring ping(JNIEnv *env, jclass clazz) {
@@ -61,6 +63,30 @@ static jbyteArray nativeGetFrameBufferBytes(JNIEnv *env, jclass clazz) {
     }
     UnlockPixels(frame);
     return bytes;
+}
+
+// 复制到 SharedMemory 的持久可写映射，避免整帧 Java 数组和 socket 像素传输。
+// Copies into SharedMemory's persistent writable mapping, avoiding full-frame Java arrays
+// and socket pixel transfers.
+static jlongArray nativeCopyFrameBuffer(JNIEnv *env, jclass clazz, jobject destination) {
+    (void) clazz;
+    void *data = env->GetDirectBufferAddress(destination);
+    const jlong capacity = env->GetDirectBufferCapacity(destination);
+    int64_t metadata[4]{};
+    if (capacity <= 0 || !CopyFrameToBuffer(data, static_cast<size_t>(capacity), metadata)) {
+        return nullptr;
+    }
+    const jlong values[] = {metadata[0], metadata[1], metadata[2], metadata[3]};
+    jlongArray result = env->NewLongArray(4);
+    if (result) env->SetLongArrayRegion(result, 0, 4, values);
+    return result;
+}
+
+// 返回独立 FD，由 Kotlin 的 ParcelFileDescriptor 负责关闭。
+// Returns an independent FD owned and closed by Kotlin's ParcelFileDescriptor.
+static jint nativeDupSharedMemoryFd(JNIEnv *env, jclass clazz, jobject memory) {
+    (void) clazz;
+    return ASharedMemory_dupFromJava(env, memory);
 }
 
 // 替换可选预览目标；传入 null 会关闭预览渲染。
@@ -123,6 +149,8 @@ static JNINativeMethod gMethods[] = {
         {"setPreviewSurface",     "(Ljava/lang/Object;)V",       reinterpret_cast<void *>(nativeSetPreviewSurface)},
         {"getFrameBufferBitmap",  "()Landroid/graphics/Bitmap;", reinterpret_cast<void *>(nativeGetFrameBufferBitmap)},
         {"getFrameBufferBytes",   "()[B",                      reinterpret_cast<void *>(nativeGetFrameBufferBytes)},
+        {"copyFrameBuffer",       "(Ljava/nio/ByteBuffer;)[J",    reinterpret_cast<void *>(nativeCopyFrameBuffer)},
+        {"dupSharedMemoryFd",     "(Landroid/os/SharedMemory;)I", reinterpret_cast<void *>(nativeDupSharedMemoryFd)},
         {"getFrameCount",         "()J",                         reinterpret_cast<void *>(nativeGetFrameCount)},
         {"getCaptureDiagnostics", "()Ljava/lang/String;",        reinterpret_cast<void *>(nativeGetCaptureDiagnostics)},
 };

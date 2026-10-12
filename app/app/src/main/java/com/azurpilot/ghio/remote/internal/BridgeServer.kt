@@ -37,6 +37,8 @@ import kotlin.math.roundToInt
  * 一个线程接受连接，每个客户端使用一个守护线程。屏幕读取、触摸和装备码操作由
  * [DEVICE_LOCK] 串行，装备码输入仅接受有界 Base64 文本并始终绑定当前虚拟屏。
  * `shell` 不持有该锁。 [start] 在 [RemoteServiceImpl] 初始化期间调用；绑定失败只记录日志。
+ * [SharedFrameServer] 提供独立共享内存截图通道，ping 返回其能力及 Unix socket 名称；
+ * 此通道不取得 [DEVICE_LOCK]，仅保留按连接顺序取帧的约束。
  *
  * Loopback device bridge service in the privileged process.
  *
@@ -52,6 +54,8 @@ import kotlin.math.roundToInt
  * screen reads, touch injection, and equipment-code operations. Equipment input accepts only
  * bounded Base64 text on the current virtual display; `shell` does not take the lock. [start] is
  * called while [RemoteServiceImpl] initializes, and a bind failure is logged only.
+ * [SharedFrameServer] provides independent shared-memory capture; ping reports its capability
+ * and Unix socket name. It does not take [DEVICE_LOCK] and requires sequential per-client reads.
  */
 object BridgeServer {
 
@@ -132,6 +136,7 @@ object BridgeServer {
             return
         }
         serverSocket = socket
+        SharedFrameServer.start()
         startedAtMs = SystemClock.elapsedRealtime()
         thread(isDaemon = true, name = "azurpilot-bridge-accept") { acceptLoop(socket) }
         Ln.i("$TAG: listening on $LISTEN_HOST:$LISTEN_PORT")
@@ -144,6 +149,7 @@ object BridgeServer {
      */
     @Synchronized
     fun stop() {
+        SharedFrameServer.stop()
         val socket = serverSocket ?: return
         serverSocket = null
         runCatching { socket.close() }
@@ -219,7 +225,9 @@ object BridgeServer {
                     JSONObject()
                         .put("ok", true)
                         .put("pong", true)
-                        .put("capabilities", JSONObject().put("equipmentCode", true))
+                        .put("capabilities", JSONObject().put("equipmentCode", true)
+                            .put("sharedMemoryScreencap", SharedFrameServer.isRunning()))
+                        .put("sharedFrameSocket", SharedFrameServer.SOCKET_NAME)
                         .put("displayId", VirtualDisplayManager.getDisplayId())
                         .put("capture", if (NativeBridgeLib.LOADED) NativeBridgeLib.getCaptureDiagnostics() else "native not loaded")
                         .put("uptime", (SystemClock.elapsedRealtime() - startedAtMs) / 1000.0)

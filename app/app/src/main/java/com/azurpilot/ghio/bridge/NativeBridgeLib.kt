@@ -1,7 +1,9 @@
 package com.azurpilot.ghio.bridge
 
 import android.graphics.Bitmap
+import android.os.SharedMemory
 import android.view.Surface
+import java.nio.ByteBuffer
 
 import com.azurpilot.ghio.third.Ln
 
@@ -28,6 +30,27 @@ import dalvik.annotation.optimization.FastNative
  * callable from any Kotlin thread; [FastNative]-annotated ones are hot paths.
  */
 object NativeBridgeLib {
+
+    /**
+     * 将当前 BGR 帧复制到持久直接缓冲，返回同一帧的宽、高、字节数和序号。
+     *
+     * 调用线程独占目标映射；目标不足或尚无帧时返回 null，不持有任何帧槽。
+     *
+     * Copies the current BGR frame into a persistent direct buffer, returning its width, height,
+     * byte length, and sequence. The calling thread owns the destination exclusively; null means
+     * no frame or insufficient capacity, and no frame slot remains held.
+     */
+    @JvmStatic
+    external fun copyFrameBuffer(destination: ByteBuffer): LongArray?
+
+    /**
+     * 复制共享内存的 FD；调用方负责关闭，失败返回负数。可在任意线程调用。
+     *
+     * Duplicates the shared-memory FD; the caller closes it. Returns a negative value on failure
+     * and may be called from any thread.
+     */
+    @JvmStatic
+    external fun dupSharedMemoryFd(memory: SharedMemory): Int
 
     /**
      * libbridge.so 是否加载成功

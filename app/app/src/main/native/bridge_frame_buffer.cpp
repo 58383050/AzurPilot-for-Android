@@ -251,6 +251,24 @@ static void UnlockFrame(const FrameBuffer *frame) {
     }
 }
 
+// 仅在一次 memcpy 期间持有帧槽；返回的元数据与像素来自同一个已发布槽。
+// Holds a frame slot only for one memcpy; metadata and pixels come from the same published slot.
+bool CopyFrameToBuffer(void *destination, size_t capacity, int64_t metadata[4]) {
+    const FrameBuffer *frame = LockCurrentFrame();
+    if (!frame) return false;
+    if (!destination || !frame->bgr_data || frame->bgr_size > capacity) {
+        UnlockFrame(frame);
+        return false;
+    }
+    metadata[0] = frame->width;
+    metadata[1] = frame->height;
+    metadata[2] = static_cast<int64_t>(frame->bgr_size);
+    metadata[3] = frame->frame_count;
+    memcpy(destination, frame->bgr_data, frame->bgr_size);
+    UnlockFrame(frame);
+    return true;
+}
+
 // 为指定显示像素尺寸分配并重置三重帧缓冲。
 //
 // 64 字节对齐使标量复制和 NEON 访问保持友好；任一槽分配失败都会回滚此前分配，避免发布
