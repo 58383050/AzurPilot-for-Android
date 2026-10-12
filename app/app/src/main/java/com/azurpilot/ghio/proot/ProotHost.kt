@@ -297,9 +297,12 @@ class ProotHost(
         sessionLog.parentFile?.mkdirs()
         val cmd = listOf(
             File(nativeLibDir, "libproot.so").absolutePath,
+            // Android 拒绝硬链接；POSIX 信号量需使用 PRoot 的符号链接兼容层。
+            "--link2symlink",
             "-w", GUEST_INSTALL_ROOT,
             "-r", rootfsDir.absolutePath,
             "-b", "/dev:/dev", "-b", "/proc:/proc", "-b", "/sys:/sys",
+            "-b", "${ensureGuestSharedMemory().absolutePath}:/dev/shm",
             ".venv/bin/python", "android_host.py",
         )
         Timber.i("proot session spawn: %s", cmd.joinToString(" "))
@@ -310,6 +313,15 @@ class ProotHost(
         drainTo(proc.inputStream, "proot-out")
         drainTo(proc.errorStream, "proot-err")
         return proc
+    }
+
+    /**
+     * 提供可写的 POSIX 信号量目录；Android 的 /dev 绑定不包含 /dev/shm。
+     *
+     * Provides writable POSIX semaphore storage because Android's /dev has no /dev/shm.
+     */
+    private fun ensureGuestSharedMemory(): File = File(rootfsDir, "dev/shm").also {
+        check(it.isDirectory || it.mkdirs()) { "Cannot create guest shared-memory directory" }
     }
 
     /**
@@ -754,9 +766,11 @@ class ProotHost(
         prootTmpDir.mkdirs()
         val cmd = listOf(
             File(nativeLibDir, "libproot.so").absolutePath,
+            "--link2symlink",
             "-w", GUEST_INSTALL_ROOT,
             "-r", rootfsDir.absolutePath,
             "-b", "/dev:/dev", "-b", "/proc:/proc", "-b", "/sys:/sys",
+            "-b", "${ensureGuestSharedMemory().absolutePath}:/dev/shm",
         ) + guestCmd
         val proc = ProcessBuilder(cmd)
             .directory(installDir)

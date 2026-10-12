@@ -38,7 +38,7 @@ Deploy:
   Update:
     # 更新由 App 的 Android 私有接口编排，避免上游定时器同时修改源码。
     # The app orchestrates updates through Android APIs to avoid competing upstream timers.
-    EnableReload: false
+    EnableReload: true
     CheckUpdateInterval: 0
     AutoRestartTime: null
   Misc:

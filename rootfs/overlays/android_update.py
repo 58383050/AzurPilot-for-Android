@@ -26,6 +26,8 @@ import time
 
 STATE_FILE = 'config/android-update-state.json'
 JOURNAL_FILE = 'config/android-update-transaction.json'
+CNB_REPOSITORY = 'https://cnb.cool/AzurPilot/AzurPilot.git'
+GITHUB_REPOSITORY = 'https://github.com/wess09/AzurPilot.git'
 
 
 def write_json(path, value):
@@ -65,6 +67,23 @@ def git(root, *args, timeout=900):
 def workspace(root):
     """返回与正式源码同文件系统的更新目录。 / Returns an update workspace on the same filesystem."""
     return Path(root).parent / 'azurpilot-update'
+
+
+def ensure_reload(root):
+    """为本地热更启用上游父监督器，保持更新定时器及用户配置不变。
+
+    Enables the upstream reload supervisor for local updates without changing timers or user settings.
+    """
+    if not tools_ready(root):
+        return
+    path = Path(root) / 'config/deploy.yaml'
+    text = path.read_text(encoding='utf-8')
+    updated = re.sub(r'(?m)^([ \t]*EnableReload:[ \t]*)false([ \t]*(?:#.*)?)$',
+                     r'\g<1>true\g<2>', text, count=1)
+    if updated != text:
+        temporary = path.with_name(path.name + '.tmp')
+        temporary.write_text(updated, encoding='utf-8')
+        temporary.replace(path)
 
 
 def recover(root):
@@ -162,10 +181,10 @@ def patch_service(module):
     class LocalUpdateService(original):
         """在正式源码外准备可回滚的更新。 / Prepares reversible updates outside the live tree."""
 
-        def source(self):
-            """使用构建清单的来源和分支，避免上游默认 master 覆盖 CI 的 dev。
+        def sources(self):
+            """优先从 CNB 获取官方增量，失败时退回构建来源；自定义仓库保持原样。
 
-            Uses the build manifest source and branch instead of upstream's master default.
+            Prefers CNB for official updates with a build-source fallback; preserves custom sources.
             """
             manifest = module.frontend_deploy.android_manifest(self.root)
             repository = manifest.get('azurpilot_repo') or self.updater.Repository
@@ -173,7 +192,10 @@ def patch_service(module):
             mirror = os.environ.get('AZURPILOT_ANDROID_GIT_MIRROR', '')
             if mirror and repository.startswith('https://github.com/'):
                 repository = mirror + repository
-            return repository, branch
+            official = manifest.get('azurpilot_repo', '').rstrip('/').removesuffix('.git') == \
+                GITHUB_REPOSITORY.removesuffix('.git')
+            primary = manifest.get('azurpilot_update_repo') or (CNB_REPOSITORY if official else repository)
+            return list(dict.fromkeys((primary, repository))), branch
 
         def upstream_head(self, force=False):
             if not tools_ready(self.root):
@@ -181,13 +203,16 @@ def patch_service(module):
             cached = self._ls_remote_cache
             if not force and cached and time.monotonic() - cached[0] < 60:
                 return cached[1]
-            repository, branch = self.source()
-            try:
-                output = git(self.root, 'ls-remote', repository, f'refs/heads/{branch}', timeout=30)
-                head = output.split()[0] if output else ''
-            except (OSError, subprocess.SubprocessError):
-                head = ''
-            if not re.fullmatch(r'[0-9a-f]{40}', head):
+            repositories, branch = self.sources()
+            head = ''
+            for repository in repositories:
+                try:
+                    output = git(self.root, 'ls-remote', repository, f'refs/heads/{branch}', timeout=15)
+                    head = output.split()[0] if output else ''
+                except (OSError, subprocess.SubprocessError):
+                    head = ''
+                if re.fullmatch(r'[0-9a-f]{40}', head):
+                    break
                 head = ''
             self._ls_remote_cache = (time.monotonic(), head)
             return head
@@ -249,9 +274,15 @@ def patch_service(module):
                 candidate = stage / 'source'
                 git(stage, 'clone', '--local', '--no-hardlinks', '--no-checkout',
                     str(self.root), str(candidate))
-                repository, _ = self.source()
-                git(candidate, 'remote', 'set-url', 'origin', repository)
-                git(candidate, 'fetch', '--depth', '1', 'origin', target)
+                repositories, _ = self.sources()
+                for index, repository in enumerate(repositories):
+                    git(candidate, 'remote', 'set-url', 'origin', repository)
+                    try:
+                        git(candidate, 'fetch', '--depth', '1', 'origin', target)
+                        break
+                    except (OSError, subprocess.SubprocessError):
+                        if index == len(repositories) - 1:
+                            raise
                 git(candidate, 'reset', '--hard', target)
                 # 禁止用新源码假装已安装新依赖；锁环境仍由整包构建和 OCR 门验证。
                 if (candidate / 'uv.lock').read_bytes() != (self.root / 'uv.lock').read_bytes():

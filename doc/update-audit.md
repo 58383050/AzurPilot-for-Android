@@ -10,11 +10,15 @@
 | 范围 | 发现 | 处理 |
 |---|---|---|
 | 工具链 | 已有 Git，无 Node；打包删除 `.git`，首次热更没有本地回滚对象 | 内置固定版本 Node/npm，保留浅克隆；构建与手机共用工具链 |
+| 增量来源 | 官方增量只依赖 GitHub 下载链路 | 优先 CNB，失败时从原构建源取同一提交；自定义仓库不改写 |
 | 源码通道 | 构建跟随 `dev`，部署种子却写 `master` | 清单记录仓库和分支，热更读取清单；种子改为 `dev` |
 | 前端版本 | 上游热更重置源码后仍用旧清单提交下载 dist | 新通道在候选源码中构建目标 dist，通过后才切换 |
 | CI 耦合 | 更新前必须有该提交的 Release dist；滚动清理也会删除旧提交资源 | 新镜像不再依赖 dist 发布，旧通道继续兼容 |
 | Python 依赖 | 禁止安装依赖，却会允许改变锁文件的源码进入正式目录 | 锁变化不修改源码，明确要求整包更新 |
 | 回滚 | 原实现仅在 dist 失败时尝试 reset，不能完整恢复 dist、清单或中断状态 | 切换日志保存旧提交和清单，备份 dist；启动前恢复 |
+| 监督器 | `EnableReload=false` 导致热更所需重启事件未创建 | 启用父监督器并迁移旧配置，继续关闭定时更新 |
+| Android IPC | `/dev/shm` 缺失，补目录后仍因 SELinux 拒绝 `linkat` 而无法创建信号量 | 绑定私有目录并启用 PRoot `--link2symlink`；真机验证事件和队列跨进程传递 |
+| 宿主退出 | 子进程先退出时，stdin daemon 持有缓冲锁会导致 Python 中止 | 用 `os.read` 读取管道，验证保持 stdin 开启时也能正常退出 |
 | 通道互斥 | 热更与整包只有状态检查，没有共同流水线锁 | 两条 App 更新链共用部署锁和更新锁 |
 | 状态探测 | 客户端 12/20 秒读取超时短于服务端 30 秒 Git 探测；HTTP 200 被当作可热更 | 放宽至 45 秒；解析 enabled 和 requiresRuntimeUpdate |
 | 轮询 | 三秒进度轮询可能重复查询上游 | 热更忙时只读本地状态 |
@@ -42,9 +46,15 @@ GitHub 滚动 Release 的固定文件名仍可能在上传窗口出现清单/资
 导入上游服务验证适配器和已有前端指纹。Android 使用 `compileDebugKotlin`
 验证，翻译使用 `check_i18n_strings.py`，不运行已知不可编译的 Android 单元测试。
 
-本次验证通过 Android 编译、14 个 Node.js 24/PRoot 5.4.1 更新事务测试、上游
-真实前端构建及指纹校验、翻译检查和相关适配器/发布测试。没有构建完整双 ABI
-rootfs 或执行 Android 真机更新；CI 中的 guest 质量门将在正式镜像构建时执行。
+首轮完成 Android 编译、Linux PRoot 事务测试、上游真实前端构建及指纹校验、
+翻译和相关适配器/发布检查。随后在 M2104K10AC（Android 11、ARM64）安装调试
+APK，补齐固定版本 Node/npm 和 Git 元数据，运行 20 个真机回归并全部通过。
+真实更新从 CNB 将 `65b5c271b01d` 推进至 `3181a1ad7f3d`，耗时约 78 秒；前端
+指纹一致，`rootfs_version` 保持原值，配置文件 SHA-256 未变，SQLite 完整性为
+`ok`，WebUI 重载后健康检查及冷启动均通过。
+
+未构建完整双 ABI rootfs，也未启动实际游戏挂机实例；实例恢复文件协议及跨进程
+事件/队列在隔离测试中验证。可重复测试入口见 [hot-update.md](hot-update.md)。
 
 ## English
 
@@ -57,11 +67,15 @@ AzurPilot was inspected at `3181a1ad7f3dc77d902d97f0f1757b08fa6ef70a`.
 | Area | Finding | Resolution |
 |---|---|---|
 | Toolchain | Git existed without Node; removed `.git` left no local rollback objects | Bundle pinned Node/npm and retain the shallow clone; share the toolchain with image builds |
+| Incremental source | Official updates relied solely on GitHub downloads | Prefer CNB with exact-commit fallback; preserve custom sources |
 | Source channel | Builds used `dev`, deployment seed specified `master` | Record and use manifest source/branch; change the seed to `dev` |
 | Frontend version | Upstream fetched dist using the old manifest commit after resetting source | Build target dist in a candidate before switching |
 | CI coupling | Updates required a matching Release dist, vulnerable to rolling pruning | New images build locally; retain legacy assets |
 | Python dependencies | Source could change its lock while dependency installation stayed disabled | Keep source unchanged and require a full Runtime update |
 | Rollback | Reset alone did not restore dist, manifest, or interrupted state | Journal the old commit/manifest, back up dist, and recover before startup |
+| Supervisor | Disabled reload left required restart events uninitialized | Enable supervision and migrate legacy config while keeping scheduled updates disabled |
+| Android IPC | Missing `/dev/shm` and SELinux `linkat` denial prevented semaphore creation | Bind private storage and use PRoot `--link2symlink`; verify cross-process events and queues |
+| Host exit | A daemon holding stdin's buffered lock aborted Python after child exit | Read with `os.read`; verify normal exit even with stdin held open |
 | Mutual exclusion | Separate channels lacked a common pipeline reservation | Share deployment and update locks |
 | Probes | Client 12/20-second timeouts were shorter than the 30-second Git probe; HTTP 200 implied capability | Allow 45 seconds and parse enabled/requiresRuntimeUpdate |
 | Polling | Three-second polls could repeatedly query upstream | Read local progress while busy |
@@ -92,7 +106,14 @@ bundled toolchain, then import the upstream service to verify adaptation and exi
 frontend fingerprints. Android validation uses `compileDebugKotlin`; translations use
 `check_i18n_strings.py`. Known uncompilable Android unit tests are excluded.
 
-This run passed Android compilation, 14 Node.js 24/PRoot 5.4.1 transaction tests, an
-actual upstream frontend build and fingerprint check, translation checks, and related
-adapter/publication tests. Full dual-ABI rootfs builds and Android device updates were
-not run. Guest quality gates will execute during production image builds.
+Initial checks passed Android compilation, Linux PRoot transactions, upstream frontend
+build/fingerprint validation, translations, and adapter/publication regressions. A debug
+APK was then installed on M2104K10AC (Android 11, ARM64), with pinned Node/npm and Git
+metadata added to the existing runtime. All 20 device regressions passed. A real CNB
+update advanced `65b5c271b01d` to `3181a1ad7f3d` in about 78 seconds. The frontend
+fingerprint matched, `rootfs_version` remained unchanged, configuration SHA-256 stayed
+the same, SQLite integrity returned `ok`, and reload health and cold-start checks passed.
+
+Full dual-ABI rootfs images were not rebuilt, and no live game scheduler was started.
+Recovery file protocols and cross-process IPC were exercised in isolation. See
+[hot-update.md](hot-update.md) for repeatable device commands.

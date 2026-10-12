@@ -6,6 +6,7 @@ Verifies local hot updates, rollback, and interrupted recovery with real Git and
 import hashlib
 import importlib.util
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import shutil
@@ -35,6 +36,12 @@ def npm_command():
         return [shutil.which('npm')]
     node = Path(shutil.which('node'))
     return [str(node), str(node.parent / 'node_modules/npm/bin/npm-cli.js')]
+
+
+def signal_parent(event, queue):
+    """通过跨进程事件和队列通知测试父进程。 / Signals the parent with process-shared IPC."""
+    event.set()
+    queue.put('ready')
 
 
 class ServiceContract:
@@ -233,10 +240,45 @@ class LocalUpdateTest(unittest.TestCase):
         self.assertEqual(self.run_update()['result'], 'failed')
         self.assert_old()
 
+    def test_reload_migration_preserves_other_deploy_settings(self):
+        deploy = self.root / 'config/deploy.yaml'
+        initial = 'Deploy:\n  Update:\n    EnableReload: false # keep comment\n    CheckUpdateInterval: 0\n'
+        deploy.write_text(initial)
+        adapter.ensure_reload(self.root)
+        self.assertEqual(deploy.read_text(), initial.replace('EnableReload: false', 'EnableReload: true'))
+        adapter.ensure_reload(self.root)
+        self.assertEqual(deploy.read_text(), initial.replace('EnableReload: false', 'EnableReload: true'))
+
     def test_corrupt_checkout_requires_full_runtime(self):
         with patch.object(adapter, 'git', side_effect=subprocess.CalledProcessError(128, ['git'])):
             self.assertTrue(self.run_update()['requiresRuntimeUpdate'])
         self.assert_old()
+
+    def test_official_source_prefers_cnb_with_selected_github_fallback(self):
+        manifest = dict(self.manifest, azurpilot_repo=adapter.GITHUB_REPOSITORY)
+        adapter.write_json(self.root / 'BUILD_MANIFEST', manifest)
+        with patch.dict(os.environ, AZURPILOT_ANDROID_GIT_MIRROR='https://mirror.example/'):
+            repositories, branch = self.service.sources()
+        self.assertEqual(repositories, [adapter.CNB_REPOSITORY,
+                                       'https://mirror.example/' + adapter.GITHUB_REPOSITORY])
+        self.assertEqual(branch, 'dev')
+
+    def test_cnb_probe_failure_uses_build_source(self):
+        manifest = dict(self.manifest, azurpilot_update_repo=adapter.CNB_REPOSITORY)
+        adapter.write_json(self.root / 'BUILD_MANIFEST', manifest)
+        actual = adapter.git
+        def offline_cnb(root, *args, **kwargs):
+            if adapter.CNB_REPOSITORY in args:
+                raise subprocess.TimeoutExpired(['git'], 15)
+            return actual(root, *args, **kwargs)
+        with patch.object(adapter, 'git', side_effect=offline_cnb):
+            self.assertEqual(self.service.upstream_head(), self.target)
+
+    def test_unavailable_primary_fetch_uses_same_target_from_fallback(self):
+        manifest = dict(self.manifest, azurpilot_update_repo=str(self.base / 'missing-repository'))
+        adapter.write_json(self.root / 'BUILD_MANIFEST', manifest)
+        self.assertEqual(self.run_update()['result'], 'updated')
+        self.assertEqual(adapter.git(self.root, 'rev-parse', 'HEAD'), self.target)
 
     def test_failed_recovery_keeps_journal_and_dist_backup(self):
         actual = adapter.write_json
@@ -275,6 +317,49 @@ class ImportAdapterTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             module.ensure_frontend(directory)
             original.assert_called_once_with(Path(directory))
+
+    @unittest.skipUnless(os.name == 'posix', 'Requires POSIX guest')
+    def test_supervisor_events_and_queues_cross_process_boundary(self):
+        context = multiprocessing.get_context('spawn')
+        event = context.Event()
+        queue = context.Queue()
+        process = context.Process(target=signal_parent, args=(event, queue))
+        try:
+            process.start()
+            self.assertEqual(queue.get(timeout=20), 'ready')
+            process.join(20)
+            self.assertEqual(process.exitcode, 0)
+            self.assertTrue(event.is_set())
+        finally:
+            if process.is_alive():
+                process.terminate()
+                process.join(5)
+            queue.close()
+            queue.join_thread()
+
+    @unittest.skipUnless(os.name == 'posix', 'Requires POSIX guest')
+    def test_host_child_exit_with_open_stdin_does_not_abort_interpreter(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'host'
+            binary = root / '.venv/bin/python'
+            binary.parent.mkdir(parents=True)
+            binary.symlink_to(sys.executable)
+            for name in ('android_host.py', 'android_update.py'):
+                shutil.copyfile(OVERLAYS / name, root / name)
+            (root / 'gui.py').write_text('print("CHILD_EXIT_OK")\n')
+            process = subprocess.Popen([sys.executable, str(root / 'android_host.py')],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env={**os.environ, 'AZURPILOT_ANDROID': '0'})
+            try:
+                self.assertEqual(process.wait(timeout=20), 0)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                process.stdin.close()
+                process.stdin = None
+                stdout, stderr = process.communicate(timeout=5)
+            self.assertIn(b'CHILD_EXIT_OK', stdout)
+            self.assertNotIn(b'Fatal Python error', stderr)
 
 
 if __name__ == '__main__':

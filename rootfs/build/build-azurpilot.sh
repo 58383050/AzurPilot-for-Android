@@ -104,6 +104,7 @@ guest git --version
 mkdir -p "$ROOTFS_DIR/opt/update-verification/tests" "$ROOTFS_DIR/opt/update-verification/overlays"
 cp "$REPO_ROOT/rootfs/tests/test_android_update.py" "$ROOTFS_DIR/opt/update-verification/tests/"
 cp "$REPO_ROOT/rootfs/overlays/android_update.py" "$ROOTFS_DIR/opt/update-verification/overlays/"
+cp "$REPO_ROOT/rootfs/overlays/android_host.py" "$ROOTFS_DIR/opt/update-verification/overlays/"
 guest python3 /opt/update-verification/tests/test_android_update.py
 rm -rf "$ROOTFS_DIR/opt/update-verification"
 # uv 是静态链接单文件，直接从 runner 复制进 rootfs，无需在 guest 内再安装一遍。
@@ -191,6 +192,9 @@ manifest = {
     'runtime': 'azurpilot-android',
     'android_host_commit': host_commit,
     'azurpilot_repo': os.environ['SOURCE_REPO'],
+    'azurpilot_update_repo': ('https://cnb.cool/AzurPilot/AzurPilot.git'
+                            if os.environ['SOURCE_REPO'].rstrip('/').removesuffix('.git') ==
+                            'https://github.com/wess09/AzurPilot' else os.environ['SOURCE_REPO']),
     'azurpilot_branch': os.environ['SOURCE_BRANCH'],
     'azurpilot_commit': os.environ['SOURCE_COMMIT'],
     'rootfs_arch': os.environ['TARGET_ABI'],

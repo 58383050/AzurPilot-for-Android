@@ -51,9 +51,10 @@ def main():
     root = os.path.dirname(os.path.abspath(__file__))
     # 上游按相对路径解析 config / frontend 等资源，必须先落到安装目录再启动。
     os.chdir(root)
-    from android_update import recover
+    from android_update import ensure_reload, recover
 
     recover(root)
+    ensure_reload(root)
     child = subprocess.Popen(
         [os.path.join(root, '.venv/bin/python'), 'gui.py', '--host', bind_host(), '--port', '25548'],
         cwd=root, stdin=subprocess.DEVNULL, start_new_session=True,
@@ -79,7 +80,9 @@ def main():
     def watch_stdin():
         # 阻塞读管道直到 EOF；EOF 即 app 侧已死，是整个运行时的停机信号。
         try:
-            sys.stdin.buffer.read()
+            # daemon 线程不能持有 stdin 的缓冲锁，否则子进程退出时 Python 会中止解释器。
+            while os.read(sys.stdin.fileno(), 4096):
+                pass
         finally:
             stop()
 
