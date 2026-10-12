@@ -33,7 +33,7 @@ class ArtifactTest(unittest.TestCase):
             "CNB_REPO_SLUG": "azurpilot/AzurPilot-for-Android",
             "CNB_WEB_ENDPOINT": "https://cnb.cool", "RELEASE_TAG": "cnb-android-build-123",
             "SIGNING_READY": "true", "APP_VERSION_CODE": "1800000000",
-            "APP_VERSION_NAME": "1.2.123", "APP_COMMIT": "c" * 40,
+            "APP_VERSION_NAME": "1.3.123", "APP_COMMIT": "c" * 40,
         }
         for abi in artifacts.ABIS:
             directory = self.root / abi
@@ -48,7 +48,7 @@ class ArtifactTest(unittest.TestCase):
             (self.dist / f"azurpilot-full-{abi}.apk").write_bytes(f"apk-{abi}".encode())
         (self.dist / "azurpilot-update.apk").write_bytes(b"slim-apk")
         (self.dist / "apk-version.json").write_text(json.dumps({
-            "versionCode": 1800000000, "versionName": "1.2.123",
+            "versionCode": 1800000000, "versionName": "1.3.123",
         }), encoding="utf-8")
         frontend = f"frontend-{self.env['AZURPILOT_REF']}.tar.xz"
         (self.root / artifacts.ABIS[0] / frontend).write_bytes(b"frontend")
@@ -126,7 +126,7 @@ class ArtifactTest(unittest.TestCase):
         for force, expected in (("true", "true"), ("false", "false")):
             with self.subTest(force=force), patch.dict(artifacts.os.environ, {**env, "FORCE": force}, clear=True), \
                     patch.object(artifacts, "previous_release", return_value=previous), \
-                    patch.object(artifacts, "version_inputs", return_value=(1700000000, "1.2.100", "a" * 40)), \
+                    patch.object(artifacts, "version_inputs", return_value=(1700000000, "1.3.0", "a" * 40)), \
                     patch.object(artifacts, "changed", return_value=False):
                 output = io.StringIO()
                 with redirect_stdout(output):
@@ -135,21 +135,35 @@ class ArtifactTest(unittest.TestCase):
 
     def test_runtime_only_build_preserves_app_version(self):
         """运行时变化不前进应用版本。 / Runtime-only builds retain the previous app version."""
-        previous = {"versionCode": 1700000000, "versionName": "1.2.100", "appCommit": "c" * 40}
-        with patch.object(artifacts, "git", side_effect=["a" * 40, "1800000000", "300"]), \
-                patch.object(artifacts, "comparable", return_value=True), \
-                patch.object(artifacts, "changed", return_value=False):
-            self.assertEqual(artifacts.version_inputs(previous),
-                             (1700000000, "1.2.100", "c" * 40))
+        for name in ("1.2.100", "1.3.0", "1.3.42"):
+            with self.subTest(name=name):
+                previous = {"versionCode": 1700000000, "versionName": name, "appCommit": "c" * 40}
+                with patch.object(artifacts, "git", side_effect=["a" * 40, "1800000000", "305"]), \
+                        patch.object(artifacts, "comparable", return_value=True), \
+                        patch.object(artifacts, "changed", return_value=False):
+                    self.assertEqual(artifacts.version_inputs(previous),
+                                     (1700000000, name, "c" * 40))
 
     def test_app_build_cannot_downgrade_version_code(self):
         """应用变化时版本号高于上次发布和提交时间。 / Advances beyond the release and commit time."""
-        previous = {"versionCode": 1900000000, "versionName": "1.2.100", "appCommit": "c" * 40}
-        with patch.object(artifacts, "git", side_effect=["a" * 40, "1800000000", "300"]), \
-                patch.object(artifacts, "comparable", return_value=True), \
-                patch.object(artifacts, "changed", return_value=True):
-            self.assertEqual(artifacts.version_inputs(previous),
-                             (1900000001, "1.2.166", "a" * 40))
+        for name in ("1.2.100", "1.3.1"):
+            with self.subTest(name=name):
+                previous = {"versionCode": 1900000000, "versionName": name, "appCommit": "c" * 40}
+                with patch.object(artifacts, "git", side_effect=["a" * 40, "1800000000", "305"]), \
+                        patch.object(artifacts, "comparable", return_value=True), \
+                        patch.object(artifacts, "changed", return_value=True):
+                    self.assertEqual(artifacts.version_inputs(previous),
+                                     (1900000001, "1.3.2", "a" * 40))
+
+    def test_version_series_starts_at_the_new_baseline(self):
+        """版本基准从 1.3.0 起算，之后每个提交递增。
+
+        Starts the version baseline at 1.3.0 and increments for later commits.
+        """
+        for count, name in ((302, "1.3.0"), (303, "1.3.0"), (304, "1.3.1")):
+            with self.subTest(count=count), \
+                    patch.object(artifacts, "git", side_effect=["a" * 40, "1800000000", str(count)]):
+                self.assertEqual(artifacts.version_inputs({}), (1800000000, name, "a" * 40))
 
 
 if __name__ == "__main__":

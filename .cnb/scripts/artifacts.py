@@ -68,12 +68,12 @@ def version_inputs(previous: dict) -> tuple[int, str, str]:
     """与 GitHub CI 保持相同版本规则。 / Uses the same version rules as GitHub CI."""
     commit = git("rev-parse", "HEAD")
     code = int(git("log", "-1", "--format=%ct", "HEAD"))
-    name = f"1.2.{max(int(git('rev-list', '--count', 'HEAD')) - 134, 0)}"
+    name = f"1.3.{max(int(git('rev-list', '--count', 'HEAD')) - 303, 0)}"
     old_code = previous.get("versionCode")
     old_name = previous.get("versionName")
     old_commit = previous.get("appCommit")
     if (isinstance(old_code, int) and not isinstance(old_code, bool) and old_code > 0
-            and isinstance(old_name, str) and re.fullmatch(r"1\.[12]\.\d+", old_name)
+            and isinstance(old_name, str) and re.fullmatch(r"1\.[123]\.\d+", old_name)
             and comparable(old_commit)):
         if not changed(old_commit, ("app",)):
             code, name, commit = old_code, old_name, old_commit

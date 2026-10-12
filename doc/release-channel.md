@@ -24,9 +24,12 @@
 ### 版本号规则（CI `resolve` 步）
 
 1. 读取上一份已发布 `latest.json` 的 `versionCode`/`versionName`/`appCommit`。
-2. CI 始终按 `1.2.<X>` 计算候选 `versionName`，其中 `X = max(提交计数 − 134, 0)`；候选 `versionCode` 是 HEAD 提交时间戳。
+2. GitHub CI、CNB 与本地构建按 `1.3.<X>` 计算候选 `versionName`，其中
+   `X = max(提交计数 − 303, 0)`；第 303 个提交为 `1.3.0`。候选 `versionCode` 是 HEAD 提交时间戳。
 3. 若 `appCommit` 可达且为本仓祖先，并且 `git diff --quiet "$app_commit" HEAD -- app` 成功，则 Android 工程输入未变：沿用已发布的 app 版本号，并可仅更新 Runtime。
-4. 若 `app/` 有变更且已有可用的上次版本，则 `versionCode = 旧值 + 1`，`versionName` 采用第 2 步的候选值，`appCommit` 更新为当前提交。
+4. 若 `app/` 有变更且已有可用的上次版本，则 `versionCode = max(旧值 + 1, HEAD 时间戳)`，
+   `versionName` 采用第 2 步的候选值，`appCommit` 更新为当前提交。上次版本可来自 `1.1.*`、`1.2.*`
+   或 `1.3.*`，升级到新版本线时仍保持 `versionCode` 递增。
 5. 没有可比较的已发布版本时，使用第 2 步的候选值并记录当前提交。
 
 构建是否执行是另一项判断：CI 对 `app`、`rootfs` 和 `.github/workflows/rootfs.yml` 相对 `androidHostCommit` 的变化，以及上游 AzurPilot 提交进行比较。不要把“未变更 app 版本”解释为“不需要重建 Runtime 或 APK”。
@@ -79,9 +82,14 @@ they must stay valid — the publish step pins them to the arm64 entry.
 ### Version rules (CI `resolve` step)
 
 1. Read `versionCode`, `versionName`, and `appCommit` from the last published `latest.json`.
-2. CI always calculates a candidate `versionName` as `1.2.<X>`, where `X = max(commit count − 134, 0)`; the candidate `versionCode` is the HEAD commit timestamp.
+2. GitHub CI, CNB, and local builds calculate a candidate `versionName` as `1.3.<X>`, where
+   `X = max(commit count − 303, 0)`; commit 303 is `1.3.0`. The candidate `versionCode` is the
+   HEAD commit timestamp.
 3. If `appCommit` is reachable, is an ancestor of HEAD, and `git diff --quiet "$app_commit" HEAD -- app` succeeds, Android-project inputs are unchanged: retain the published app version and optionally publish a Runtime-only update.
-4. If `app/` changed and a comparable previous version exists, set `versionCode = previous + 1`, use the candidate `versionName` from step 2, and update `appCommit` to the current commit.
+4. If `app/` changed and a comparable previous version exists, set
+   `versionCode = max(previous + 1, HEAD timestamp)`, use the candidate `versionName` from step 2,
+   and update `appCommit` to the current commit. Previous versions may belong to `1.1.*`, `1.2.*`,
+   or `1.3.*`; moving to the new series still increases `versionCode`.
 5. Without a comparable published version, use the candidate values from step 2 and record the current commit.
 
 Whether a build runs is a separate decision. CI compares `app`, `rootfs`, and `.github/workflows/rootfs.yml` against `androidHostCommit`, as well as the upstream AzurPilot commit. Do not interpret an unchanged app version as proof that no Runtime or APK rebuild is needed.

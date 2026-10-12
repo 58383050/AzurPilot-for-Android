@@ -46,19 +46,23 @@ internal fun Project.gitVersionCode(): Int {
 }
 
 /** 版本名的主干；外壳自身的语义版本线，与内置运行时无关 / The version-name stem; the shell's own semver line, independent of the bundled runtime. */
-private const val VERSION_BASE = "1.2"
+private const val VERSION_BASE = "1.3"
 
 /**
- * X 从版本方案切换的那个提交起算：该提交是本仓第 134 个（X=0 → 1.2.0），
+ * X 从版本方案切换的那个提交起算：该提交是本仓第 303 个（X=0 → 1.3.0），
  * 此后每个提交 +1。
  *
  * X counts commits from the commit that switched the version scheme — that
- * commit is #134 in this repository (X=0 → 1.2.0), and each later commit
+ * commit is #303 in this repository (X=0 → 1.3.0), and each later commit
  * increments X by one.
  */
-private const val VERSION_SCHEME_START_COUNT = 134L
+private const val VERSION_SCHEME_START_COUNT = 303L
 
-/** 版本名 = `1.2.<X>`；运行时版本由 rootfs 清单独立记录。 / Version name = `1.2.<X>`; the runtime version is tracked independently by the rootfs manifest. */
+/**
+ * 返回 `1.3.<X>` 版本名；运行时版本由 rootfs 清单独立记录。
+ *
+ * Returns a `1.3.<X>` version name; the runtime version is tracked by the rootfs manifest.
+ */
 internal fun Project.gitVersionName(): String {
     System.getenv("APP_VERSION_NAME")?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
     val commits = providers.exec {
