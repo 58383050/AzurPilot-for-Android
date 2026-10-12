@@ -4,6 +4,7 @@ import android.os.RemoteException
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.InputEvent
+import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.MotionEvent
 
@@ -37,6 +38,13 @@ import com.azurpilot.ghio.third.wrappers.ServiceManager
 object InputControlUtils {
 
     private const val TAG = "InputControlUtils"
+
+    /**
+     * 文本序列预算，限制长码逐键分发的总等待；失败后仍释放已按下的键。
+     *
+     * Budget for dispatching a text sequence; pressed keys are released even on failure.
+     */
+    private const val TEXT_INPUT_BUDGET_MS = 10_000L
 
     /** 懒初始化的 [InputManager] 包装；非空后不再重建 / Lazily created [InputManager] wrapper; never rebuilt once non-null. */
     private var manager: InputManager? = null
@@ -361,5 +369,61 @@ object InputControlUtils {
         }
 
         return getManager().injectInputEvent(keyEvent, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC)
+    }
+
+    /**
+     * 在特权桥线程替换目标显示器已聚焦输入框的 ASCII 文本，然后发送 Enter。
+     *
+     * Ctrl+A / Delete 清除整个旧值，不依赖旧码长度。每个事件等待分发完成；失败或
+     * 超过序列预算时返回 false，并补发抬键以免 Shift 等修饰键残留。调用方须串行化
+     * 整段输入，并限制文本长度；本方法不负责聚焦输入框或确认游戏中的预览结果。
+     *
+     * Replaces ASCII text in the focused field on the target display from a bridge thread,
+     * then sends Enter. Ctrl+A / Delete clears the entire old value regardless of length.
+     * Each event waits for dispatch; failure or an expired sequence budget returns false and
+     * releases pressed keys. The caller must serialize the sequence and bound text length.
+     * This method neither focuses the field nor confirms the in-game preview.
+     */
+    fun replaceAsciiText(text: String, displayId: Int): Boolean {
+        require(text.all { it in ' '..'~' }) { "Only printable ASCII text is supported" }
+        val characters = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD)
+            .getEvents(text.toCharArray()) ?: return false
+
+        fun keyPair(keyCode: Int, metaState: Int = 0): List<KeyEvent> {
+            val now = SystemClock.uptimeMillis()
+            val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0, metaState,
+                KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_KEYBOARD)
+            return listOf(down, KeyEvent.changeAction(down, KeyEvent.ACTION_UP))
+        }
+
+        val events = keyPair(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON) +
+            keyPair(KeyEvent.KEYCODE_DEL) + characters + keyPair(KeyEvent.KEYCODE_ENTER)
+        val pressed = linkedMapOf<Int, KeyEvent>()
+        val deadline = SystemClock.uptimeMillis() + TEXT_INPUT_BUDGET_MS
+        try {
+            for (event in events) {
+                if (SystemClock.uptimeMillis() >= deadline) return false
+                val timed = KeyEvent.changeTimeRepeat(event, SystemClock.uptimeMillis(), 0)
+                if (!setDisplayId(timed, displayId)) return false
+                if (timed.action == KeyEvent.ACTION_DOWN) pressed[timed.keyCode] = timed
+                if (!getManager().injectInputEvent(timed, InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH)) {
+                    return false
+                }
+                if (timed.action == KeyEvent.ACTION_UP) pressed.remove(timed.keyCode)
+            }
+            return true
+        } finally {
+            // 字符映射会为 +、大写字母等按下 Shift；中途失败不能把修饰键留给后续操作。
+            for (down in pressed.values.toList().asReversed()) {
+                runCatching {
+                    val up = KeyEvent.changeTimeRepeat(
+                        KeyEvent.changeAction(down, KeyEvent.ACTION_UP), SystemClock.uptimeMillis(), 0
+                    )
+                    if (setDisplayId(up, displayId)) {
+                        getManager().injectInputEvent(up, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC)
+                    }
+                }.onFailure { Ln.w("$TAG: text key release failed", it) }
+            }
+        }
     }
 }

@@ -72,9 +72,9 @@ android {
 }
 
 /**
- * 从仓库单一来源同步宿主和 OCR overlay，供轻量 APK 更新已有 rootfs。
+ * 从仓库单一来源同步宿主、OCR 和装备码 overlay，供轻量 APK 更新已有 rootfs。
  *
- * Copies host and OCR overlays from their single source into APK assets, allowing slim APK
+ * Copies host, OCR, and equipment overlays into APK assets, allowing slim APK
  * updates to refresh existing rootfs installations before every session spawn.
  */
 abstract class SyncAndroidHostOverlayTask : DefaultTask() {
@@ -98,7 +98,7 @@ abstract class SyncAndroidHostOverlayTask : DefaultTask() {
 }
 
 val syncAndroidHostOverlay = tasks.register<SyncAndroidHostOverlayTask>("syncAndroidHostOverlay") {
-    overlayFiles.from(listOf("android_host.py", "sitecustomize.py", "android_ocr.py").map {
+    overlayFiles.from(listOf("android_host.py", "sitecustomize.py", "android_ocr.py", "android_equipment.py").map {
         rootDir.parentFile.resolve("rootfs/overlays/$it")
     })
     outputDir.set(layout.buildDirectory.dir("generated/androidHostOverlay"))

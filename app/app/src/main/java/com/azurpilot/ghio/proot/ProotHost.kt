@@ -503,7 +503,7 @@ class ProotHost(
     }
 
     /**
-     * 用 APK 内置资产覆盖宿主和 OCR overlay（内容一致则跳过）。
+     * 用 APK 内置资产覆盖宿主、OCR 和装备码 overlay（内容一致则跳过）。
      *
      * 该文件是 app↔运行时的边界契约（拉起参数、stdin EOF 契约、绑定地址开关），
      * 以 APK 资产为准：热更只 git 重置上游源码、不更新这个 untracked 文件，
@@ -511,7 +511,7 @@ class ProotHost(
      *
      * 覆盖失败（如老包无此资产）只记日志，沿用 rootfs 既有副本。
      *
-     * Overwrites the rootfs host and OCR overlays with APK-bundled assets
+     * Overwrites the rootfs host, OCR, and equipment overlays with APK-bundled assets
      * (skipped when the content already matches).
      *
      * The file is the app↔runtime boundary contract (spawn arguments, the stdin
@@ -522,7 +522,7 @@ class ProotHost(
      * asset, say) only logs and keeps the rootfs's existing copy.
      */
     private fun syncHostOverlay() {
-        listOf(HOST_OVERLAY_NAME, "sitecustomize.py", "android_ocr.py").forEach { name ->
+        listOf(HOST_OVERLAY_NAME, "sitecustomize.py", "android_ocr.py", "android_equipment.py").forEach { name ->
             runCatching {
                 val target = File(installDir, name)
                 val tmp = File(installDir, "$name.tmp")

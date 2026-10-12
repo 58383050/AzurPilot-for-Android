@@ -23,17 +23,21 @@
 
 | 方法 | 必填字段 | 成功响应 | 约束 |
 |---|---|---|---|
-| `ping` | 无 | `ok`、`pong`、`displayId`、`capture`、`uptime` | 诊断端点，不表示目标应用已经可交互。 |
+| `ping` | 无 | `ok`、`pong`、`displayId`、`capture`、`uptime`、`capabilities` | `capabilities.equipmentCode=true` 表示支持下述装备码接口。诊断不表示目标应用已经可交互；旧桥无能力字段时客户端须停止装备码操作。 |
 | `screencap` | 无 | `ok`、`width`、`height`、`channels=3`、`length`、`frames`，后接 BGR888 字节 | 捕获不可用或尺寸不匹配时返回错误 JSON，不发送原始字节。`frames` 是本轮帧缓冲生命周期内已发布帧的递增序号：相邻两次 screencap 的值不变即画面冻结（如目标进程被 ROM 冻结）。客户端可忽略该字段。 |
 | `click` | `x`、`y` | `ok=true` | 使用当前虚拟显示；无活动显示或触摸注入失败时返回错误。 |
 | `swipe` | `x1`、`y1`、`x2`、`y2` | `ok=true` | 可选 `duration` 为毫秒，负值按 0 处理。 |
+| `equipment_code_read` | 无 | `ok=true`、`code` | 从系统剪贴板的首项读取装备码；无有效码返回 `code=null`，不展开 URI，不返回其他内容。无活动虚拟屏或系统拒绝访问时返回错误。 |
+| `equipment_code_input` | `code` | `ok=true` | 仅接受 16–4096 字符、长度为 4 的倍数的 Base64 文本，末尾至多两个 `=`。在当前虚拟屏的已聚焦输入框执行 Ctrl+A、Delete、文本输入和 Enter；失败返回错误，并释放已按下的键。逐键序列预算 10 秒（不打断进行中的系统注入调用）。客户端仍须通过截图确认预览已加载。 |
 | `shell` | `cmd` | `ok`、`code`、`stdout`、`stderr` | 可选 `timeout` 为秒；每个输出流最多保留 64 KiB，超时会返回错误。 |
 
 未知或缺失 `method` 返回 `ok=false`。请求参数类型错误由 JSON 访问器抛出后返回错误响应；客户端不得依赖具体错误文案。
 
 ### 并发与修改规则
 
-服务为每个客户端使用一个守护线程。`screencap`、`click` 和 `swipe` 共享设备锁，因而会相互串行；`shell` 不占用该锁。不要把该实现细节当作客户端并发授权，客户端应在自身侧保持单个设备操作序列有序。
+服务为每个客户端使用一个守护线程。`screencap`、`click`、`swipe` 及装备码接口共享设备锁，因而会相互串行；`shell` 不占用该锁。不要把该实现细节当作客户端并发授权，客户端应在自身侧保持单个设备操作序列有序。
+
+Android 装备码适配由 `rootfs/overlays/android_equipment.py` 在 AP 模块导入后安装。APK 在每次启动运行时前同步此文件，因此已有 rootfs 和后续源码热更均可使用。适配只替换设备读写，不启用 FastInputIME，也不回退到主屏 uiautomator2；上游的导出提示确认、码校验、预览确认、保存失败及停止换船保护仍然生效。
 
 修改协议前必须：
 
@@ -63,17 +67,21 @@ The current service implementation and this document define compatibility. No hi
 
 | Method | Required fields | Success response | Constraints |
 |---|---|---|---|
-| `ping` | None | `ok`, `pong`, `displayId`, `capture`, `uptime` | Diagnostic only; it does not prove that the target app is interactive. |
+| `ping` | None | `ok`, `pong`, `displayId`, `capture`, `uptime`, `capabilities` | `capabilities.equipmentCode=true` advertises the equipment endpoints below. Diagnostics do not prove that the target app is interactive; clients must stop equipment operations when an older bridge omits the capability. |
 | `screencap` | None | `ok`, `width`, `height`, `channels=3`, `length`, `frames`, followed by BGR888 bytes | An unavailable capture or size mismatch returns error JSON and no raw bytes. `frames` is the increasing sequence of frames published within the current frame-buffer lifetime: identical values across consecutive screencaps mean a frozen picture (for example, the target process frozen by the ROM). Clients may ignore the field. |
 | `click` | `x`, `y` | `ok=true` | Uses the current virtual display; no active display or failed injection is an error. |
 | `swipe` | `x1`, `y1`, `x2`, `y2` | `ok=true` | Optional `duration` is milliseconds; negative values become 0. |
+| `equipment_code_read` | None | `ok=true`, `code` | Reads an equipment code from the first system clipboard item; an invalid or absent code returns `code=null`. Does not resolve URIs or return other content. An absent virtual display or denied system access returns an error. |
+| `equipment_code_input` | `code` | `ok=true` | Accepts only 16–4096 Base64 characters, a length divisible by 4, and at most two trailing `=` characters. Sends Ctrl+A, Delete, text, and Enter to the focused field on the current virtual display. Failure returns an error and releases pressed keys. The key sequence has a 10-second budget, without interrupting a system injection call in progress. Clients must still confirm a loaded preview from screenshots. |
 | `shell` | `cmd` | `ok`, `code`, `stdout`, `stderr` | Optional `timeout` is seconds; each output stream retains at most 64 KiB, and timeout returns an error. |
 
 An unknown or missing `method` returns `ok=false`. Type errors in request fields become an error response; clients must not depend on exact error wording.
 
 ### Concurrency and change rules
 
-The service uses one daemon thread per client. `screencap`, `click`, and `swipe` share a device lock and therefore serialize with one another; `shell` does not use that lock. Do not treat this implementation detail as permission for client-side concurrency. A client should keep one device-operation sequence ordered.
+The service uses one daemon thread per client. `screencap`, `click`, `swipe`, and equipment endpoints share a device lock and therefore serialize with one another; `shell` does not use that lock. Do not treat this implementation detail as permission for client-side concurrency. A client should keep one device-operation sequence ordered.
+
+`rootfs/overlays/android_equipment.py` installs the Android adapter after the AP module imports. The APK syncs this file before each runtime start, supporting existing rootfs installations and subsequent source updates. The adapter replaces device I/O without enabling FastInputIME or falling back to primary-display uiautomator2. Upstream export confirmation, code validation, preview confirmation, save-failure handling, and equipment-transfer safeguards remain in effect.
 
 Before changing the protocol:
 

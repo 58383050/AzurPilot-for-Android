@@ -1,8 +1,11 @@
 package com.azurpilot.ghio.remote.internal
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.SystemClock
 import com.azurpilot.ghio.bridge.InputControlUtils
 import com.azurpilot.ghio.bridge.NativeBridgeLib
+import com.azurpilot.ghio.third.FakeContext
 import com.azurpilot.ghio.third.Ln
 import org.json.JSONException
 import org.json.JSONObject
@@ -27,24 +30,28 @@ import kotlin.math.roundToInt
  *
  * 服务仅绑定回环地址 `127.0.0.1:22301`。请求与常规响应均为一行 JSON；`screencap` 成功时，
  * 元数据 JSON 行之后立即写入 `length` 字节的原始 BGR 数据。当前端点为 `ping`、`screencap`、
- * `click`、`swipe` 和 `shell`，每个响应都会回显请求的 `id`。协议的兼容性以此实现和
+ * `click`、`swipe`、`equipment_code_read`、`equipment_code_input` 和 `shell`，
+ * 每个响应都会回显请求的 `id`。协议的兼容性以此实现和
  * `doc/privileged-bridge-protocol.md` 为准，不应凭不存在的历史脚本或未固定的上游补丁推断。
  *
- * 一个线程接受连接，每个客户端使用一个守护线程。屏幕读取和触摸注入由 [DEVICE_LOCK] 串行，
+ * 一个线程接受连接，每个客户端使用一个守护线程。屏幕读取、触摸和装备码操作由
+ * [DEVICE_LOCK] 串行，装备码输入仅接受有界 Base64 文本并始终绑定当前虚拟屏。
  * `shell` 不持有该锁。 [start] 在 [RemoteServiceImpl] 初始化期间调用；绑定失败只记录日志。
  *
  * Loopback device bridge service in the privileged process.
  *
  * The service binds only `127.0.0.1:22301`. Requests and ordinary responses are one JSON line;
  * after a successful `screencap` metadata line it immediately writes `length` bytes of raw BGR data.
- * Current endpoints are `ping`, `screencap`, `click`, `swipe`, and `shell`, and every response echoes
+ * Current endpoints are `ping`, `screencap`, `click`, `swipe`, `equipment_code_read`,
+ * `equipment_code_input`, and `shell`, and every response echoes
  * the request `id`. Compatibility is defined by this implementation and
  * `doc/privileged-bridge-protocol.md`; do not infer it from absent historical scripts or an
  * unpinned upstream patch.
  *
  * One thread accepts connections and each client has a daemon thread. [DEVICE_LOCK] serializes
- * screen reads and touch injection; `shell` does not take the lock. [start] is called while
- * [RemoteServiceImpl] initializes, and a bind failure is logged only.
+ * screen reads, touch injection, and equipment-code operations. Equipment input accepts only
+ * bounded Base64 text on the current virtual display; `shell` does not take the lock. [start] is
+ * called while [RemoteServiceImpl] initializes, and a bind failure is logged only.
  */
 object BridgeServer {
 
@@ -81,10 +88,18 @@ object BridgeServer {
     private const val JOIN_AFTER_KILL_MS = 1000L
 
     /**
-     * 帧读取与触摸注入的全局串行锁：m0 实测并发抢设备通道会堵死，shell 不进这把锁
+     * 装备码文本上限，远小于协议行上限，限制逐键输入和剪贴板输出量。
      *
-     * Global lock serializing frame reads and touch injection: m0 measured concurrent
-     * device-channel access wedging; the shell endpoint does not take this lock.
+     * Equipment-code text cap, below the line cap, bounding key input and clipboard output.
+     */
+    private const val MAX_EQUIPMENT_CODE_LENGTH = 4096
+    private val EQUIPMENT_CODE_PATTERN = Regex("[A-Za-z0-9+/]+={0,2}")
+
+    /**
+     * 帧读取、触摸与装备码操作的串行锁：并发抢设备通道会堵死，shell 不进这把锁。
+     *
+     * Global lock serializing frame reads, touches, and equipment codes. Concurrent device-channel
+     * access can wedge; the shell endpoint does not take this lock.
      */
     val DEVICE_LOCK = ReentrantLock()
 
@@ -204,6 +219,7 @@ object BridgeServer {
                     JSONObject()
                         .put("ok", true)
                         .put("pong", true)
+                        .put("capabilities", JSONObject().put("equipmentCode", true))
                         .put("displayId", VirtualDisplayManager.getDisplayId())
                         .put("capture", if (NativeBridgeLib.LOADED) NativeBridgeLib.getCaptureDiagnostics() else "native not loaded")
                         .put("uptime", (SystemClock.elapsedRealtime() - startedAtMs) / 1000.0)
@@ -212,6 +228,8 @@ object BridgeServer {
                 "screencap" -> handleScreencap(conn, ::reply)
                 "click" -> handleClick(request, ::reply)
                 "swipe" -> handleSwipe(request, ::reply)
+                "equipment_code_read" -> handleEquipmentCodeRead(::reply)
+                "equipment_code_input" -> handleEquipmentCodeInput(request, ::reply)
                 "shell" -> handleShell(request, ::reply)
                 else -> reply(err(if (method == null) "unknown method: None" else "unknown method: '$method'"))
             }
@@ -342,6 +360,53 @@ object BridgeServer {
                 return@withLock
             }
             reply(ok())
+        }
+    }
+
+    private fun validEquipmentCode(code: String): Boolean =
+        code.length in 16..MAX_EQUIPMENT_CODE_LENGTH && code.length % 4 == 0 &&
+            EQUIPMENT_CODE_PATTERN.matches(code)
+
+    /**
+     * 仅读取剪贴板中的装备码文本，不展开 URI，也不返回其他剪贴板内容。
+     *
+     * Reads only equipment-code text from the clipboard, without resolving URIs or returning
+     * other clipboard content.
+     */
+    private fun handleEquipmentCodeRead(reply: (JSONObject) -> Unit) {
+        DEVICE_LOCK.withLock {
+            if (VirtualDisplayManager.getDisplayId() == VirtualDisplayManager.DISPLAY_NONE) {
+                reply(err("no active virtual display"))
+                return@withLock
+            }
+            val clipboard = FakeContext.get().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = clipboard.primaryClip
+            val text = if (clip != null && clip.itemCount > 0) clip.getItemAt(0).text else null
+            // 不先复制无界 CharSequence，避免把大剪贴板转换为协议响应。
+            val code = if (text != null && text.length <= MAX_EQUIPMENT_CODE_LENGTH) {
+                text.toString().trim().takeIf(::validEquipmentCode)
+            } else null
+            reply(ok().put("code", code ?: JSONObject.NULL))
+        }
+    }
+
+    /**
+     * 将装备码替换到当前虚拟屏的已聚焦文本框，成功不表示游戏已加载装备预览。
+     *
+     * Replaces the focused field on the current virtual display; success does not imply that
+     * the game has loaded the equipment preview.
+     */
+    private fun handleEquipmentCodeInput(request: JSONObject, reply: (JSONObject) -> Unit) {
+        val code = request.getString("code")
+        require(validEquipmentCode(code)) { "invalid equipment code" }
+        DEVICE_LOCK.withLock {
+            val displayId = VirtualDisplayManager.getDisplayId()
+            if (displayId == VirtualDisplayManager.DISPLAY_NONE) {
+                reply(err("no active virtual display"))
+                return@withLock
+            }
+            val success = InputControlUtils.replaceAsciiText(code, displayId)
+            reply(if (success) ok() else err("equipment text injection failed"))
         }
     }
 

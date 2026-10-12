@@ -110,6 +110,7 @@ VENV_SITE_PACKAGES="$(find "$ROOTFS_DIR/opt/azurpilot/.venv/lib" -maxdepth 2 -ty
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_process_compat.py" "$VENV_SITE_PACKAGES/android_process_compat.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/sitecustomize.py" "$VENV_SITE_PACKAGES/sitecustomize.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_ocr.py" "$VENV_SITE_PACKAGES/android_ocr.py"
+install -m 0644 "$REPO_ROOT/rootfs/overlays/android_equipment.py" "$VENV_SITE_PACKAGES/android_equipment.py"
 guest /bin/sh -c 'cd /opt/azurpilot && .venv/bin/python -m module.config.config_updater'
 
 FRONTEND="$ROOTFS_DIR/opt/azurpilot/frontend"
@@ -132,8 +133,8 @@ rm -rf "$FRONTEND/node_modules"
 python3 "$REPO_ROOT/rootfs/build/compact-runtime.py" "$ROOTFS_DIR" \
     --report "$ROOTFS_DIR/opt/azurpilot/RUNTIME_SIZE_REPORT.json"
 
-# 冒烟验证：重依赖可在 guest 内真实导入，且 psutil 子进程枚举确实走兼容层打桩。
-guest /bin/sh -c 'cd /opt/azurpilot && AZURPILOT_ANDROID=1 .venv/bin/python -c "import cv2,numpy,scipy,onnxruntime,rapidocr,ncnn,psutil,numba,uvloop,av; import module.api.app, module.device.device, module.ocr.al_ocr; assert numba.njit(lambda x: x + 1)(2) == 3; assert scipy.linalg.norm(numpy.array([3.,4.])) == 5.; loop = uvloop.new_event_loop(); loop.close(); assert psutil.Process.children.__module__ == \"android_process_compat\"; print(\"IMPORTS_OK\")"'
+# 冒烟验证：真实导入重依赖，并确认进程枚举与装备码已接到 Android 兼容层。
+guest /bin/sh -c 'cd /opt/azurpilot && AZURPILOT_ANDROID=1 .venv/bin/python -c "import cv2,numpy,scipy,onnxruntime,rapidocr,ncnn,psutil,numba,uvloop,av; import module.api.app, module.device.device, module.ocr.al_ocr; import module.equipment.equipment_code as equipment; assert equipment.EquipmentCodeHandler._android_equipment_adapter; assert numba.njit(lambda x: x + 1)(2) == 3; assert scipy.linalg.norm(numpy.array([3.,4.])) == 5.; loop = uvloop.new_event_loop(); loop.close(); assert psutil.Process.children.__module__ == \"android_process_compat\"; print(\"IMPORTS_OK\")"'
 guest /bin/sh -c 'cd /opt/azurpilot && .venv/bin/python azurpilot-ocr-gate.py'
 # 原模型只用于上述构建对照；发布镜像用宿主身份文件，字典与配置保留。
 python3 "$REPO_ROOT/rootfs/build/compact-ocr-models.py" "$ROOTFS_DIR" \
