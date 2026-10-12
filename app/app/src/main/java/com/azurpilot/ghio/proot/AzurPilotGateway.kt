@@ -138,7 +138,7 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
     val events: SharedFlow<JSONObject> = _events.asSharedFlow()
 
     /** 在途请求 id → 完成器 / In-flight request id → completion handle. */
-    private val pending = ConcurrentHashMap<String, CompletableDeferred<Reply.Ok>>()
+    private val pending = ConcurrentHashMap<String, CompletableDeferred<Reply>>()
 
     @Volatile
     private var socket: WebSocket? = null
@@ -243,31 +243,22 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
         val ws = socket
         if (ws == null || !_connected.value) return Reply.Offline
         val id = UUID.randomUUID().toString()
-        val deferred = CompletableDeferred<Reply.Ok>()
+        val deferred = CompletableDeferred<Reply>()
         pending[id] = deferred
-        val payload = JSONObject()
-            .put("v", PROTOCOL_VERSION)
-            .put("type", "request")
-            .put("id", id)
-            .put("method", method)
-            .put("params", params)
-        if (!ws.send(payload.toString())) {
+        try {
+            val payload = JSONObject()
+                .put("v", PROTOCOL_VERSION)
+                .put("type", "request")
+                .put("id", id)
+                .put("method", method)
+                .put("params", params)
+            if (!ws.send(payload.toString())) return Reply.Offline
+            // 业务拒绝也是完整响应，不能与等待超时共用 null。
+            return withTimeoutOrNull(timeoutMs) { deferred.await() }
+                ?: if (!_connected.value) Reply.Offline
+                else Reply.Err("TIMEOUT", "请求超时（$method）")
+        } finally {
             pending.remove(id)
-            return Reply.Offline
-        }
-        // 只吞业务错误：CancellationException 要放出去，否则外层取消会被这里悄悄吃掉
-        val result = withTimeoutOrNull(timeoutMs) {
-            try {
-                deferred.await()
-            } catch (_: AzurPilotException) {
-                null
-            }
-        }
-        pending.remove(id)
-        return when {
-            result != null -> result
-            !_connected.value -> Reply.Offline
-            else -> Reply.Err("TIMEOUT", "请求超时（$method）")
         }
     }
 
@@ -356,7 +347,7 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
                     val code = error?.optString("code").orEmpty()
                     val message = error?.optString("message").orEmpty()
                     Timber.w("azurpilot gateway %s: %s", code, message)
-                    deferred.completeExceptionally(AzurPilotException(code, message))
+                    deferred.complete(Reply.Err(code, message))
                 }
             }
 
@@ -373,7 +364,7 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
     }
 
     private fun failAllPending() {
-        pending.values.forEach { it.cancel() }
+        pending.values.forEach { it.complete(Reply.Offline) }
         pending.clear()
     }
 

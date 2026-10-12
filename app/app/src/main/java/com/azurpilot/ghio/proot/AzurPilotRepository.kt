@@ -659,14 +659,16 @@ class AzurPilotRepository(
     }
 
     /**
-     * 导出用：拿一份完整实例配置（含 revision 之外的全部内容）
-     *
-     * For export: fetches one instance's full config (everything beyond the
-     * revision). IO 调度器上执行 / Runs on the IO dispatcher.
-     */
-    /**
      * 将导入文件的可编辑参数覆盖到 Android 默认实例，不创建新实例。
-     * Preserves Android device-specific Emulator settings to keep local control operational.
+     *
+     * 在 IO 线程等待自动保存完成后读取最新配置，按参数组分批提交变化项。
+     * 保留 Android 设备连接参数；任一批次失败即停止，并刷新已提交的配置。
+     *
+     * Imports editable settings into the Android default instance without creating an instance.
+     *
+     * Waits for autosave and reads the latest config on an IO thread, then submits changed fields
+     * in group-preserving batches. Preserves Android connection settings. A failed batch stops
+     * the import and refreshes any already committed settings.
      */
     fun overwriteDefaultConfig(content: String, onComplete: (Boolean, String?) -> Unit) {
         scope.launch(AppDispatchers.IO) {
@@ -679,57 +681,59 @@ class AzurPilotRepository(
                 onComplete(false, "Stop the scheduler before importing")
                 return@launch
             }
-            val root = runCatching { JSONObject(content) }.getOrNull()
-            if (root == null) {
-                onComplete(false, "Invalid JSON file")
+            if (!configEditor.settle()) {
+                onComplete(false, "Configuration changes are still saving")
                 return@launch
             }
-            val values = root.optJSONObject("values") ?: root
-            val changes = JSONArray()
-            val tasks = values.keys()
-            while (tasks.hasNext()) {
-                val task = tasks.next()
-                val groups = values.optJSONObject(task) ?: continue
-                val groupKeys = groups.keys()
-                while (groupKeys.hasNext()) {
-                    val group = groupKeys.next()
-                    if (task == "Alas" && group == "Emulator") continue
-                    val fields = groups.optJSONObject(group) ?: continue
-                    val fieldKeys = fields.keys()
-                    while (fieldKeys.hasNext()) {
-                        val argument = fieldKeys.next()
-                        val field = schema.field(task, group, argument) ?: continue
-                        if (field.readOnly || field.hidden) continue
-                        changes.put(
-                            JSONObject()
-                                .put("path", "$task.$group.$argument")
-                                .put("value", fields.opt(argument)),
-                        )
+            val instance = AzurPilotRunState.DEFAULT_CONFIG
+            val current = when (
+                val reply = gateway.call("config.get", JSONObject().put("instance", instance))
+            ) {
+                is AzurPilotGateway.Reply.Ok -> parseConfig(reply.obj).values
+                is AzurPilotGateway.Reply.Err -> {
+                    onComplete(false, reply.message)
+                    return@launch
+                }
+                AzurPilotGateway.Reply.Offline -> {
+                    onComplete(false, "Runtime is offline")
+                    return@launch
+                }
+            }
+            val batches = runCatching { AzurPilotConfigImport.batches(content, schema, current) }
+                .getOrElse {
+                    onComplete(false, it.message ?: "Invalid JSON file")
+                    return@launch
+                }
+            for (changes in batches) {
+                when (
+                    val reply = gateway.call(
+                        "config.patch",
+                        JSONObject().put("instance", instance).put("changes", changes),
+                    )
+                ) {
+                    is AzurPilotGateway.Reply.Ok -> Unit
+                    is AzurPilotGateway.Reply.Err -> {
+                        configEditor.load(instance, force = true)
+                        onComplete(false, reply.message)
+                        return@launch
+                    }
+                    AzurPilotGateway.Reply.Offline -> {
+                        configEditor.load(instance, force = true)
+                        onComplete(false, "Runtime is offline")
+                        return@launch
                     }
                 }
             }
-            if (changes.length() == 0) {
-                onComplete(false, "No compatible settings found")
-                return@launch
-            }
-            configEditor.settle()
-            val instance = AzurPilotRunState.DEFAULT_CONFIG
-            when (
-                val reply = gateway.call(
-                    "config.patch",
-                    JSONObject().put("instance", instance).put("changes", changes),
-                )
-            ) {
-                is AzurPilotGateway.Reply.Ok -> {
-                    configEditor.load(instance, force = true)
-                    onComplete(true, null)
-                }
-                is AzurPilotGateway.Reply.Err -> onComplete(false, reply.message)
-                AzurPilotGateway.Reply.Offline -> onComplete(false, "Runtime is offline")
-            }
+            configEditor.load(instance, force = true)
+            onComplete(true, null)
         }
     }
 
+    /**
+     * 在 IO 线程读取完整配置，供导出及导入前备份使用。
+     *
+     * Reads the complete config on an IO thread for export and pre-import backups.
+     */
     suspend fun exportConfig(instance: String): AzurPilotConfig? =
         (gateway.call("config.get", JSONObject().put("instance", instance)) as? AzurPilotGateway.Reply.Ok)
             ?.obj?.let(::parseConfig)
