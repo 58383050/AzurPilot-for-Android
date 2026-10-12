@@ -1009,7 +1009,7 @@ fun RuntimeSettingsPage(
         prootState.phase == ProotPhase.PREPARING ||
             prootState.phase == ProotPhase.UPDATING ||
             prootState.phase == ProotPhase.STARTING
-    // 局域网地址取本机站点内 IPv4；口令是上游公网监听时自动生成的 password.txt。
+    // 地址在 Runtime 启动后刷新，端口与当前运行的会话保持一致。
     // 两者都以 phase 为 key：重启完成状态一变就重算，不用退出页面重进
     val lanAddress by
         produceState<String?>(null, lanControlEnabled, prootState.phase) {
@@ -1023,47 +1023,24 @@ fun RuntimeSettingsPage(
                     .filterIsInstance<Inet4Address>()
                     .firstOrNull { it.isSiteLocalAddress }
                     ?.hostAddress
-                    ?.let { "http://$it:${ProotHost.WEBUI_PORT}" }
+                    ?.let { "${if (com.azurpilot.ghio.proot.RuntimeConnection.endpoint.tls) "https" else "http"}://$it:${com.azurpilot.ghio.proot.RuntimeConnection.endpoint.port}" }
             }
                 .getOrNull()
             }
         }
-    val webUiPasswordState by
-        produceState<String?>(null, lanControlEnabled, prootState.phase) {
-            value = if (!lanControlEnabled) null else withContext(AppDispatchers.IO) {
-            // 与 ProotHost 的 installDir 同约定：guest 的 /opt/azurpilot 映射到 files/rootfs/opt/azurpilot
-            runCatching {
-                File(context.filesDir, "rootfs/opt/azurpilot/password.txt")
-                    .readText()
-                    .trim()
-                    .takeIf { it.isNotEmpty() }
-            }
-                .getOrNull()
-            }
-        }
-    val webUiPassword = webUiPasswordState
     val remoteAccessEnabled by settings.remoteAccessEnabled.collectAsStateWithLifecycle()
+    val deploySettings by repository.deploySettings.collectAsStateWithLifecycle()
+    val connected by repository.connected.collectAsStateWithLifecycle()
+    // 旧版 settings.get 会隐藏口令，直接用 Runtime 的 YAML 解析器读取权威配置。
+    val webUiPasswordState by produceState<String?>(null, prootState.phase, deploySettings) {
+        value = prootHost.readWebUiPassword()
+    }
+    val webUiPassword = webUiPasswordState
+    val remotePassword = webUiPassword
     var remoteStatus by remember { mutableStateOf<RemoteAccessUiState?>(null) }
-    // 远程入口的访问口令与 WebUI 是同一个（App 在开启时确保非空）；LAN 开启时
-    // password.txt 与它一致，这里直接读 deploy.yaml 的权威值
-    val remotePasswordState by
-        produceState<String?>(null, remoteAccessEnabled, prootState.phase) {
-            value = if (!remoteAccessEnabled) null else withContext(AppDispatchers.IO) {
-            runCatching {
-                val text =
-                    File(context.filesDir, "rootfs/opt/azurpilot/config/deploy.yaml").readText()
-                Regex("^\\s*Password:\\s*(\\S.*)$", RegexOption.MULTILINE)
-                    .find(text)
-                    ?.groupValues
-                    ?.get(1)
-                    ?.substringBefore(" #")
-                    ?.trim()
-                    ?.takeUnless { it.isEmpty() || it.equals("null", true) }
-            }
-                .getOrNull()
-            }
-        }
-    val remotePassword = remotePasswordState
+    LaunchedEffect(connected, prootState.phase) {
+        if (connected) repository.loadDeploySettings()
+    }
     // 重启完成（phase 变化）后 gateway 重连与隧道注册都要一拍，稍候再取状态
     LaunchedEffect(remoteAccessEnabled, prootState.phase) {
         if (!remoteAccessEnabled) {
@@ -1255,8 +1232,8 @@ fun RuntimeSettingsPage(
             }
         }
         // 局域网控制卡片：开关（默认关）+ 局域网地址与访问口令回显。
-        // 绑定地址经会话环境（AZURPILOT_ANDROID_LAN）注入，改动要重启 Runtime 才生效；
-        // 口令由上游公网监听时自动生成，非本机连接才需要，App 内嵌界面不受影响
+        // 绑定地址写入部署配置，改动要重启 Runtime 才生效；
+        // 口令从部署配置回读，与部署设置页的修改保持一致。
         AppCard {
             AppLabeledControlRow(
                 label = stringResource(R.string.settings_lan_control),

@@ -53,6 +53,13 @@
 
 Runtime 在 `127.0.0.1:25548` 同时暴露三类接口：
 
+这是默认入口。部署设置的 `WebuiPort` 修改后，App 在下次启动 Runtime 时读取
+`deploy.yaml`，将网关、控制与更新接口一起切换到新端口。`WebuiHost` 必须保留本机
+回环访问：`127.0.0.1` / `localhost` / `::1` 仅本机，`0.0.0.0` / `::` 允许局域网。
+局域网与远程入口显示的口令都从 `Deploy.Webui.Password` 读取；`password.txt`
+只可能是上游曾经生成的旧值，不用于 App 回显。部署字段确认保存后直接写入配置，
+修改通常需要重启 Runtime 生效。
+
 | 接口 | 鉴权 | 用途 |
 |---|---|---|
 | `/api/v1/ws`（WebSocket） | 会话令牌 | 实例/总览/配置/日志/统计的富订阅 |
@@ -122,6 +129,14 @@ Runtime 在 `127.0.0.1:25548` 同时暴露三类接口：
 ### Gateway protocol
 
 The runtime exposes three interfaces on `127.0.0.1:25548`:
+
+This is the default endpoint. When `WebuiPort` changes, the app reads `deploy.yaml` at the
+next Runtime startup and moves gateway, control, and update calls to the new port together.
+`WebuiHost` must retain loopback access: `127.0.0.1` / `localhost` / `::1` are local only;
+`0.0.0.0` / `::` allow LAN access. Both LAN and remote password displays read
+`Deploy.Webui.Password`; `password.txt` may contain an older generated value and is not used
+for app display. Confirming a deployment field writes it directly to config; changes usually
+require a Runtime restart.
 
 | Interface | Auth | Purpose |
 |---|---|---|

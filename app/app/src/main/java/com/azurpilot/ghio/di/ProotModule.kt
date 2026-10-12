@@ -37,5 +37,5 @@ val prootModule = module {
     // 订阅只有 repository 一处发出——events.subscribe 是整体替换语义，两处各订一次会互相顶掉
     single { AzurPilotGateway(get(named<AppCoroutineScope>())) }
     single<AzurPilotPreferenceStore> { AzurPilotPreferences(androidContext()) }
-    single { AzurPilotRepository(get(named<AppCoroutineScope>()), get(), get()) }
+    single { AzurPilotRepository(get(named<AppCoroutineScope>()), get(), get(), get()) }
 }

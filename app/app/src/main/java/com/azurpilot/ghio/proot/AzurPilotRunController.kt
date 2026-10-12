@@ -484,7 +484,7 @@ class AzurPilotRunController(
     }.onFailure { Timber.d(it, "azurpilot GET %s failed", url) }.getOrNull()
 
     private companion object {
-        const val BASE = "http://127.0.0.1:${ProotHost.WEBUI_PORT}/android"
+        val BASE: String get() = "${RuntimeConnection.endpoint.httpBase}/android"
 
         /** 轮询周期：悬浮窗数字跳动别太快，又要在 4s 内跟手 / Poll period: keeps overlay numbers from flickering yet still feels responsive. */
         const val POLL_MS = 4_000L

@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,6 +42,8 @@ import com.azurpilot.ghio.R
 import com.azurpilot.ghio.proot.ApValue
 import com.azurpilot.ghio.proot.AzurPilotDeployField
 import com.azurpilot.ghio.proot.AzurPilotRepository
+import com.azurpilot.ghio.proot.ProotHost
+import com.azurpilot.ghio.proot.ProotPhase
 import com.azurpilot.ghio.proot.sameValueAs
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.azurpilot.ApErrorState
@@ -55,30 +58,47 @@ import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
 import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 import com.azurpilot.ghio.ui.ksu.AppTextField as OutlinedTextField
+import org.koin.compose.koinInject
 
 /**
  * 部署设置（`config/deploy.yaml`）
  *
- * 与任务参数不同，这些是**运行环境**的配置：改完大多要重启 AzurPilot 才生效， 所以这里不逐字段自动保存，而是攒到一份草稿里，由底部的「保存」一次提交——
- * 半套应用的设置比没保存更难排查。
+ * 字段弹窗确认后直接提交并回读配置；保存失败时保留草稿供重试。设置通常在重启后生效。
  *
  * The deploy-settings page (`config/deploy.yaml`).
  *
- * Unlike task arguments these configure the **runtime environment**: most take effect only after
- * AzurPilot restarts. So nothing auto-saves per field — edits accumulate into a draft committed in
- * one go by the bottom "save" bar; a half-applied set of settings is harder to debug than an
- * unsaved one.
+ * Confirming a field commits and reloads the persisted config. Failed saves retain the draft for
+ * retry. Settings usually take effect after a restart.
  *
  * @param repository 网关仓库 / the gateway repository
  */
 @Composable
-fun DeploySettingsPage(repository: AzurPilotRepository) {
+fun DeploySettingsPage(repository: AzurPilotRepository, prootHost: ProotHost = koinInject()) {
     var loading by remember { mutableStateOf(true) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var saved by remember { mutableStateOf(false) }
+    var showRestartConfirm by remember { mutableStateOf(false) }
     val draft = remember { mutableStateMapOf<String, ApValue>() }
 
     val loadFailed = stringResource(R.string.ap_deploy_load_failed)
+    val saveFailed = stringResource(R.string.ap_deploy_save_failed)
+    val prootState by prootHost.state.collectAsStateWithLifecycle()
+    val sessionBusy = prootState.phase in listOf(
+        ProotPhase.PREPARING, ProotPhase.UPDATING, ProotPhase.STARTING,
+    )
+
+    fun save(values: Map<String, ApValue>) {
+        saving = true
+        error = null
+        repository.patchDeploySettings(values) { ok, message ->
+            saving = false
+            if (ok) {
+                values.keys.forEach { draft.remove(it) }
+                saved = true
+            } else error = message ?: saveFailed
+        }
+    }
     LaunchedEffect(Unit) {
         val settings = repository.loadDeploySettings()
         error = if (settings == null) loadFailed else null
@@ -86,6 +106,10 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
     }
 
     val deploy by repository.deploySettings.collectAsStateWithLifecycle()
+    // 旧 Runtime 的接口隐藏口令；回读部署文件才能正确回显已保存的值。
+    val password by produceState<String?>(null, deploy, saving, prootState.phase) {
+        if (!saving) value = prootHost.readWebUiPassword()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -143,6 +167,20 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                     }
                 }
             }
+            if (error != null || saved) {
+                item(key = "saveResult") {
+                    AppCard {
+                        if (error != null) ApErrorState(error!!)
+                        if (saved) {
+                            Text(stringResource(R.string.ap_field_saved))
+                            Button(
+                                enabled = !saving && !sessionBusy,
+                                onClick = { showRestartConfirm = true },
+                            ) { Text(stringResource(R.string.settings_runtime_restart)) }
+                        }
+                    }
+                }
+            }
             data.groups.forEach { group ->
                 appSettingsGroup(
                     key = group.key,
@@ -153,9 +191,12 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                 ) { field ->
                     DeployFieldRow(
                         field = field,
-                        draft = draft[field.key],
-                        enabled = !data.demo,
-                        onDraft = { draft[field.key] = it },
+                        draft = draft[field.key] ?: if (field.key == "Password") password else null,
+                        enabled = !data.demo && !saving && !sessionBusy,
+                        onDraft = {
+                            draft[field.key] = it
+                            save(mapOf(field.key to it))
+                        },
                     )
                 }
             }
@@ -196,11 +237,7 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                     Button(
                         enabled = !saving,
                         onClick = {
-                            saving = true
-                            repository.patchDeploySettings(HashMap(draft)) { ok, _ ->
-                                saving = false
-                                if (ok) draft.clear()
-                            }
+                            save(HashMap(draft))
                         },
                     ) {
                         Text(
@@ -212,6 +249,25 @@ fun DeploySettingsPage(repository: AzurPilotRepository) {
                 }
             }
         }
+    }
+    if (showRestartConfirm) {
+        com.azurpilot.ghio.ui.ksu.AppDialog(
+            onDismissRequest = { showRestartConfirm = false },
+            title = { Text(stringResource(R.string.settings_runtime_restart_title)) },
+            text = { Text(stringResource(R.string.settings_runtime_restart_message)) },
+            confirmButton = {
+                com.azurpilot.ghio.ui.ksu.AppTextButton(onClick = {
+                    showRestartConfirm = false
+                    saved = false
+                    prootHost.restart()
+                }) { Text(stringResource(R.string.settings_runtime_restart)) }
+            },
+            dismissButton = {
+                com.azurpilot.ghio.ui.ksu.AppTextButton(onClick = { showRestartConfirm = false }) {
+                    Text(stringResource(R.string.ap_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -268,16 +324,22 @@ private fun DeployFieldRow(
                     if (field.type == "int") (current as? Number)?.toLong()?.toString().orEmpty()
                     else current as? String ?: "",
                 enabled = enabled,
-                password = field.type == "password",
+                summary = if (field.key == "WebuiHost") stringResource(R.string.ap_deploy_host_help)
+                    else null,
+                // 上游 Password 是 nullable_string，不能只靠 type == password 判断。
+                password = field.key == "Password" || field.type == "password",
                 keyboardType =
                     if (field.type == "int") KeyboardType.Number else KeyboardType.Text,
                 onSave = { text ->
                     if (field.type == "int") {
                         val number = text.toIntOrNull()
-                        if (number != null) {
+                        if (number != null && (field.key != "WebuiPort" || number in 1..65535)) {
                             onDraft(number)
                             true
                         } else false
+                    } else if (field.key == "WebuiHost" &&
+                        text !in setOf("127.0.0.1", "localhost", "0.0.0.0", "::1", "::")) {
+                        false
                     } else {
                         onDraft(text)
                         true

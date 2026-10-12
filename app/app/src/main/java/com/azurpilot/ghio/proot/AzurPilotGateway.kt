@@ -323,7 +323,7 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
                 finish()
             }
         }
-        val request = Request.Builder().url(WS_URL).build()
+        val request = Request.Builder().url(RuntimeConnection.endpoint.wsUrl).build()
         socket = client.newWebSocket(request, listener)
         cont.invokeOnCancellation {
             socket?.cancel()
@@ -370,7 +370,6 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
 
     companion object {
         /** 网关 WS 地址 / The gateway WebSocket URL. */
-        const val WS_URL = "ws://127.0.0.1:${ProotHost.WEBUI_PORT}/api/v1/ws"
         private const val NORMAL_CLOSE = 1000
         private const val CONNECT_TIMEOUT_MS = 3_000L
         private const val REQUEST_TIMEOUT_MS = 45_000L

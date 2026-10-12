@@ -4,12 +4,15 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import com.azurpilot.ghio.AppDispatchers
 import com.azurpilot.ghio.i18n.AppLocales
+import com.azurpilot.ghio.settings.AppSettingsManager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -46,6 +49,7 @@ class AzurPilotRepository(
     private val scope: CoroutineScope,
     private val gateway: AzurPilotGateway,
     private val store: AzurPilotPreferenceStore,
+    private val settings: AppSettingsManager,
 ) {
 
     private val _connected = MutableStateFlow(false)
@@ -976,10 +980,10 @@ class AzurPilotRepository(
     }
 
     /**
-     * 保存一组部署设置；空密码表示「不改」，由网关侧丢弃
+     * 保存部署设置，并同步 App 的访问开关，避免重启覆盖刚保存的配置。空口令的处理由 Runtime 版本决定。
      *
-     * Saves one batch of deploy settings; an empty password means "leave it
-     * alone" and is dropped gateway-side.
+     * Saves deploy settings and syncs app access toggles so startup preserves the saved values.
+     * Empty password handling depends on the runtime version.
      *
      * @param onDone (是否成功，失败文案；Offline 时文案为 null) / (success flag,
      *   failure text; text is null when offline)
@@ -991,16 +995,25 @@ class AzurPilotRepository(
             val params = JSONObject().put("values", payload)
             when (val reply = gateway.call("settings.patch", params)) {
                 is AzurPilotGateway.Reply.Ok -> {
+                    (values["WebuiHost"] as? String)?.let {
+                        val lanEnabled = it == "0.0.0.0" || it == "::"
+                        settings.setLanControlEnabled(lanEnabled)
+                        settings.lanControlEnabled.first { saved -> saved == lanEnabled }
+                    }
+                    (values["EnableRemoteAccess"] as? Boolean)?.let {
+                        settings.setRemoteAccessEnabled(it)
+                        settings.remoteAccessEnabled.first { saved -> saved == it }
+                    }
                     loadDeploySettings()
-                    onDone(true, null)
+                    withContext(Dispatchers.Main) { onDone(true, null) }
                 }
 
                 is AzurPilotGateway.Reply.Err -> {
                     report(reply.message)
-                    onDone(false, reply.message)
+                    withContext(Dispatchers.Main) { onDone(false, reply.message) }
                 }
 
-                AzurPilotGateway.Reply.Offline -> onDone(false, null)
+                AzurPilotGateway.Reply.Offline -> withContext(Dispatchers.Main) { onDone(false, null) }
             }
         }
     }

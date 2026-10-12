@@ -276,8 +276,8 @@ private fun ApMeowRow(label: String, value: String) {
  * The score report is a standalone HTML served by the gateway, viewed in the device's local browser
  * (not the WebUI).
  */
-private const val MEOWFFICER_REPORT_URL =
-    "http://127.0.0.1:${com.azurpilot.ghio.proot.ProotHost.WEBUI_PORT}/reports/meowfficer_score"
+private val MEOWFFICER_REPORT_URL: String
+    get() = "${com.azurpilot.ghio.proot.RuntimeConnection.endpoint.httpBase}/reports/meowfficer_score"
 
 /** 页面可见期间的轮询间隔（毫秒） / The polling interval while the page is visible, in milliseconds. */
 private const val POLL_MS = 5_000L

@@ -832,4 +832,6 @@
     <string name="home_install_shizuku">Get Shizuku</string>
     <string name="home_grant_access">Grant access</string>
     <string name="home_reconnect">Reconnect</string>
+    <string name="ap_deploy_save_failed">Could not save. Check the Runtime connection and retry.</string>
+    <string name="ap_deploy_host_help">127.0.0.1 allows local access; 0.0.0.0 allows LAN access. For IPv6, use ::1 or ::.</string>
 </resources>

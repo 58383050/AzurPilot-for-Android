@@ -233,6 +233,11 @@ class ProotHost(
             return@withLock
         }
         writeRemoteAccessConfig()
+        runCatching { readRuntimeConnection() }.getOrElse {
+            Timber.w(it, "Runtime connection config failed")
+            fail("连接配置：${it.message}")
+            return@withLock
+        }
         val proc = runCatching { spawnSession() }.getOrElse {
             fail("exec proot: ${it.message}")
             return@withLock
@@ -243,7 +248,7 @@ class ProotHost(
 
         if (awaitServices(SERVICES_UP_MS)) {
             setState(ProotPhase.RUNNING)
-            Timber.i("proot session up: AzurPilot ready on %d", WEBUI_PORT)
+            Timber.i("proot session up: AzurPilot ready on %d", RuntimeConnection.endpoint.port)
             // 会话健康 = 新 rootfs 体检通过：统一在此回收旧版备份。手动整包更新链
             // （applyUpdate）不像自动更新链那样自带体检后清理，不做这步的话
             // rootfs.previous（约 2.4GB）会永久滞留且没有任何 UI 能回收
@@ -347,9 +352,6 @@ class ProotHost(
         "AZURPILOT_ANDROID_TOKEN" to AndroidControlAuth.get(app),
         "AZURPILOT_OCR_ADDRESS" to ocrServer.address,
         "PYTHONPATH" to GUEST_INSTALL_ROOT,
-        // 局域网控制开关：android_host.py 读此位决定 gui.py 绑 0.0.0.0 还是 127.0.0.1。
-        // 公网监听下上游自动生成 WebUI 访问口令；/android 薄接口的回环校验不受影响
-        "AZURPILOT_ANDROID_LAN" to if (settings.lanControlEnabled.value) "1" else "0",
         // 旧运行时仍从 Release 获取前端；新运行时使用相同镜像前缀获取 Git 源码。
         "AZURPILOT_ANDROID_DIST_BASE" to
             ReleaseUrls.mirrorPrefix(settings.githubMirror.value, settings.githubMirrorCustom.value) +
@@ -457,8 +459,8 @@ class ProotHost(
             // 无 config 参数时运行时按「首个存活实例或 alas」解析实例名，调度器不在跑而
             // 默认实例是 ap 时会回 400，被误判成服务未就绪（90s 超时、phase 卡 STARTING，
             // 自动更新的健康检查也会因此永远失败回滚）；显式带上播种的默认实例名。
-            if (httpOk("http://127.0.0.1:$WEBUI_PORT/android/status?config=${AzurPilotRunState.DEFAULT_CONFIG}") &&
-                httpOk("http://127.0.0.1:$WEBUI_PORT/healthz")
+            if (httpOk("${RuntimeConnection.endpoint.httpBase}/android/status?config=${AzurPilotRunState.DEFAULT_CONFIG}") &&
+                httpOk("${RuntimeConnection.endpoint.httpBase}/healthz")
             ) {
                 return true
             }
@@ -492,7 +494,7 @@ class ProotHost(
     private suspend fun suspendGuestInstances() {
         if (session?.isAlive != true) return
         runCatching {
-            val conn = URL("http://127.0.0.1:$WEBUI_PORT/android/update/suspend").openConnection() as HttpURLConnection
+            val conn = URL("${RuntimeConnection.endpoint.httpBase}/android/update/suspend").openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("X-AzurPilot-Android-Token", AndroidControlAuth.get(app))
             conn.connectTimeout = SUSPEND_CONNECT_TIMEOUT_MS
@@ -600,22 +602,20 @@ class ProotHost(
     }
 
     /**
-     * 把远程访问开关同步进 rootfs 的 deploy.yaml（App 开关是唯一事实源）。
+     * 把 App 的局域网与远程访问开关同步进 deploy.yaml，保留已保存的口令与端口。
      *
      * 上游的 RemoteAccess 段（localshare SSH 中转 + P2P 信令）由 rootfs 出厂预填，
      * 这里只做行级改写：翻转 `EnableRemoteAccess`；开启时再补三件事——
-     * WebUI 口令为空则生成 32 位强随机（远程入口没有口令等于公开控制权）、
+     * LAN 或远程入口开启且 WebUI 口令为空时生成 32 位强随机、
      * `SSHServer`/`SSHExecutable` 缺失或为 null 时落出厂默认。运行时进程此刻
      * 尚未拉起，无并发写者；失败仅记日志（沿用盘上现状，不阻塞启动链）。
      *
-     * Syncs the remote-access toggle into the rootfs's deploy.yaml (the App
-     * toggle is the single source of truth).
+     * Syncs LAN and remote-access toggles into deploy.yaml, preserving saved passwords and ports.
      *
      * The upstream RemoteAccess section (localshare SSH relay + P2P signaling)
      * ships pre-filled in the rootfs, so only line-level edits are needed:
-     * flip `EnableRemoteAccess`, and when on, additionally — generate a 32-char
-     * random WebUI password if empty (a passwordless remote entry hands control
-     * to anyone with the URL) and fill factory defaults for `SSHServer` /
+     * sync the bind host and `EnableRemoteAccess`, generate a 32-char password if empty while
+     * LAN or remote access is enabled, and fill factory defaults for `SSHServer` /
      * `SSHExecutable` when missing or null. The runtime process is not up yet,
      * so there is no concurrent writer; failures only log and keep the on-disk
      * state rather than wedging the start chain.
@@ -628,7 +628,6 @@ class ProotHost(
             val tmp = File(installDir, "$DEPLOY_YAML_PATH.tmp")
             tmp.parentFile?.mkdirs()
             tmp.writeText(renderRemoteAccessConfig(file.readText(), enabled))
-            file.delete()
             if (!tmp.renameTo(file)) error("rename to $file failed")
             Timber.i("deploy.yaml remote access synced: %s", if (enabled) "on" else "off")
         }.onFailure { Timber.w(it, "sync remote access config failed") }
@@ -643,10 +642,18 @@ class ProotHost(
     private fun renderRemoteAccessConfig(text: String, enabled: Boolean): String {
         var lines = text.lines().toMutableList()
         lines = setYamlKey(lines, "EnableRemoteAccess", enabled.toString())
+        val lanEnabled = settings.lanControlEnabled.value
+        val host = yamlValue(lines, "WebuiHost")?.trim('\'', '"')
+        val allowedHosts = if (lanEnabled) setOf("0.0.0.0", "::")
+            else setOf("127.0.0.1", "localhost", "::1")
+        if (host !in allowedHosts) {
+            lines = setYamlKey(lines, "WebuiHost", if (lanEnabled) "0.0.0.0" else "127.0.0.1")
+        }
+        // LAN 和远程入口共用部署口令，避免遗留 password.txt 成为另一份口令来源。
+        if ((enabled || lanEnabled) && yamlValue(lines, "Password").isNullOrEmpty()) {
+            lines = setYamlKey(lines, "Password", generateWebUiPassword())
+        }
         if (enabled) {
-            if (yamlValue(lines, "Password").isNullOrEmpty()) {
-                lines = setYamlKey(lines, "Password", generateWebUiPassword())
-            }
             if (yamlValue(lines, "SSHServer").isNullOrEmpty()) {
                 lines = setYamlKey(lines, "SSHServer", DEFAULT_SSH_SERVER)
             }
@@ -658,6 +665,51 @@ class ProotHost(
             }
         }
         return lines.joinToString("\n")
+    }
+
+    /**
+     * 启动前用 Runtime 自身的 YAML 解析器读取入口；不在日志中传递口令。运行于 IO 调度器。
+     *
+     * Reads the endpoint with the runtime's YAML parser before startup without logging passwords.
+     * Runs on the IO dispatcher.
+     */
+    private suspend fun readRuntimeConnection() {
+        val result = runGuestRaw(
+            listOf(".venv/bin/python", "android_host.py", "--describe-connection"), SHORT_EXEC_MS,
+        )
+        check(result.exit == 0 && !result.timedOut) { "无法读取 WebUI 地址与端口" }
+        val marker = "ANDROID_CONNECTION="
+        val line = result.output.lineSequence().lastOrNull { it.startsWith(marker) }
+            ?: error("Runtime 未返回连接配置")
+        val config = org.json.JSONObject(line.removePrefix(marker))
+        RuntimeConnection.endpoint = RuntimeConnection.Endpoint(
+            config.getString("host"), config.getInt("port"), config.getBoolean("tls"),
+        )
+    }
+
+    /**
+     * 用 Runtime 的 YAML 解析器读取 deploy.yaml 口令；兼容网关隐藏口令的旧版，运行于 IO。
+     * 输出只在内存解析，不写入会话日志；特殊字符按 YAML 字符串语义保留。
+     *
+     * Reads the deploy.yaml password with the runtime's YAML parser on IO, including versions
+     * whose gateway masks passwords. Output is parsed in memory without session logging;
+     * special characters retain their YAML string semantics.
+     */
+    suspend fun readWebUiPassword(): String? = withContext(AppDispatchers.IO) {
+        runCatching {
+            val result = runGuestRaw(
+                listOf(".venv/bin/python", "-c",
+                    "import android_host,json; " +
+                        "print('ANDROID_PASSWORD='+json.dumps({'password':android_host.read_password('.')}))"),
+                SHORT_EXEC_MS,
+            )
+            if (result.exit != 0 || result.timedOut) return@runCatching null
+            val marker = "ANDROID_PASSWORD="
+            val line = result.output.lineSequence().lastOrNull { it.startsWith(marker) }
+                ?: return@runCatching null
+            val data = org.json.JSONObject(line.removePrefix(marker))
+            if (data.isNull("password")) null else data.getString("password").takeIf { it.isNotBlank() }
+        }.getOrNull()
     }
 
     /** 取某键的标量值（首个匹配行，剥行内注释；null/空归一为 null）/ Reads a key's scalar (first match, inline comment stripped; null and empty normalize to null). */
@@ -704,7 +756,8 @@ class ProotHost(
         var insertAt = lines.size
         for (i in sectionIndex + 1 until lines.size) {
             val line = lines[i]
-            val isSectionHeader = line.length >= 2 && line[0] == ' ' && line[1] != ' ' && line.trimEnd().endsWith(":")
+            val isSectionHeader = line.isNotBlank() && !line.trimStart().startsWith("#") &&
+                line.takeWhile { it == ' ' }.length <= 2 && line.trimEnd().endsWith(":")
             if (isSectionHeader) {
                 insertAt = i
                 break
@@ -987,10 +1040,10 @@ class ProotHost(
 
     companion object {
         /**
-         * 网关端口（deploy.yaml WebuiPort）：WS 网关、Android 薄接口与应用内原生界面都打它
+         * 出厂默认网关端口；会话启动后使用 [RuntimeConnection] 中从 deploy.yaml 读取的端口。
          *
-         * The gateway port (deploy.yaml WebuiPort): the WS gateway, the Android
-         * thin API and the in-app native UI all hit it.
+         * The factory-default gateway port. Once a session starts, callers use the port read
+         * from deploy.yaml in [RuntimeConnection].
          */
         const val WEBUI_PORT = 25548
 

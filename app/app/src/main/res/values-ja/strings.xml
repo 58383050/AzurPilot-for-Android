@@ -820,4 +820,6 @@
     <string name="home_install_shizuku">Shizuku を入手</string>
     <string name="home_grant_access">権限を許可</string>
     <string name="home_reconnect">再接続</string>
+    <string name="ap_deploy_save_failed">保存できませんでした。Runtime の接続を確認して再試行してください。</string>
+    <string name="ap_deploy_host_help">127.0.0.1 は端末内のみ、0.0.0.0 は LAN アクセスを許可。IPv6 は ::1 または ::。</string>
 </resources>

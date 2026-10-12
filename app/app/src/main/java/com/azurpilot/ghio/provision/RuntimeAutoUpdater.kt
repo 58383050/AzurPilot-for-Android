@@ -364,7 +364,7 @@ class RuntimeAutoUpdater(
     private fun hotUpdateStatus(): JSONObject? {
         if (prootHost.state.value.phase != ProotPhase.RUNNING) return null
         return runCatching {
-            val conn = URL("http://127.0.0.1:25548/android/update/status")
+            val conn = URL("${com.azurpilot.ghio.proot.RuntimeConnection.endpoint.httpBase}/android/update/status")
                 .openConnection() as HttpURLConnection
             conn.setRequestProperty("X-AzurPilot-Android-Token", AndroidControlAuth.get(app))
             conn.connectTimeout = 3_000
@@ -397,7 +397,7 @@ class RuntimeAutoUpdater(
     private suspend fun suspendRuntime(): Boolean {
         repeat(2) { attempt ->
             val ok = runCatching {
-                val url = URL("http://127.0.0.1:25548/android/update/suspend")
+                val url = URL("${com.azurpilot.ghio.proot.RuntimeConnection.endpoint.httpBase}/android/update/suspend")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("X-AzurPilot-Android-Token", AndroidControlAuth.get(app))
