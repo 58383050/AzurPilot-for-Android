@@ -190,13 +190,25 @@ class CnbClient:
         self.base = f"{API_ENDPOINT}/{repo}/-/releases"
         self.opener = opener or build_opener(_NoRedirect())
 
+    def _api_path(self, url: str) -> str:
+        """接受 CNB 返回的仓库大小写规范化地址，仍限制主机、仓库和路径边界。
+
+        Accepts CNB's canonical repository casing while enforcing host, repo, and path boundaries.
+        """
+        parsed, base = urlsplit(url), urlsplit(self.base)
+        suffix = parsed.path[len(base.path):]
+        if (parsed.scheme != base.scheme or parsed.netloc.lower() != base.netloc.lower() or
+                parsed.path[:len(base.path)].lower() != base.path.lower() or
+                (suffix and not suffix.startswith("/"))):
+            raise ValueError("Unexpected CNB API URL")
+        return suffix
+
     def request(self, method: str, url: str, data=None, missing_ok: bool = False):
         """API 令牌只发给同一仓库的 CNB API，错误日志不包含令牌或签名 URL。
 
         Sends the token only to this repository's CNB API; errors omit tokens and signed URLs.
         """
-        if not url.startswith(self.base + "/") and url != self.base:
-            raise ValueError("Unexpected CNB API URL")
+        self._api_path(url)
         payload = json.dumps(data).encode() if data is not None else None
         request = Request(url, data=payload, method=method, headers={
             "Authorization": f"Bearer {self.token}", "Accept": "application/json",
@@ -232,7 +244,8 @@ class CnbClient:
             if urlsplit(upload_url).scheme != "https":
                 raise ValueError("CNB upload URL must use HTTPS")
             verify_url = urljoin(API_ENDPOINT + "/", verify_url)
-            if not verify_url.startswith(f"{self.base}/{quote(release_id, safe='')}/asset-upload-confirmation/"):
+            if not self._api_path(verify_url).startswith(
+                    f"/{quote(release_id, safe='')}/asset-upload-confirmation/"):
                 raise ValueError("Unexpected CNB upload confirmation URL")
             try:
                 with path.open("rb") as stream:

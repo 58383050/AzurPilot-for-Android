@@ -32,6 +32,7 @@ class FakeApi:
         self.fail_upload = False
         self.corrupt_remote = False
         self.existing = None
+        self.confirmation_repo = cnb.CNB_REPOSITORY
 
     def open(self, request, timeout):
         method, url = request.get_method(), request.full_url
@@ -62,7 +63,7 @@ class FakeApi:
             ticket = f"ticket-{len(self.tickets)}"
             self.tickets[ticket] = filename
             result = {"upload_url": f"https://storage.example/{filename}",
-                      "verify_url": (f"/{cnb.CNB_REPOSITORY}/-/releases/release-1/"
+                      "verify_url": (f"/{self.confirmation_repo}/-/releases/release-1/"
                                      f"asset-upload-confirmation/{ticket}/asset")}
         elif method == "POST" and "/asset-upload-confirmation/" in url:
             ticket = url.split("/asset-upload-confirmation/")[1].split("/")[0]
@@ -229,6 +230,15 @@ class CnbReleaseTest(unittest.TestCase):
                     client.publish(self.output, mirror, self.tag)
                 self.assertFalse(any(method == "PATCH" for method, _, _ in api.requests))
 
+    def test_cnb_canonical_repository_casing_is_accepted_for_confirmations(self):
+        mirror = self.prepare()
+        api = FakeApi()
+        api.confirmation_repo = "AzurPilot/AzurPilot-for-Android"
+        cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(
+            self.output, mirror, self.tag)
+        self.assertEqual(api.confirmed, {path.name for path in self.output.iterdir()})
+        self.assertEqual(api.requests[-1][0], "PATCH")
+
     def test_confirmed_release_rerun_verifies_without_replacing_assets(self):
         mirror = self.prepare()
         api = FakeApi()
@@ -240,8 +250,11 @@ class CnbReleaseTest(unittest.TestCase):
 
     def test_token_is_never_sent_to_foreign_api_urls(self):
         client = cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, FakeApi())
-        with self.assertRaisesRegex(ValueError, "Unexpected CNB"):
-            client.request("POST", "https://storage.example/confirm")
+        for url in ("https://storage.example/confirm", client.base + "-other/confirm",
+                    client.base.replace("azurpilot/", "other/"),
+                    client.base.replace("api.cnb.cool", "api.cnb.cool.evil.example")):
+            with self.subTest(url=url), self.assertRaisesRegex(ValueError, "Unexpected CNB"):
+                client.request("POST", url)
         self.assertIsNone(cnb._NoRedirect().redirect_request(None, None, 302, "redirect", {},
                                                             "https://storage.example"))
 
