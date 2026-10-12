@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
@@ -157,6 +158,28 @@ class RuntimeAutoUpdater(
     }
 
     /**
+     * 为热更独占整包更新共用的流水线，避免两个通道同时修改运行时。
+     *
+     * Reserves the shared pipeline for a hot update so both channels cannot modify the runtime.
+     */
+    internal fun tryBeginHotUpdate(): Boolean {
+        if (!provisioner.tryBeginPipeline()) return false
+        if (!updateMutex.tryLock()) {
+            provisioner.endPipeline()
+            return false
+        }
+        _busy.value = true
+        return true
+    }
+
+    /** 释放热更取得的流水线。 / Releases the pipeline reserved by a hot update. */
+    internal fun endHotUpdate() {
+        _busy.value = false
+        updateMutex.unlock()
+        provisioner.endPipeline()
+    }
+
+    /**
      * 执行一次检查与更新流程。
      *
      * Performs one check-and-apply update cycle.
@@ -209,7 +232,15 @@ class RuntimeAutoUpdater(
             // 否则这次发布在该设备上永远装不上。
             val commitOnly = installed != null &&
                 runtime.version.substringAfterLast('-') == installed.substringAfterLast('-')
-            if (commitOnly && !force && hotUpdateEndpointAlive()) {
+            val hotStatus = hotUpdateStatus()
+            if (hotStatus?.optBoolean("busy") == true) {
+                _state.value = AutoUpdateState.Idle
+                return@withContext false
+            }
+            val canHotUpdate = hotStatus?.let {
+                it.optBoolean("enabled") && !it.optBoolean("requiresRuntimeUpdate")
+            } == true
+            if (commitOnly && !force && canHotUpdate) {
                 Timber.i("auto update: commitOnly update detected, letting runtime hot-update handle it")
                 _state.value = AutoUpdateState.Idle
                 return@withContext false
@@ -320,27 +351,31 @@ class RuntimeAutoUpdater(
     }
 
     /**
-     * 探测运行时是否具备热更私有接口（/android/update/status 200 即具备）。
+     * 读取热更能力及忙闲状态；运行时不可达时返回 null。
      *
      * commitOnly 型发布只能经热更通道送达；接口不存在（太旧的运行时）或会话没在跑时
-     * 返回 false，让调用方退回整包更新。服务端要联网查上游提交，读超时放宽。
+     * 返回 null，让调用方退回整包更新。服务端要联网查上游提交，读超时放宽。
      *
-     * Probes whether the runtime has the hot-update private API (a 200 from
-     * /android/update/status). Returns false when the API is missing (an
-     * older runtime) or the session is not running, so the caller falls back
+     * Reads hot-update capability and activity, returning null when unreachable.
+     * Returns null when the API is missing or the session is not running, so the caller falls back
      * to a full update. The server queries the upstream commit over the
      * network, hence the generous read timeout.
      */
-    private fun hotUpdateEndpointAlive(): Boolean {
-        if (prootHost.state.value.phase != ProotPhase.RUNNING) return false
+    private fun hotUpdateStatus(): JSONObject? {
+        if (prootHost.state.value.phase != ProotPhase.RUNNING) return null
         return runCatching {
             val conn = URL("http://127.0.0.1:25548/android/update/status")
                 .openConnection() as HttpURLConnection
             conn.setRequestProperty("X-AzurPilot-Android-Token", AndroidControlAuth.get(app))
             conn.connectTimeout = 3_000
-            conn.readTimeout = 20_000
-            (conn.responseCode == 200).also { conn.disconnect() }
-        }.getOrDefault(false)
+            conn.readTimeout = 45_000
+            try {
+                if (conn.responseCode != 200) return@runCatching null
+                JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+            } finally {
+                conn.disconnect()
+            }
+        }.getOrNull()
     }
 
     /**

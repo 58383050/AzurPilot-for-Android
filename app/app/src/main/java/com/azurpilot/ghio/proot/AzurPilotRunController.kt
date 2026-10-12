@@ -1,6 +1,7 @@
 package com.azurpilot.ghio.proot
 
 import android.content.Context
+import android.os.SystemClock
 import com.azurpilot.ghio.AppDispatchers
 import com.azurpilot.ghio.service.HostState
 import kotlinx.coroutines.CoroutineScope
@@ -15,6 +16,7 @@ import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import timber.log.Timber
 import java.net.HttpURLConnection
+import java.io.IOException
 import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
@@ -109,15 +111,15 @@ data class AzurPilotRunState(
  * Snapshot of the runtime hot-update state (parsed from /android/update/status).
  */
 data class HotUpdateState(
-    /** 运行时侧是否具备热更条件（已注入 dist 下载基址）/ Whether the runtime can hot-update (dist base URL injected). */
+    /** 运行时侧是否具备热更条件。 / Whether the runtime supports hot updates. */
     val enabled: Boolean = false,
     /** 当前源码提交 / The current source commit. */
     val localHead: String? = null,
     /** 上游分支头提交 / The upstream branch-head commit. */
     val upstreamHead: String? = null,
-    /** 有可用更新（上游更新且其预构建前端已发布）/ An update is available (upstream moved and its prebuilt frontend is published). */
+    /** 有可用源码更新。 / A source update is available. */
     val available: Boolean = false,
-    /** 上游头的预构建 dist 是否已发布 / Whether the upstream head's prebuilt dist is published. */
+    /** 本地构建工具可用，或旧通道已发布 dist。 / Local tools are ready, or legacy dist is published. */
     val distReady: Boolean = false,
     /** 更新事务进行中 / An update transaction is in flight. */
     val busy: Boolean = false,
@@ -125,6 +127,8 @@ data class HotUpdateState(
     val phase: String? = null,
     /** 上次失败的错误信息 / The last failure message. */
     val error: String = "",
+    /** Python 依赖变化需要整包更新。 / Python dependency changes require a full update. */
+    val requiresRuntimeUpdate: Boolean = false,
 )
 
 /**
@@ -151,6 +155,8 @@ class AzurPilotRunController(
     private val hostState: HostState,
     private val settings: com.azurpilot.ghio.settings.AppSettingsManager,
     private val autoUpdateBusy: StateFlow<Boolean> = MutableStateFlow(false),
+    private val tryBeginHotUpdate: () -> Boolean = { true },
+    private val endHotUpdate: () -> Unit = {},
 ) {
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -220,8 +226,7 @@ class AzurPilotRunController(
 
     /** 拉取并解析 /android/update/status；不可达返回 null（保留上次已知态） / Fetches and parses /android/update/status; null when unreachable (the last known state is kept). */
     private fun fetchHotUpdateState(): HotUpdateState? = parseHotUpdate(
-        // 服务端 status() 要联网查上游提交并探测 dist，1.5s 探针超时必然不够
-        // （实测真机每次 read timeout），热更状态请求单独放宽
+        // 上游检查可能等满 30s；客户端必须允许服务端返回真实网络失败状态。
         get("$BASE/update/status", HOT_UPDATE_HTTP_TIMEOUT_MS),
     )
 
@@ -244,6 +249,7 @@ class AzurPilotRunController(
                 busy = j.optBoolean("busy"),
                 phase = j.optStringOrNull("phase"),
                 error = j.optString("error"),
+                requiresRuntimeUpdate = j.optBoolean("requiresRuntimeUpdate"),
             )
         }.onFailure { Timber.d(it, "hot update status parse failed") }.getOrNull()
     }
@@ -261,24 +267,39 @@ class AzurPilotRunController(
      */
     fun applyHotUpdate() {
         scope.launch(AppDispatchers.IO) {
-            runCatching {
+            if (autoUpdateBusy.value || !tryBeginHotUpdate()) return@launch
+            try {
                 val conn = URL("$BASE/update/apply").openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("X-AzurPilot-Android-Token", controlToken)
-                conn.connectTimeout = HTTP_TIMEOUT_MS
-                conn.readTimeout = POST_READ_TIMEOUT_MS
-                if (conn.responseCode != 200) {
-                    Timber.w("hot update apply rejected: %s", conn.responseCode)
-                    return@launch
+                try {
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("X-AzurPilot-Android-Token", controlToken)
+                    conn.connectTimeout = HTTP_TIMEOUT_MS
+                    conn.readTimeout = HOT_UPDATE_HTTP_TIMEOUT_MS
+                    if (conn.responseCode != 200) {
+                        val message = conn.errorStream?.bufferedReader()?.use { it.readText() }
+                        Timber.w("hot update apply rejected: %s %s", conn.responseCode, message)
+                        _hotUpdate.update { it?.copy(error = "更新请求失败（HTTP ${conn.responseCode}）") }
+                        return@launch
+                    }
+                    conn.inputStream.use { it.readBytes() }
+                } catch (error: IOException) {
+                    // 请求可能已经受理，网络超时不能释放流水线让整包更新抢入。
+                    Timber.w(error, "hot update request outcome unknown, polling status")
+                } finally {
+                    conn.disconnect()
                 }
-                conn.inputStream.use { it.readBytes() }
-            }.onFailure { Timber.w(it, "hot update apply failed") }
-            var guard = 0
-            while (guard++ < HOT_UPDATE_POLL_LIMIT) {
-                delay(3_000)
-                val status = fetchHotUpdateState() ?: continue
-                _hotUpdate.value = status
-                if (!status.busy) break
+                val deadline = SystemClock.elapsedRealtime() + HOT_UPDATE_TIMEOUT_MS
+                while (SystemClock.elapsedRealtime() < deadline) {
+                    delay(3_000)
+                    val status = fetchHotUpdateState() ?: continue
+                    _hotUpdate.value = status
+                    if (!status.busy) break
+                }
+            } catch (error: Exception) {
+                Timber.w(error, "hot update apply failed")
+                fetchHotUpdateState()?.let { _hotUpdate.value = it }
+            } finally {
+                endHotUpdate()
             }
         }
     }
@@ -481,15 +502,14 @@ class AzurPilotRunController(
         const val HOT_UPDATE_CHECK_MS = 30 * 60_000L
 
         /**
-         * 热更状态 GET 的超时：服务端 status() 要联网查上游提交并探测 dist 资产，
-         * 不同于毫秒级的本地探针 / Timeout for the hot-update status GET: the
-         * server side queries the upstream commit and probes the dist asset
-         * over the network, unlike the millisecond-level local probes.
+         * 覆盖服务端的上游探测超时；旧运行时还会探测 dist。
+         *
+         * Covers the upstream probe timeout; legacy runtimes also probe dist availability.
          */
-        const val HOT_UPDATE_HTTP_TIMEOUT_MS = 12_000
+        const val HOT_UPDATE_HTTP_TIMEOUT_MS = 45_000
 
-        /** 手动热更后的轮询上限：600 × 3s = 30 分钟 / Poll cap after a manual apply: 600 × 3 s = 30 minutes. */
-        const val HOT_UPDATE_POLL_LIMIT = 600
+        /** 按单调时钟限制热更等待时间。 / Bounds hot-update polling using a monotonic clock. */
+        const val HOT_UPDATE_TIMEOUT_MS = 30 * 60_000L
 
         const val PREFS_NAME = "azurpilot_android"
         const val KEY_SELECTED_CONFIG = "selected_config"

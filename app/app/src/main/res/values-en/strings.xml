@@ -86,7 +86,7 @@
     <string name="settings_hot_update_disabled">Download source not ready; takes effect after the runtime restarts</string>
     <string name="settings_hot_update_unreachable">Runtime not connected or outdated; incremental update unavailable — install the full Runtime update first</string>
     <string name="settings_hot_update_phase_git">Fetching source</string>
-    <string name="settings_hot_update_phase_dist">Downloading web assets</string>
+    <string name="settings_hot_update_phase_dist">Preparing web assets</string>
     <string name="settings_hot_update_phase_manifest">Writing version info</string>
     <string name="settings_hot_update_phase_reload">Restarting runtime</string>
     <string name="settings_auto_update_hour">Auto update time</string>

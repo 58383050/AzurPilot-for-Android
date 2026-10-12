@@ -641,13 +641,19 @@ class RootfsProvisioner(
         val oldPilot = File(rootDir, "opt/azurpilot")
         val newPilot = File(tmpDir, "opt/azurpilot")
         if (!oldPilot.exists() || !newPilot.exists()) return
+        fun userEntry(file: File) = !file.name.startsWith("template") &&
+            !file.name.startsWith("deploy.") && !file.name.startsWith("android-update-")
+        // 新版配置包含 SQLite、实例目录和恢复清单，不能只迁移顶层 JSON。
+        // 临时更新状态属于旧源码，带入新镜像会留下 busy 或错误的回滚日志。
+        // 停机后的第二次同步必须删除首轮遗留的 WAL，避免已消失的旧日志污染新数据库。
+        newPilot.resolve("config").listFiles()?.filter(::userEntry)?.forEach { it.deleteRecursively() }
         oldPilot.resolve("config").listFiles()
-            ?.filter { it.isFile && it.extension == "json" &&
-                !it.name.startsWith("template") && !it.name.startsWith("deploy") }
-            ?.forEach { file -> file.copyTo(newPilot.resolve("config/${file.name}"), overwrite = true) }
-        // reloadalas 恢复清单没有扩展名——单独迁移，保证整包更新后调度器自动复活
-        oldPilot.resolve("config/reloadalas").takeIf { it.isFile }
-            ?.copyTo(newPilot.resolve("config/reloadalas"), overwrite = true)
+            ?.filter(::userEntry)
+            ?.forEach { file ->
+                file.copyRecursively(newPilot.resolve("config/${file.name}"), overwrite = true)
+            }
+        oldPilot.resolve("password.txt").takeIf { it.isFile }
+            ?.copyTo(newPilot.resolve("password.txt"), overwrite = true)
         oldPilot.resolve("log").takeIf { it.isDirectory }
             ?.copyRecursively(newPilot.resolve("log"), overwrite = true)
     }

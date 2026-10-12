@@ -86,7 +86,7 @@
     <string name="settings_hot_update_disabled">下载渠道未就绪，重启运行时后生效</string>
     <string name="settings_hot_update_unreachable">运行时未连接或版本较旧，暂无法增量更新；请先整包更新运行时</string>
     <string name="settings_hot_update_phase_git">拉取源码</string>
-    <string name="settings_hot_update_phase_dist">下载页面资源</string>
+    <string name="settings_hot_update_phase_dist">准备页面资源</string>
     <string name="settings_hot_update_phase_manifest">写入版本信息</string>
     <string name="settings_hot_update_phase_reload">重启运行时</string>
     <string name="settings_auto_update_hour">自动更新时间</string>

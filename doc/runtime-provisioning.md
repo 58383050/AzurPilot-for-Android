@@ -48,8 +48,9 @@
 3. 符号链接用 `Os.symlink`；硬链接物化为副本，前向引用登记后补拷。
 4. 路径防护：拒绝越界路径与穿过已解出符号链接的条目。
 5. 可执行位按 tar mode 还原（proot/python 依赖它）。
-6. 重部署时保留用户数据：旧 rootfs 的 `opt/azurpilot/config/*.json`
-   （非 template/deploy 开头）与 `log/` 拷入新 rootfs。
+6. 重部署时保留用户配置目录（含 SQLite、实例子目录、`reloadalas`）、`password.txt`
+   与 `log/`。模板和部署种子使用新镜像版本，旧热更状态与事务日志不迁移。
+   原子换名前再次同步，并删除首轮暂存的旧 WAL，防止数据库恢复错位。
 7. 写 marker `.provisioned` = 清单版本，随后 `rootfs.tmp` → `rootfs` 改名。
 
 ### 首启行为
@@ -111,8 +112,9 @@
 4. Path hardening: entries outside the root or traversing an extracted
    symlink are rejected.
 5. The executable bit is restored from the tar mode (proot and python need it).
-6. Re-deploys preserve user data: `opt/azurpilot/config/*.json` (excluding
-   `template*`/`deploy*`) and `log/` are copied from the old rootfs.
+6. Preserve user configuration, including SQLite, instance directories, and `reloadalas`,
+   plus `password.txt` and `log/`. Keep new templates and deployment seeds and exclude old
+   hot-update state and journals. Resync before swapping and remove stale staged WAL files.
 7. The `.provisioned` marker is written with the manifest version, then
    `rootfs.tmp` renames to `rootfs`.
 

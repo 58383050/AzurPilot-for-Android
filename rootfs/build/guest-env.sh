@@ -53,6 +53,8 @@ setup_guest() {
     for d in dev dev/pts proc sys; do bind_guest "/$d" "/$d"; done
     mkdir -p "$WORK_DIR/uv-cache"
     bind_guest "$WORK_DIR/uv-cache" /opt/uv-cache
+    mkdir -p "$WORK_DIR/npm-cache"
+    bind_guest "$WORK_DIR/npm-cache" /opt/npm-cache
     if [[ $ROOTFS_EXECUTOR == proot ]]; then
         # 只绑定构建依赖的路径；-R/-S 还会暴露宿主 HOME、tmp 等目录。
         GUEST_RUNNER=(proot --kill-on-exit -0 -r "$ROOTFS_DIR" -w / "${GUEST_BINDINGS[@]}")

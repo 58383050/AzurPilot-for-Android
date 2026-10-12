@@ -325,6 +325,7 @@ class ProotHost(
         "TMPDIR" to prootTmpDir.absolutePath,
         "HOME" to app.filesDir.absolutePath,
         "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NPM_CONFIG_CACHE" to "/opt/azurpilot-npm-cache",
         "LANG" to "C.UTF-8",
         // rootfs 未装 tzdata：用 POSIX 形式 CST-8（UTC+8 无 DST），不依赖 zoneinfo 文件；
         // 不设则全环境 UTC，AzurPilot 日志/调度时间比设备慢 8 小时
@@ -337,11 +338,12 @@ class ProotHost(
         // 局域网控制开关：android_host.py 读此位决定 gui.py 绑 0.0.0.0 还是 127.0.0.1。
         // 公网监听下上游自动生成 WebUI 访问口令；/android 薄接口的回环校验不受影响
         "AZURPILOT_ANDROID_LAN" to if (settings.lanControlEnabled.value) "1" else "0",
-        // 热更预构建前端的下载基址：ghproxy 形态镜像前缀 + Release 基址，运行时按
-        // frontend-<commit>.tar.xz 探测/下载；镜像设置变更后下次会话生效
+        // 旧运行时仍从 Release 获取前端；新运行时使用相同镜像前缀获取 Git 源码。
         "AZURPILOT_ANDROID_DIST_BASE" to
             ReleaseUrls.mirrorPrefix(settings.githubMirror.value, settings.githubMirrorCustom.value) +
             ReleaseUrls.BASE,
+        "AZURPILOT_ANDROID_GIT_MIRROR" to
+            ReleaseUrls.mirrorPrefix(settings.githubMirror.value, settings.githubMirrorCustom.value),
     )
 
     /**
@@ -503,7 +505,7 @@ class ProotHost(
     }
 
     /**
-     * 用 APK 内置资产覆盖宿主、OCR 和装备码 overlay（内容一致则跳过）。
+     * 用 APK 内置资产覆盖宿主、OCR、装备码和更新 overlay（内容一致则跳过）。
      *
      * 该文件是 app↔运行时的边界契约（拉起参数、stdin EOF 契约、绑定地址开关），
      * 以 APK 资产为准：热更只 git 重置上游源码、不更新这个 untracked 文件，
@@ -511,7 +513,7 @@ class ProotHost(
      *
      * 覆盖失败（如老包无此资产）只记日志，沿用 rootfs 既有副本。
      *
-     * Overwrites the rootfs host, OCR, and equipment overlays with APK-bundled assets
+     * Overwrites the rootfs host, OCR, equipment, and update overlays with APK-bundled assets
      * (skipped when the content already matches).
      *
      * The file is the app↔runtime boundary contract (spawn arguments, the stdin
@@ -522,7 +524,7 @@ class ProotHost(
      * asset, say) only logs and keeps the rootfs's existing copy.
      */
     private fun syncHostOverlay() {
-        listOf(HOST_OVERLAY_NAME, "sitecustomize.py", "android_ocr.py", "android_equipment.py").forEach { name ->
+        listOf(HOST_OVERLAY_NAME, "sitecustomize.py", "android_ocr.py", "android_equipment.py", "android_update.py").forEach { name ->
             runCatching {
                 val target = File(installDir, name)
                 val tmp = File(installDir, "$name.tmp")

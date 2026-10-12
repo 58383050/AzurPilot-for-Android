@@ -149,12 +149,15 @@ class EquipmentAdapterTest(unittest.TestCase):
         site = Path(__file__).parents[1] / 'overlays/sitecustomize.py'
         equipment = Mock()
         process = Mock()
-        with patch.dict(sys.modules, android_equipment=equipment, android_process_compat=process):
+        update = Mock()
+        with patch.dict(sys.modules, android_equipment=equipment, android_process_compat=process,
+                        android_update=update):
             for enabled in ('0', '1'):
                 with patch.dict('os.environ', {'AZURPILOT_ANDROID': enabled,
                                               'AZURPILOT_OCR_ADDRESS': ''}):
                     exec(compile(site.read_text(encoding='utf-8'), str(site), 'exec'), {})
                 self.assertEqual(equipment.install.call_count, int(enabled))
+                self.assertEqual(update.install.call_count, int(enabled))
 
 
 if __name__ == '__main__':

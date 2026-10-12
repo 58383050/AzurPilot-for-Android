@@ -99,9 +99,10 @@ class AppUpdateManager(
      * IO dispatcher.
      */
     fun check() {
-        if (_state.value.checking || _state.value.downloading) return
+        val current = _state.value
+        if (current.checking || current.downloading) return
+        if (!_state.compareAndSet(current, current.copy(checking = true, error = null))) return
         scope.launch(AppDispatchers.IO) {
-            _state.update { it.copy(checking = true, error = null) }
             runCatching {
                 val indexUrl = ReleaseUrls.selected(ReleaseUrls.INDEX, mirrorPrefix())
                 val body = requestText("$indexUrl?t=${System.currentTimeMillis()}")
@@ -150,10 +151,11 @@ class AppUpdateManager(
      * Package Installer showing the confirmation.
      */
     fun downloadAndInstall() {
-        val info = _state.value.available ?: return
-        if (_state.value.downloading) return
+        val current = _state.value
+        val info = current.available ?: return
+        if (current.checking || current.downloading) return
+        if (!_state.compareAndSet(current, current.copy(downloading = true, error = null))) return
         scope.launch(AppDispatchers.IO) {
-            _state.update { it.copy(downloading = true, error = null) }
             runCatching {
                 val dir = File(context.cacheDir, "updates").apply { check(mkdirs() || isDirectory) }
                 // 安装器可能在 startActivity 返回后才读取文件。按 SHA 命名并保持内容不变，

@@ -8,7 +8,7 @@ Deploy:
   Git:
     # 与构建期固定的上游来源一致。/ Matches the upstream source pinned at build time.
     Repository: https://github.com/wess09/AzurPilot.git
-    Branch: master
+    Branch: dev
     GitExecutable: /usr/bin/git
     GitProxy: null
     SSLVerify: true
@@ -36,9 +36,8 @@ Deploy:
     OcrServerPort: 22268
     OcrClientAddress: 127.0.0.1:22268
   Update:
-    # 禁用上游自更新与自动重启：运行时升级统一由 app 侧 RootfsProvisioner 负责。
-    # Upstream self-update and auto-restart stay off; runtime upgrades are owned
-    # by the app-side RootfsProvisioner.
+    # 更新由 App 的 Android 私有接口编排，避免上游定时器同时修改源码。
+    # The app orchestrates updates through Android APIs to avoid competing upstream timers.
     EnableReload: false
     CheckUpdateInterval: 0
     AutoRestartTime: null

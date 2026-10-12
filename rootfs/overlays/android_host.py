@@ -51,6 +51,9 @@ def main():
     root = os.path.dirname(os.path.abspath(__file__))
     # 上游按相对路径解析 config / frontend 等资源，必须先落到安装目录再启动。
     os.chdir(root)
+    from android_update import recover
+
+    recover(root)
     child = subprocess.Popen(
         [os.path.join(root, '.venv/bin/python'), 'gui.py', '--host', bind_host(), '--port', '25548'],
         cwd=root, stdin=subprocess.DEVNULL, start_new_session=True,
