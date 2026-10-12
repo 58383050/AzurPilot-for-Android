@@ -24,7 +24,8 @@ import java.util.concurrent.atomic.AtomicReference
  * 建屏后处理旋转：ROM 把 VD 转了非零角度时先 freezeRotation 回正；物理屏本就是横屏原生的
  * 设备（如 AYN Odin2）freezeRotation 无效，退而 setForcedDisplaySize 强报横屏尺寸。
  *
- * 线程：start/stop/restart 由 binder 线程调用；状态与配置全原子量，无锁。
+ * 线程：生命周期操作由 binder 线程调用，共用 [displayLifecycleLock] 串行执行；
+ * displayId 与配置通过原子量供桥线程读取。
  *
  * Standalone virtual display: the PUBLIC display the game actually runs on, with its surface
  * fed by the native capturer.
@@ -39,8 +40,8 @@ import java.util.concurrent.atomic.AtomicReference
  * freezeRotation does nothing, so setForcedDisplaySize is applied instead to force the
  * landscape size reporting.
  *
- * Threading: start/stop/restart run on binder threads; state and config are all atomics,
- * lock-free.
+ * Threading: lifecycle operations run on binder threads and serialize on [displayLifecycleLock].
+ * The bridge reads the display id and configuration through atomics.
  */
 object VirtualDisplayManager {
 
@@ -101,12 +102,14 @@ object VirtualDisplayManager {
      *
      * @throws IllegalArgumentException rate 非有限值或为负 / when the rate is not finite or is negative
      */
-    fun setRefreshRate(rate: Float) {
+    fun setRefreshRate(rate: Float) = synchronized(displayLifecycleLock) {
         require(rate.isFinite() && rate >= 0f)
         requestedRefreshRate.set(rate)
     }
     private val displayId = AtomicInteger(DISPLAY_NONE)
     private val virtualDisplay = AtomicReference<VirtualDisplay?>()
+    // 两种模式共用 native 采集器，空闲模式的 stop 不能释放另一模式的资源。
+    private var capturerOwned = false
 
     private val monitorSurface = AtomicReference<Surface?>()
 
@@ -115,7 +118,7 @@ object VirtualDisplayManager {
      *
      * Attaches the app-side preview surface; the old one is released on replacement.
      */
-    fun setMonitorSurface(surface: Surface?) {
+    fun setMonitorSurface(surface: Surface?) = synchronized(displayLifecycleLock) {
         val old = monitorSurface.getAndSet(surface)
         if (old != null && old != surface) {
             old.release()
@@ -132,12 +135,12 @@ object VirtualDisplayManager {
      *
      * @return displayId；失败为 [DISPLAY_NONE] / the display id, or [DISPLAY_NONE] on failure
      */
-    fun start(): Int {
-        if (!state.compareAndSet(STATE_IDLE, STATE_CAPTURING)) {
-            Ln.w("start: already capturing")
-            return displayId.get()
+    fun start(): Int = synchronized(displayLifecycleLock) {
+        if (state.get() == STATE_CAPTURING) {
+            Ln.i("VirtualDisplayManager reused, displayId=${displayId.get()}")
+            return@synchronized displayId.get()
         }
-        return startInternal()
+        startInternal()
     }
 
     /**
@@ -146,22 +149,25 @@ object VirtualDisplayManager {
      * Stops capture and releases the virtual display and the preview surface; idempotent when
      * idle.
      */
-    fun stop() {
-        if (!state.compareAndSet(STATE_CAPTURING, STATE_IDLE)) {
-            return
+    fun stop() = synchronized(displayLifecycleLock) {
+        state.set(STATE_IDLE)
+        try {
+            releaseResources()
+        } finally {
+            monitorSurface.getAndSet(null)?.release()
         }
-        releaseResources()
-        monitorSurface.getAndSet(null)?.release()
         Ln.i("VirtualDisplayManager stopped")
     }
 
     /** 采集中的重建（分辨率 / 尺寸变化后）；空闲时不动 / Rebuilds while capturing (after a resolution / size change); no-op when idle */
-    fun restart() {
+    fun restart() = synchronized(displayLifecycleLock) {
         if (state.get() != STATE_CAPTURING) {
-            return
+            return@synchronized
         }
+        state.set(STATE_IDLE)
         releaseResources()
         startInternal()
+        Unit
     }
 
     /**
@@ -171,11 +177,13 @@ object VirtualDisplayManager {
      * actually changed.
      */
     fun setResolution(width: Int, height: Int, dpi: Int = config.get().dpi) {
-        val newConfig = DisplayConfig(width, height, dpi)
-        val oldConfig = config.getAndSet(newConfig)
-        if (state.get() == STATE_CAPTURING && oldConfig != newConfig) {
-            Ln.i("Resolution changed: ${oldConfig.width}x${oldConfig.height} -> ${width}x${height}, restart")
-            restart()
+        synchronized(displayLifecycleLock) {
+            val newConfig = DisplayConfig(width, height, dpi)
+            val oldConfig = config.getAndSet(newConfig)
+            if (state.get() == STATE_CAPTURING && oldConfig != newConfig) {
+                Ln.i("Resolution changed: ${oldConfig.width}x${oldConfig.height} -> ${width}x${height}, restart")
+                restart()
+            }
         }
     }
 
@@ -190,26 +198,49 @@ object VirtualDisplayManager {
      */
     fun getConfig(): DisplayConfig = config.get()
 
-    /** 建屏 + 起采集；任何失败回滚状态并返回 [DISPLAY_NONE] / Creates the display and starts capture; any failure rolls the state back and returns [DISPLAY_NONE] */
+    /**
+     * 持生命周期锁建屏并启动采集；失败清理资源，普通异常返回 [DISPLAY_NONE]。
+     *
+     * Creates the display and starts capture under the lifecycle lock. Failures release resources;
+     * ordinary exceptions return [DISPLAY_NONE].
+     */
     private fun startInternal(): Int {
         try {
+            // 释放失败时保留的旧屏必须先清理，不能被新引用覆盖。
+            if (virtualDisplay.get() != null || capturerOwned) releaseResources()
             val cfg = config.get()
-            val surface = NativeBridgeLib.setupNativeCapturer(cfg.width, cfg.height)
+            capturerOwned = true
+            val surface = checkNotNull(NativeBridgeLib.setupNativeCapturer(cfg.width, cfg.height)) {
+                "Native capturer returned no surface"
+            }
             createVirtualDisplay(surface, cfg)
+            state.set(STATE_CAPTURING)
 
             Ln.i("VirtualDisplayManager started, displayId=${displayId.get()}")
             return displayId.get()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Ln.e("VirtualDisplayManager start failed", e)
             state.set(STATE_IDLE)
+            runCatching { releaseResources() }
+                .onFailure { Ln.e("VirtualDisplayManager start cleanup failed", it) }
+            if (e is Error) throw e
             return DISPLAY_NONE
         }
     }
 
     private fun releaseResources() {
-        virtualDisplay.getAndSet(null)?.release()
-        NativeBridgeLib.releaseNativeCapturer()
         displayId.set(DISPLAY_NONE)
+        try {
+            virtualDisplay.get()?.let { vd ->
+                vd.release()
+                virtualDisplay.set(null)
+            }
+        } finally {
+            if (capturerOwned) {
+                NativeBridgeLib.releaseNativeCapturer()
+                capturerOwned = false
+            }
+        }
     }
 
     /** 建 VD 并处理旋转怪癖（见实现处注释）；成功后记录 displayId / Creates the VD and handles rotation quirks (see the implementation notes); records the display id on success */
@@ -219,8 +250,8 @@ object VirtualDisplayManager {
         val physicalRotation = runCatching { wm.getRotation() }.getOrDefault(-1)
         Ln.i("Physical display rotation: $physicalRotation")
 
-        val vd = ServiceManager.getDisplayManager()
-            .createNewVirtualDisplay(
+        val vd = checkNotNull(
+            ServiceManager.getDisplayManager().createNewVirtualDisplay(
                 VD_NAME,
                 cfg.width,
                 cfg.height,
@@ -229,8 +260,9 @@ object VirtualDisplayManager {
                 flags,
                 requestedRefreshRate.get()
             )
+        ) { "DisplayManager returned no virtual display" }
         virtualDisplay.set(vd)
-        val vdId = vd!!.display.displayId
+        val vdId = vd.display.displayId
         displayId.set(vdId)
 
         val d = vd.display

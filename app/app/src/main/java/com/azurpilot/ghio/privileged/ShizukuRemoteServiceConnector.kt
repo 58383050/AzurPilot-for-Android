@@ -3,13 +3,12 @@ package com.azurpilot.ghio.privileged
 import android.content.ComponentName
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.os.Process
 import com.azurpilot.ghio.BuildConfig
 import com.azurpilot.ghio.domain.RemoteBackend
 import com.azurpilot.ghio.remote.RemoteServiceImpl
 import rikka.shizuku.Shizuku
 import timber.log.Timber
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Shizuku 后端的连接器：把 [RemoteServiceImpl] 托管为 Shizuku user service
@@ -36,12 +35,8 @@ object ShizukuRemoteServiceConnector : RemoteServiceConnectorBackend {
 
     override val backend: RemoteBackend = RemoteBackend.SHIZUKU
 
-    // tag 唯一标识本 app 托管的服务实例，随机生成防跨安装复用
-    private val serviceTag = UUID.randomUUID().toString()
-
-    // version 每次连接递增：Shizuku 检测到版本变化会重启旧的 user service 进程，
-    // 避免重绑时接到上一轮的陈旧实例
-    private val serviceVersion = AtomicInteger(100)
+    // App 重开后须定位同一服务；UID 隔离不同 Android 用户及重新安装后的实例。
+    private val serviceTag = "${BuildConfig.APPLICATION_ID}:${Process.myUid()}"
 
     @Volatile
     private var activeBinding: ActiveBinding? = null
@@ -93,7 +88,7 @@ object ShizukuRemoteServiceConnector : RemoteServiceConnectorBackend {
         activeBinding = binding
 
         runCatching {
-            ServiceBootLogger.event("SHIZUKU_BIND_CALL", "version=${serviceVersion.get()} tag=$serviceTag")
+            ServiceBootLogger.event("SHIZUKU_BIND_CALL", "version=${BuildConfig.VERSION_CODE} tag=$serviceTag")
             Timber.i("Binding remote service via Shizuku: %s", args)
             Shizuku.bindUserService(args, connection)
         }.onFailure { throwable ->
@@ -124,11 +119,11 @@ object ShizukuRemoteServiceConnector : RemoteServiceConnectorBackend {
 
     /**
      * 组装 user service 参数：进程名带 `service` 后缀、非守护、debuggable 与
-     * BuildConfig 对齐、version 递增触发旧进程重启
+     * BuildConfig 对齐；同版 App 重开复用存活服务，升级后由 version 变化替换旧进程。
      *
      * Assembles the user-service args: a `service` suffix on the process name,
-     * non-daemon, debuggable matching BuildConfig, and an incremented version
-     * that restarts the old service process.
+     * non-daemon and debuggable matching BuildConfig. Reopening the same app version reuses a
+     * surviving service; an app upgrade changes the version and replaces the old process.
      */
     private fun createServiceArgs(): Shizuku.UserServiceArgs {
         return Shizuku.UserServiceArgs(
@@ -137,7 +132,7 @@ object ShizukuRemoteServiceConnector : RemoteServiceConnectorBackend {
             processNameSuffix("service")
             daemon(false)
             tag(serviceTag)
-            version(serviceVersion.incrementAndGet())
+            version(BuildConfig.VERSION_CODE)
             debuggable(BuildConfig.DEBUG)
         }
     }

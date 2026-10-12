@@ -18,6 +18,7 @@ import com.azurpilot.ghio.remote.internal.ScreenManager
 import com.azurpilot.ghio.remote.internal.SdkTaskRepatriator
 import com.azurpilot.ghio.constant.PrivilegedGrant
 import com.azurpilot.ghio.remote.internal.VirtualDisplayManager
+import com.azurpilot.ghio.remote.internal.displayLifecycleLock
 import com.azurpilot.ghio.remote.internal.WakeUnlockController
 import com.azurpilot.ghio.third.FakeContext
 import com.azurpilot.ghio.third.Ln
@@ -189,22 +190,24 @@ class RemoteServiceImpl : RemoteService.Stub() {
      * standalone virtual display. The other manager is stopped first; unknown modes return
      * false.
      */
-    override fun setVirtualDisplayMode(mode: Int): Boolean = when (mode) {
-        DisplayMode.PRIMARY -> {
-            // 主屏模式下游戏与 SDK 弹页同屏，搬屏盯防没有意义，停掉
-            SdkTaskRepatriator.stop()
-            VirtualDisplayManager.stop()
-            virtualDisplayMode.set(mode)
-            true
-        }
+    override fun setVirtualDisplayMode(mode: Int): Boolean = synchronized(displayLifecycleLock) {
+        when (mode) {
+            DisplayMode.PRIMARY -> {
+                // 主屏模式下游戏与 SDK 弹页同屏，搬屏盯防没有意义，停掉
+                SdkTaskRepatriator.stop()
+                VirtualDisplayManager.stop()
+                virtualDisplayMode.set(mode)
+                true
+            }
 
-        DisplayMode.BACKGROUND -> {
-            PrimaryDisplayManager.stop()
-            virtualDisplayMode.set(mode)
-            true
-        }
+            DisplayMode.BACKGROUND -> {
+                PrimaryDisplayManager.stop()
+                virtualDisplayMode.set(mode)
+                true
+            }
 
-        else -> false
+            else -> false
+        }
     }
 
     /** 改虚拟屏分辨率，采集中的屏会重启 / Changes the virtual display resolution, restarting a live display */
@@ -223,23 +226,26 @@ class RemoteServiceImpl : RemoteService.Stub() {
      * Starts the display per the current mode; in BACKGROUND mode a successful creation also
      * starts the userActivity keep-alive.
      */
-    override fun startVirtualDisplay(): Int = when (virtualDisplayMode.get()) {
-        DisplayMode.PRIMARY -> PrimaryDisplayManager.start()
-        DisplayMode.BACKGROUND -> VirtualDisplayManager.start().also { displayId ->
-            if (displayId != DefaultDisplayConfig.DISPLAY_NONE) {
-                PowerController.startUserActivityKeepAlive(displayId)
-                // 屏建好了才可能跑自动化，SDK 弹页盯防随之启动
-                SdkTaskRepatriator.start()
-                // 目标盯防（漂移拉回 / 帧停滞踢活）随之启动，漏起则 stopWatching 悬空
-                AppWatchdog.startWatching()
+    override fun startVirtualDisplay(): Int = synchronized(displayLifecycleLock) {
+        if (destroyed.get()) return@synchronized DefaultDisplayConfig.DISPLAY_NONE
+        when (virtualDisplayMode.get()) {
+            DisplayMode.PRIMARY -> PrimaryDisplayManager.start()
+            DisplayMode.BACKGROUND -> VirtualDisplayManager.start().also { displayId ->
+                if (displayId != DefaultDisplayConfig.DISPLAY_NONE) {
+                    PowerController.startUserActivityKeepAlive(displayId)
+                    // 屏建好了才可能跑自动化，SDK 弹页盯防随之启动
+                    SdkTaskRepatriator.start()
+                    // 目标盯防（漂移拉回 / 帧停滞踢活）随之启动，漏起则 stopWatching 悬空
+                    AppWatchdog.startWatching()
+                }
             }
-        }
 
-        else -> DefaultDisplayConfig.DISPLAY_NONE
+            else -> DefaultDisplayConfig.DISPLAY_NONE
+        }
     }
 
     /** 停显示：连同看门狗、SDK 弹页盯防与 userActivity 保活一起撤 / Stops the display along with the watchdog, the SDK-popup watcher and the userActivity keep-alive */
-    override fun stopVirtualDisplay() {
+    override fun stopVirtualDisplay() = synchronized(displayLifecycleLock) {
         AppWatchdog.stopWatching()
         SdkTaskRepatriator.stop()
         when (virtualDisplayMode.get()) {

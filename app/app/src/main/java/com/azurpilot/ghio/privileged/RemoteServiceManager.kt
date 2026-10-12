@@ -275,14 +275,14 @@ object RemoteServiceManager : PrivilegedServicePort {
     /**
      * 按当前配置后端发起绑定
      *
-     * 未授权直接落 [ServiceState.Error]，不发起连接；同后端连接中直接跳过；
+     * 未授权直接落 [ServiceState.Error]，不发起连接；同后端已连接或连接中直接跳过；
      * 换后端先解绑旧的。本方法返回只代表进入 [ServiceState.Connecting]，
      * 真正的 Connected 由连接器回调带入。
      *
      * Starts binding on the currently configured backend.
      *
      * Without the grant it settles straight into [ServiceState.Error] without
-     * connecting; an in-flight binding on the same backend is skipped; a
+     * connecting; a live connection or in-flight binding on the same backend is skipped; a
      * backend switch unbinds the old one first. Returning only means the state
      * entered [ServiceState.Connecting] — actual Connected arrives through the
      * connector callbacks.
@@ -302,6 +302,12 @@ object RemoteServiceManager : PrivilegedServicePort {
 
         val attempt: Int
         synchronized(lock) {
+            if (_state.value is ServiceState.Connected && boundBackend == backend &&
+                currentBinder.get()?.isBinderAlive == true
+            ) {
+                ServiceBootLogger.event("BIND_SKIP", "already connected backend=$backend")
+                return
+            }
             if (_state.value is ServiceState.Connecting && boundBackend == backend) {
                 ServiceBootLogger.event("BIND_SKIP", "already connecting backend=$backend")
                 return

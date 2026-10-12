@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference
  * SurfaceControl createDisplay + 事务投影；两条路都死抛 AssertionError，让调用方明确失败。
  *
  * 主屏尺寸变化（旋转 / 分辨率）触发重启采集；监听回调跑在专用 [FrameCaptureHelper] 线程，
- * start/stop/restart 由 binder 线程调用，状态全靠原子量保护。
+ * start/stop/restart 由 binder 线程调用，所有生命周期操作共用 [displayLifecycleLock]。
  *
  * Primary display capture: mirrors the physical primary display ([DISPLAY_ID]) into a virtual
  * display whose surface is fed by the native capturer.
@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * A primary display size change (rotation / resolution) restarts capture. Listener callbacks
  * run on a dedicated [FrameCaptureHelper] thread; start/stop/restart are called from binder
- * threads, with state guarded entirely by atomics.
+ * threads, with all lifecycle operations serialized on [displayLifecycleLock].
  */
 object PrimaryDisplayManager {
 
@@ -44,6 +44,8 @@ object PrimaryDisplayManager {
     private val display = AtomicReference<IBinder?>()
     private val virtualDisplay = AtomicReference<VirtualDisplay?>()
     private val setup = AtomicBoolean(false)
+    // 空闲主屏模式不拥有 native 采集器，不能释放后台模式正在使用的资源。
+    private var capturerOwned = false
 
     /** 恒为物理主屏 / Always the physical default display */
     const val DISPLAY_ID = Display.DEFAULT_DISPLAY
@@ -61,9 +63,9 @@ object PrimaryDisplayManager {
 
 
     /** 只关心主屏：尺寸变了就重启采集 / Only the primary display matters: a size change restarts capture */
-    private fun onDisplayChange(displayId: Int) {
+    private fun onDisplayChange(displayId: Int) = synchronized(displayLifecycleLock) {
         if (displayId != DISPLAY_ID) {
-            return
+            return@synchronized
         }
         val info = getDisplayInfo()
         val oldInfo = displayInfo.get()
@@ -88,48 +90,76 @@ object PrimaryDisplayManager {
      * Starts primary display capture; idempotent — returns [DISPLAY_ID] immediately when
      * already capturing.
      */
-    fun start(): Int {
+    fun start(): Int = synchronized(displayLifecycleLock) {
         if (!setup.get()) {
             setup()
             setup.set(true)
         }
-        if (!state.compareAndSet(STATE_IDLE, STATE_CAPTURING)) {
+        if (state.get() == STATE_CAPTURING) {
             Ln.w("start: already capturing")
-            return DISPLAY_ID
+            return@synchronized DISPLAY_ID
         }
-        return startInternal()
+        startInternal()
     }
 
     /** 停止采集并释放镜像屏与 native capturer / Stops capture and releases the mirror display and the native capturer */
-    fun stop() {
-        if (!state.compareAndSet(STATE_CAPTURING, STATE_IDLE)) {
-            return
-        }
+    fun stop() = synchronized(displayLifecycleLock) {
+        state.set(STATE_IDLE)
         releaseResources()
     }
 
     /** 采集中的尺寸变化重建链路；空闲时不动 / Rebuilds the pipeline on a size change while capturing; no-op when idle */
-    fun restart() {
+    fun restart() = synchronized(displayLifecycleLock) {
         if (state.get() != STATE_CAPTURING) {
-            return
+            return@synchronized
         }
+        state.set(STATE_IDLE)
         releaseResources()
         startInternal()
+        Unit
     }
 
     private fun startInternal(): Int {
-        val info = displayInfo.get()
-        val width = info.size.width
-        val height = info.size.height
-        val surface = NativeBridgeLib.setupNativeCapturer(width, height)
-        createVirtualDisplay(surface, info)
-        return DISPLAY_ID
+        try {
+            if (virtualDisplay.get() != null || display.get() != null || capturerOwned) {
+                releaseResources()
+            }
+            val info = displayInfo.get()
+            val width = info.size.width
+            val height = info.size.height
+            capturerOwned = true
+            val surface = checkNotNull(NativeBridgeLib.setupNativeCapturer(width, height)) {
+                "Native capturer returned no surface"
+            }
+            createVirtualDisplay(surface, info)
+            state.set(STATE_CAPTURING)
+            return DISPLAY_ID
+        } catch (failure: Throwable) {
+            state.set(STATE_IDLE)
+            runCatching { releaseResources() }.onFailure { failure.addSuppressed(it) }
+            throw failure
+        }
     }
 
     private fun releaseResources() {
-        virtualDisplay.getAndSet(null)?.release()
-        display.getAndSet(null)?.let { SurfaceControl.destroyDisplay(it) }
-        NativeBridgeLib.releaseNativeCapturer()
+        try {
+            virtualDisplay.get()?.let { vd ->
+                vd.release()
+                virtualDisplay.set(null)
+            }
+        } finally {
+            try {
+                display.get()?.let { token ->
+                    SurfaceControl.destroyDisplay(token)
+                    display.set(null)
+                }
+            } finally {
+                if (capturerOwned) {
+                    NativeBridgeLib.releaseNativeCapturer()
+                    capturerOwned = false
+                }
+            }
+        }
     }
 
     /**
@@ -140,14 +170,15 @@ object PrimaryDisplayManager {
         val width = displayInfo.size.width
         val height = displayInfo.size.height
         try {
-            val vd = ServiceManager.getDisplayManager()
-                .createVirtualDisplay(
+            val vd = checkNotNull(
+                ServiceManager.getDisplayManager().createVirtualDisplay(
                     VD_NAME,
                     width,
                     height,
                     DISPLAY_ID,
                     surface
                 )
+            ) { "DisplayManager returned no mirror display" }
             virtualDisplay.set(vd)
             Ln.d("Display: using DisplayManager API")
         } catch (displayManagerException: Exception) {
