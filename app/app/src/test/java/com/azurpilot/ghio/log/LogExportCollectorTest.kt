@@ -7,6 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.File
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.io.path.createTempDirectory
 
 /**
@@ -48,6 +50,15 @@ class LogExportCollectorTest {
     private fun collect(): List<String> =
         LogExportCollector.collect(listOf(File(base, "log"), File(base, "debug")), now)
             .map { it.relativeTo(base).invariantSeparatorsPath }
+
+    private fun collectAzurPilot(): Set<String> =
+        LogExportCollector.collectAzurPilot(File(base, "azurpilot/log"), now)
+            .map { it.relativeTo(File(base, "azurpilot/log")).invariantSeparatorsPath }
+            .toSet()
+
+    private fun date(ageDays: Long): String =
+        Instant.ofEpochMilli(now).atZone(ZoneId.systemDefault()).toLocalDate()
+            .minusDays(ageDays).toString()
 
     /**
      * 这几份自己就有大小或份数上限，不必再按时间筛
@@ -111,5 +122,110 @@ class LogExportCollectorTest {
 
         // debug/ 压根没建过：没开过特权进程的设备就是这样
         assertEquals(listOf("log/app.log"), collect())
+    }
+
+    @Test
+    fun `AzurPilot collects nested logs and non txt diagnostics`() {
+        val paths = setOf(
+            "${date(1)}_alas.txt",
+            "runtime.log",
+            "instances/alas/worker.log",
+            "llm/analysis.json",
+            "bak/${date(2)}_gui.zip",
+            "bak/${date(3)}_alas.txt",
+        )
+        paths.forEach { write("azurpilot/log/$it") }
+
+        assertEquals(paths, collectAzurPilot())
+    }
+
+    @Test
+    fun `AzurPilot includes complete scenes for every instance and legacy layout`() {
+        val timestamp = now - day
+        val paths = setOf(
+            "error/alas/$timestamp/log.txt",
+            "error/alas/$timestamp/${date(100)}_screenshot.png",
+            "error/alas/$timestamp/diagnostics/device.json",
+            "error/another_instance/$timestamp/log.txt",
+            "error/42/$timestamp/log.txt",
+            "error/$timestamp/log.txt",
+            "error/$timestamp/screenshot.png",
+        )
+        paths.forEach { write("azurpilot/log/$it", ageDays = 100) }
+
+        assertEquals(paths, collectAzurPilot())
+    }
+
+    @Test
+    fun `AzurPilot filters expired scenes as a whole and includes the cutoff`() {
+        val expired = now - 8 * day
+        val cutoff = now - 7 * day
+        write("azurpilot/log/error/alas/$expired/log.txt")
+        write("azurpilot/log/error/alas/$expired/${date(0)}_screenshot.png")
+        write("azurpilot/log/error/$expired/log.txt")
+        write("azurpilot/log/error/alas/bak/$expired/log.txt")
+        write("azurpilot/log/error/alas/$cutoff/log.txt", ageDays = 100)
+        write("azurpilot/log/error/$cutoff/screenshot.png", ageDays = 100)
+
+        assertEquals(
+            setOf("error/alas/$cutoff/log.txt", "error/$cutoff/screenshot.png"),
+            collectAzurPilot(),
+        )
+    }
+
+    @Test
+    fun `AzurPilot preserves scenes with unrecognized names`() {
+        val paths = setOf(
+            "error/alas/latest/log.txt",
+            "error/imported/screenshot.png",
+            "error/alas/999999999999999999999999/log.txt",
+        )
+        paths.forEach { write("azurpilot/log/$it", ageDays = 100) }
+
+        assertEquals(paths, collectAzurPilot())
+    }
+
+    @Test
+    fun `AzurPilot dates logs with the supplied clock and keeps the cutoff day`() {
+        write("azurpilot/log/${date(7)}_alas.txt", ageDays = 100)
+        write("azurpilot/log/${date(8)}_alas.txt")
+        write("azurpilot/log/bak/${date(8)}_gui.zip")
+        write("azurpilot/log/nested/${date(8)}_worker.log")
+
+        assertEquals(setOf("${date(7)}_alas.txt"), collectAzurPilot())
+    }
+
+    @Test
+    fun `AzurPilot retains archives whose date range overlaps the window`() {
+        val recent = "bak/${date(30)}~${date(1)}_alas.tar.bz2"
+        val old = "bak/${date(30)}~${date(8)}_alas.tar.xz"
+        val errorBackup = "error/alas/bak/${date(30)}~${date(1)}_alas.zip"
+        write("azurpilot/log/$recent")
+        write("azurpilot/log/$old")
+        write("azurpilot/log/$errorBackup")
+
+        assertEquals(setOf(recent, errorBackup), collectAzurPilot())
+    }
+
+    @Test
+    fun `AzurPilot preserves logs with invalid or unknown date names`() {
+        val paths = setOf("latest.txt", "2026-99-99_alas.txt", "bak/archive.tar.gz")
+        paths.forEach { write("azurpilot/log/$it", ageDays = 100) }
+
+        assertEquals(paths, collectAzurPilot())
+    }
+
+    @Test
+    fun `AzurPilot excludes previous exports without excluding an instance named export`() {
+        write("azurpilot/log/export/azurpilot_logs_old.zip")
+        val scene = "error/export/$now/log.txt"
+        write("azurpilot/log/$scene")
+
+        assertEquals(setOf(scene), collectAzurPilot())
+    }
+
+    @Test
+    fun `a missing AzurPilot log root is not an error`() {
+        assertTrue(collectAzurPilot().isEmpty())
     }
 }

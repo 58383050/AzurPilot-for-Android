@@ -1,7 +1,9 @@
 package com.azurpilot.ghio.log
 
 import java.io.File
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
@@ -62,35 +64,69 @@ object LogExportCollector {
     }
 
     /**
-     * AzurPilot 日志目录（`rootfs/opt/azurpilot/log`）的近 7 天收集，对应「导出AzurPilot日志」
+     * 在调用方线程递归收集 AzurPilot 日志，保留近 [ROLLING_KEEP_DAYS] 天的已知日期条目。
      *
-     * 判定基准与 `LogCleaner` 一致：txt 按文件名 `yyyy-MM-dd` 前缀（对不上前缀的保留——
-     * 导出多带一份无伤，漏掉现场才误事）；error/<毫秒时间戳>/ 按时间戳，留着的整目录全收
+     * 包含所有文件类型和子目录，排除根目录下的旧导出包。按天日志以文件名日期筛选，
+     * 日期范围备份以结束日期筛选；错误现场兼容 `error/<实例>/<时间戳>/` 和旧的
+     * `error/<时间戳>/`，入选现场内的文件不再单独筛选。无法识别的日期保留。
      *
-     * Collects the last 7 days from the AzurPilot log directory (`rootfs/opt/azurpilot/log`),
-     * backing the "export AzurPilot logs" action.
+     * Recursively collects AzurPilot logs on the caller's thread, keeping known dated entries
+     * from the last [ROLLING_KEEP_DAYS] days.
      *
-     * The criteria mirror `LogCleaner`: txts are dated by the `yyyy-MM-dd` file-name
-     * prefix (files without a parsable prefix are kept — carrying one extra file in an
-     * export is harmless, losing a scene is not); `error/<millis timestamp>/` directories
-     * are dated by their timestamp, and surviving ones are collected whole.
+     * Includes all file types and subdirectories except previous exports at the log root.
+     * Daily logs use their filename date; date-range backups use the end date. Error scenes
+     * support both `error/<instance>/<timestamp>/` and legacy `error/<timestamp>/` layouts,
+     * and selected scenes include every file without further filtering. Unknown dates are kept.
+     *
+     * @param now 筛选基准的毫秒时间戳；按天日期使用系统时区。 /
+     *   Baseline timestamp in milliseconds; calendar dates use the system time zone.
      */
     fun collectAzurPilot(logDir: File, now: Long): List<File> {
+        if (!logDir.isDirectory) return emptyList()
         val cutoffMillis = now - ROLLING_KEEP_DAYS * MS_PER_DAY
-        val cutoffDay = LocalDate.now().minusDays(ROLLING_KEEP_DAYS)
-        val dated = logDir.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".txt") }
-            ?.filter { file ->
-                val date = datePrefixOf(file.name) ?: return@filter true
+        val cutoffDay = Instant.ofEpochMilli(now).atZone(ZoneId.systemDefault()).toLocalDate()
+            .minusDays(ROLLING_KEEP_DAYS)
+        val exportDir = File(logDir, EXPORT_DIR_NAME)
+        return logDir.walkTopDown()
+            .onEnter { it != exportDir }
+            .filter { it.isFile }
+            .filter { file ->
+                val timestamp = errorSceneTimestampOf(file.relativeTo(logDir))
+                if (timestamp != null) return@filter timestamp >= cutoffMillis
+                val date = latestDateOf(file.name) ?: return@filter true
                 !date.isBefore(cutoffDay)
             }
-            .orEmpty()
-        val errors = File(logDir, "error").listFiles()
-            ?.filter { it.isDirectory && it.name.all(Char::isDigit) }
-            ?.filter { (it.name.toLongOrNull() ?: 0L) >= cutoffMillis }
-            ?.flatMap { dir -> dir.walkTopDown().filter { it.isFile }.toList() }
-            .orEmpty()
-        return dated + errors
+            .toList()
+    }
+
+    /**
+     * 解析错误现场的路径时间戳，包括 `bak/` 中的拷贝备份；未知路径返回 null。
+     *
+     * Parses the timestamp in an error-scene path, including copied backups under `bak/`;
+     * returns null for unknown paths.
+     */
+    private fun errorSceneTimestampOf(relativeFile: File): Long? {
+        val directories = relativeFile.parentFile?.invariantSeparatorsPath?.split('/')
+            ?: return null
+        if (directories.first() != "error") return null
+        val sceneIndex = if (directories.getOrNull(2) == "bak") 3 else 2
+        return directories.getOrNull(sceneIndex)?.toLongOrNull()
+            ?: directories.getOrNull(1)?.toLongOrNull()
+    }
+
+    /**
+     * 解析文件名的日期或日期范围结束日期；未知日期返回 null。
+     *
+     * Parses a filename date or the end date of a date range; returns null for unknown dates.
+     */
+    private fun latestDateOf(name: String): LocalDate? {
+        val start = datePrefixOf(name) ?: return null
+        // 备份可能合并多天日志，按开始日期筛选会漏掉仍在时间窗内的记录。
+        if (name.getOrNull(DATE_PREFIX_LENGTH) == '~') {
+            val end = datePrefixOf(name.substring(DATE_PREFIX_LENGTH + 1)) ?: return null
+            return maxOf(start, end)
+        }
+        return start
     }
 
     /** 解析文件名的 `yyyy-MM-dd` 日期前缀；对不上返回 null / Parses the `yyyy-MM-dd` date prefix of a file name; returns null when it does not match. */
