@@ -62,8 +62,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         splash.setKeepOnScreenCondition { !appSettings.loaded.value }
-        // 退出阶段：31+ 图标位 AVD 已随启动画面自动播放，直接放行；
-        // 旧系统 compat 不会播 AVD，由 SplashExitAnimator 在此补播探头动画
+        // 图标未挂载或尺寸无效时直接放行，避免退出动画把启动画面留在 Compose 内容上方。
         splash.setOnExitAnimationListener(SplashExitAnimator::run)
         super.onCreate(savedInstanceState)
         handleShortcutIntent(intent)

@@ -13,6 +13,7 @@ import android.widget.ImageView
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreenViewProvider
 import com.azurpilot.ghio.R
+import timber.log.Timber
 
 /**
  * 启动画面退出阶段探头弹入动画调度器
@@ -50,17 +51,26 @@ object SplashExitAnimator {
     private const val OVERSHOOT_TENSION = 1.35f
 
     /**
-     * 运行启动画面退出过渡动画
+     * 在主线程运行退出动画；图标未挂载或尺寸无效时立即移除启动画面。
      *
-     * @param provider 由 androidx.core.splashscreen 注入的启动画面视图提供者
+     * Runs the exit animation on the main thread, removing the splash immediately if its icon is
+     * detached or has invalid dimensions.
+     *
+     * @param provider 启动画面视图提供者。 / The splash screen view provider.
      */
     fun run(provider: SplashScreenViewProvider) {
         val splash = provider.view
         val icon = provider.iconView
 
-        // 尚未布局完成时抛入队列延迟执行，避免尺寸为 0 导致跳过
-        if (icon.width == 0 || icon.height == 0) {
-            icon.post { run(provider) }
+        // Android 12+ 缺失图标时 AndroidX 会返回未挂载的占位 View，向它 post 无法完成退出。
+        if (!icon.isAttachedToWindow || icon.width <= 0 || icon.height <= 0) {
+            Timber.w(
+                "Skipping splash exit animation: icon attached=%s size=%dx%d",
+                icon.isAttachedToWindow,
+                icon.width,
+                icon.height,
+            )
+            provider.remove()
             return
         }
 
