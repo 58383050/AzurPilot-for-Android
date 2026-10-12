@@ -13,7 +13,7 @@ GitHub Actions 负责构建、签名和校验，CNB Releases 提供国内下载�
 
 在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 配置 `CNB_TOKEN`。
 仓库已有源码同步用的同名 Secret，可以复用，但令牌必须有目标 CNB 仓库的
-`repo-release:rw` 权限。源码同步还需要原有的 `repo-contents:rw` 权限，更新令牌时保留它。
+`repo-release:rw` 权限。源码同步还需要界面中 `repo-code` 的“读写”权限，更新令牌时保留它。
 令牌所属账号也必须有该仓库的 Release 写权限。
 
 参考 CNB 官方[访问令牌说明](https://docs.cnb.cool/en/guide/access-token.html)、
@@ -95,8 +95,8 @@ The CNB index changes only their download URLs.
 Configure `CNB_TOKEN` under the GitHub repository's
 **Settings → Secrets and variables → Actions**.
 The existing source-mirroring Secret can be reused, provided its token has `repo-release:rw`
-for the target CNB repository. Keep the existing `repo-contents:rw` permission needed for
-source mirroring when updating the token. Its account must also have Release write access.
+for the target CNB repository. Keep Read/Write access for `repo-code`, needed for Git source
+mirroring, when updating the token. Its account must also have Release write access.
 
 See CNB's official [access-token guide](https://docs.cnb.cool/en/guide/access-token.html),
 [repository role permissions](https://docs.cnb.cool/en/guide/role-permissions.html), and
