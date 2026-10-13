@@ -36,6 +36,7 @@ class FakeApi:
         self.old_releases = []
         self.old_tags = []
         self.confirmation_repo = cnb.CNB_REPOSITORY
+        self.null_empty_assets = False
 
     def open(self, request, timeout):
         method, url = request.get_method(), request.full_url
@@ -54,7 +55,8 @@ class FakeApi:
         if method == "GET" and "/tags/" in url:
             if self.existing is None:
                 raise HTTPError(url, 404, "missing", {}, None)
-            result = {**self.existing, "assets": self.assets()}
+            result = {**self.existing, "assets": self.assets() or
+                      (None if self.null_empty_assets else [])}
         elif method == "GET" and "?page=" in url:
             query = parse_qs(urlsplit(url).query)
             page, size = int(query["page"][0]), int(query["page_size"][0])
@@ -322,6 +324,22 @@ class CnbReleaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "fixed latest tag"):
             cnb.prepare(self.source, self.output, self.repo, self.tag,
                         cnb.CNB_REPOSITORY, "github-android-123-1")
+
+    def test_cnb_null_assets_on_empty_public_release_are_supported(self):
+        mirror = self.prepare()
+        api = FakeApi()
+        api.null_empty_assets = True
+        api.existing = {"id": "release-1", "tag_name": self.tag, "draft": False}
+        cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(
+            self.output, mirror, self.tag)
+        self.assertEqual(api.confirmed, {path.name for path in self.output.iterdir()})
+
+    def test_cnb_null_optional_hashes_do_not_crash_verification(self):
+        self.prepare()
+        release = {"assets": [{"name": path.name, "size": path.stat().st_size,
+                               "hash_algo": None, "hash_value": None}
+                              for path in self.output.iterdir()]}
+        cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, FakeApi()).verify(release, self.output)
 
     def test_release_tag_sync_uploads_commit_without_credentials_in_arguments(self):
         with patch.object(cnb.subprocess, "run") as run:

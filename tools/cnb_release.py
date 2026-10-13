@@ -275,14 +275,14 @@ class CnbClient:
 
         Checks server-side asset sizes and available hashes, rejecting missing or incomplete releases.
         """
-        assets = {asset["name"]: asset for asset in release.get("assets", [])}
+        assets = {asset["name"]: asset for asset in (release.get("assets") or [])}
         for path in output.iterdir():
             if not include_index and path.name == "latest.json":
                 continue
             asset = assets.get(path.name)
             if not asset or asset.get("size") != path.stat().st_size:
                 raise ValueError(f"CNB asset missing or incomplete: {path.name}")
-            algorithm = asset.get("hash_algo", "").strip().lower().replace("-", "")
+            algorithm = (asset.get("hash_algo") or "").strip().lower().replace("-", "")
             if algorithm and asset.get("hash_value"):
                 if algorithm not in {"sha256", "sha512", "sha1", "md5"}:
                     raise ValueError(f"Unsupported CNB checksum algorithm: {algorithm}")
@@ -325,7 +325,7 @@ class CnbClient:
                 self.request("DELETE", f"{self.tags_base}/{quote(item['name'], safe='')}", missing_ok=True)
                 print(f"Removed obsolete CNB tag: {item['name']}")
         apk_pattern = re.compile(r"AzurPilot-Android-(\d+\.\d+\.\d+)-.+\.apk")
-        assets = release.get("assets", [])
+        assets = release.get("assets") or []
         versions = {match[1] for asset in assets
                     if (match := apk_pattern.fullmatch(asset["name"]))}
         retained_versions = set(sorted(versions, key=lambda value: tuple(map(int, value.split('.'))),
@@ -363,15 +363,15 @@ class CnbClient:
                 **metadata, "draft": True, "make_latest": "false",
             })
         release_id = release["id"]
-        existing = {asset["name"]: asset for asset in release.get("assets", [])}
+        existing = {asset["name"]: asset for asset in (release.get("assets") or [])}
         for path in sorted(output.iterdir(), key=lambda item: (item.name == "latest.json", item.name)):
             if path.name == "latest.json":
                 self.verify(self.request("GET", f"{self.base}/{quote(release_id, safe='')}"),
                             output, include_index=False)
             asset = existing.get(path.name)
             if (asset and asset.get("size") == path.stat().st_size
-                    and asset.get("hash_algo", "").lower().replace("-", "") == "sha256"
-                    and asset.get("hash_value", "").lower() == digest(path)):
+                    and (asset.get("hash_algo") or "").lower().replace("-", "") == "sha256"
+                    and (asset.get("hash_value") or "").lower() == digest(path)):
                 continue
             print(f"Upload {path.name} ({path.stat().st_size} bytes)", flush=True)
             self.upload(release_id, path)
