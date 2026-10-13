@@ -9,8 +9,12 @@
 通知不可用时可用分屏手动填写配对端口和配对码。Android 9–10 需要先通过电脑执行
 `adb tcpip 5555`。
 
-已有外部 Shizuku 授权的用户，可从「设置 → 运行与安全 → 内置 Shizuku 启动」进入
+已有外部 Shizuku 授权的用户，可从「设置 → 运行与安全 → 内置 Shizuku」进入
 配对或重连页面。
+
+启动页跟随应用的 Material 或 Miuix 外观及明暗模式。已激活时优先显示状态和
+「返回应用」，设备配对与指定端口连接默认收起。需要分屏配对时，展开「设备配对 →
+手动输入配对码」；启动成功后表单自动收起，配对码不保存。
 
 首次启动仍需用户开启无线调试、完成系统配对，并在出现 USB 调试确认时选择始终允许。
 激活使用 adbd 的 `tcpip:5555` 服务固定端口，并以同一 RSA 身份完成回环认证。
@@ -61,7 +65,8 @@ uv run app/scripts/check_i18n_strings.py
 
 2026-10-13 在 Redmi Note 10 Pro（M2104K10AC，Android 11/API 30）验证通过：
 两项密钥/TLS/原生配对测试、真实系统配对码交换、虚拟屏创建、服务销毁和死亡后的重连。
-启动页的标题、就绪状态及启动按钮已通过系统界面树验证。
+启动页的 Material/Miuix 明暗四种组合、就绪状态、表单展开及空表单禁用提交已通过
+系统界面树验证，并导出真机截图供视觉检查。
 在飞行模式开启、Wi-Fi 与无线调试关闭时，同一端到端用例通过；结束后恢复网络设置。
 手机整机重启后的重新激活仍需要人工验收。
 
@@ -76,7 +81,12 @@ split-screen port/code entry is available when notifications cannot be used. And
 first require `adb tcpip 5555` from a computer.
 
 Users with an existing external Shizuku grant can open pairing or reconnection from
-Settings → Runtime & security → Embedded Shizuku activation.
+Settings → Runtime & security → Embedded Shizuku.
+
+The activation page follows the app's Material or Miuix appearance and color mode. Once ready,
+it prioritizes status and Return to app, with pairing and port entry collapsed. For split-screen
+pairing, expand Device pairing → Enter pairing code manually. Successful activation collapses
+the forms; pairing codes are not saved.
 
 First activation still requires enabling wireless debugging, system pairing, and selecting
 always allow if the system USB debugging confirmation appears. Activation uses adbd's
@@ -130,6 +140,6 @@ Verified on 2026-10-13 with a Redmi Note 10 Pro (M2104K10AC, Android 11/API 30):
 key/TLS/native-pairing tests, live system pairing-code exchange, virtual-display creation,
 and reconnect after service destruction and death. The same end-to-end case passed with
 airplane mode on and both Wi-Fi and wireless debugging off. Network settings were restored
-afterward. The activation title, ready status, and activation button also passed platform
-accessibility-tree verification. Reactivation after a full phone reboot still requires manual
-acceptance.
+afterward. Platform accessibility-tree checks cover both light and dark Material/Miuix appearances,
+ready status, form disclosure, and disabled empty submissions, with device screenshots for visual
+review. Reactivation after a full phone reboot still requires manual acceptance.
