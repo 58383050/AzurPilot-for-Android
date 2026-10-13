@@ -29,6 +29,7 @@ navigationEvent = "1.1.2"
 collectionsImmutable = "0.5.1"
 miuix = "0.9.4"
 glance = "1.1.1"
+lottie = "6.7.1"
 
 koin = "4.2.1"
 
@@ -55,6 +56,7 @@ mockk = "1.14.11"
 coroutinesTest = "1.10.2"
 
 [libraries]
+lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 androidx-test-runner = { module = "androidx.test:runner", version = "1.7.0" }
 adb-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version = "1.86" }
 adb-boringssl = { module = "io.github.vvb2060.ndk:boringssl", version = "20250114" }

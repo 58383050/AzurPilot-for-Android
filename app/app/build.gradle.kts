@@ -321,6 +321,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.core)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.lottie.compose)
     implementation(project(":navigation-runtime")) {
         exclude(group = "top.yukonga.miuix.kmp", module = "miuix-shader")
     }

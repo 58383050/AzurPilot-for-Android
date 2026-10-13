@@ -59,9 +59,10 @@
   任一不符抛错进 `Failed`。
 - **进度口径**：`Downloading` 与 `Extracting` 都按压缩字节计，total 取清单 `size`。
   分段进度聚合所有线程实际写入的字节，约每 200 ms 在调用线程报告一次。
-- **步骤图标**：部署页下载时显示箭头落入托盘，解压时显示文件从归档中展开，检查时显示
-  扫描盾牌。APK 下载、校验和热更共用这套图标；阶段切换淡入淡出，进入后台或关闭系统
-  动画时显示静态图标，进度数字保持真实值。
+- **步骤图标**：使用 useAnimations 的下载、开盖归档、文件检查和刷新资源，通过 Lottie
+  Compose 播放。APK 下载、校验和热更共用这套图标；阶段切换淡入淡出，进入后台时暂停，
+  关闭系统动画时显示首帧，进度数字保持真实值。资源来源及许可见
+  [动态图标资源](transfer-icons.md)。
 
 下载器的本地 HTTP 回归测试独立运行，不依赖 Android 测试桩：
 `cd app && ./gradlew :download-core:test`。
@@ -158,10 +159,11 @@ preserving version, size, and SHA-256 verification.
   bytes; the total comes from the manifest's `size`.
   Segmented progress sums bytes actually written by every worker and reports on the calling thread
   approximately every 200 ms.
-- **Stage icons**: provisioning shows an arrow entering a tray for downloads, a file emerging from
-  an archive for extraction, and a scanning shield for checks. APK downloads, verification, and hot
-  updates share these icons. Stage changes crossfade; background pages or disabled system animations
-  display static icons. Progress numbers continue to show actual values.
+- **Stage icons**: bundled useAnimations download, opening archive, file-text, and refresh assets
+  play through Lottie Compose. APK downloads, verification, and hot updates share the same icons.
+  Stage changes crossfade; background pages pause playback, and disabled system animations show
+  the first frame. Progress numbers retain actual values. See [animated icon assets](transfer-icons.md)
+  for provenance and licensing.
 
 The downloader's local HTTP regression tests run independently of Android test stubs:
 `cd app && ./gradlew :download-core:test`.
