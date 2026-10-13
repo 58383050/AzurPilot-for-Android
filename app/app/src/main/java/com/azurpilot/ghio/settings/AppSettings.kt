@@ -124,11 +124,13 @@ data class AppSettings(
     @PrefKey(default = "true") val autoCleanLogs: String = "true",
 
     /**
-     * Release 下载源：direct / 内置镜像前缀（见 [com.azurpilot.ghio.update.ReleaseUrls.MIRRORS]）/ custom /
-     * Release download source: direct / a built-in mirror prefix (see
+     * Release 下载源：cnb / direct / 内置镜像前缀 / custom；新安装默认使用 CNB 国内源。
+     *
+     * Release download source: cnb / direct / a built-in mirror prefix (see
      * [com.azurpilot.ghio.update.ReleaseUrls.MIRRORS]) / custom.
+     * New installations default to CNB; existing saved choices are retained.
      */
-    @PrefKey(default = "direct") val githubMirror: String = "direct",
+    @PrefKey(default = "cnb") val githubMirror: String = "cnb",
 
     /**
      * 自定义镜像前缀（ghproxy 形态：前缀 + 完整 GitHub URL）；仅 githubMirror=custom 时生效 / The custom mirror prefix

@@ -354,8 +354,7 @@ class ProotHost(
         "PYTHONPATH" to GUEST_INSTALL_ROOT,
         // 旧运行时仍从 Release 获取前端；新运行时使用相同镜像前缀获取 Git 源码。
         "AZURPILOT_ANDROID_DIST_BASE" to
-            ReleaseUrls.mirrorPrefix(settings.githubMirror.value, settings.githubMirrorCustom.value) +
-            ReleaseUrls.BASE,
+            ReleaseUrls.distributionBase(settings.githubMirror.value, settings.githubMirrorCustom.value),
         "AZURPILOT_ANDROID_GIT_MIRROR" to
             ReleaseUrls.mirrorPrefix(settings.githubMirror.value, settings.githubMirrorCustom.value),
     )

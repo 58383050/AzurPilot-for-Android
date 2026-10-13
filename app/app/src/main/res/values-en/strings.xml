@@ -288,17 +288,18 @@
     <!-- Push failure reasons, produced by each channel and shown in the test feedback -->
     <!-- First-launch rootfs provisioning -->
     <string name="provision_title">Setting up Runtime</string>
-    <string name="provision_subtitle">The first launch installs about 1 GB of Runtime: the full APK unpacks it locally, the incremental APK downloads it from GitHub. It happens only once</string>
+    <string name="provision_subtitle">The first launch installs about 1 GB of Runtime: the full APK unpacks it locally, the slim APK uses your selected download source. It happens only once</string>
     <string name="provision_checking">Checking Runtime…</string>
     <string name="provision_extracting">Extracting %1$d%% (%2$d / %3$d MB)</string>
-    <string name="provision_downloading">Downloading Runtime from GitHub %1$d%%…</string>
+    <string name="provision_downloading">Downloading Runtime %1$d%%…</string>
     <string name="provision_low_disk">Not enough storage: only %1$d MB left, at least 2 GB required</string>
-    <string name="provision_not_bundled">The GitHub release has no Runtime available. Check your connection and retry, or use the full APK that matches your device architecture</string>
+    <string name="provision_not_bundled">No Runtime is available from this source. Try another source or use the full APK that matches your device architecture</string>
     <string name="provision_failed">Setup failed: %1$s</string>
     <string name="provision_retry">Retry</string>
     <string name="provision_skip">Skip (debug only)</string>
     <string name="provision_source">Download source</string>
     <string name="provision_source_direct">Direct GitHub</string>
+    <string name="provision_source_cnb">CNB China (recommended)</string>
     <string name="provision_source_custom">Custom</string>
     <string name="provision_source_desc">Pick a built-in mirror or set a custom prefix in Settings; switching restarts the download right away</string>
     <string name="app_update_title">AzurPilot Android update</string>
@@ -321,7 +322,7 @@
     <string name="runtime_update_now">Update now</string>
     <string name="settings_runtime_managed">The app checks GitHub Latest on launch and asks before downloading or updating Runtime. A manual check shows the available version; restart the app to choose an update.</string>
     <string name="settings_github_mirror">Download source</string>
-    <string name="settings_github_mirror_desc">Used for Runtime and App update checks and downloads with automatic multi-threaded segmented download. Files are still verified against the release manifest (size and SHA-256).</string>
+    <string name="settings_github_mirror_desc">Used for App, Runtime, and frontend updates. CNB provides direct downloads in China. File size and SHA-256 are verified.</string>
     <string name="settings_mirror_custom_save">Save</string>
     <string name="settings_mirror_custom_hint">Custom mirror prefix, e.g. https://your-proxy.example.com/</string>
     <string name="settings_runtime_check">Check Runtime update</string>

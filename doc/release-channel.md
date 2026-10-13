@@ -43,7 +43,12 @@ App 更新弹窗显示下载百分比、已下载大小和清单中的总大小�
 不定进度条；缓存安装包也重新校验。下载失败后可重试，进度从零重新开始。
 下载和校验期间，返回键或点击弹窗外侧不会隐藏进度。
 
-### 镜像源
+### 国内源与镜像源
+
+GitHub 与 CNB 均维护固定标签 `azurpilot-android-latest`。`ReleaseUrls.CNB_BASE` 指向
+CNB 国内下载，设置值为 `cnb`，新安装默认使用该源；已有保存的源选择不变。
+App、双架构 Runtime 和前端归档共用下载源，大小与 SHA-256 与 GitHub 发布一致。
+清单中的 GitHub/CNB 附件地址按当前选择转换，换源不要求重新检查版本。
 
 `update/ReleaseUrls.kt`：`BASE` 为固定 Release 地址，镜像为 ghproxy 形态
 （`前缀 + 完整 GitHub URL`）。内置五个：
@@ -58,7 +63,7 @@ App 更新弹窗显示下载百分比、已下载大小和清单中的总大小�
 
 用户可在设置中选择内置镜像或填自定义前缀（同样要求 ghproxy 形态，
 `ReleaseUrls.normalizeCustom` 做规范化，非法输入回落直连）。
-设置存储：`github_mirror`（`direct` / 镜像前缀 / `custom`）与
+设置存储：`github_mirror`（`cnb` / `direct` / 镜像前缀 / `custom`）与
 `github_mirror_custom`；旧版布尔开关 `use_github_mirror=true` 自动迁移为 ghproxy.net。
 
 ### 签名
@@ -110,7 +115,12 @@ After download it switches to a verification message and an indeterminate progre
 APKs are also reverified. Retrying a failed download starts progress from zero. Back presses and
 outside taps do not hide the dialog during download or verification.
 
-### Mirrors
+### Domestic source and mirrors
+
+GitHub and CNB both maintain `azurpilot-android-latest`. `ReleaseUrls.CNB_BASE` points to CNB
+downloads, with the `cnb` settings value used by default for new installs. Saved choices remain.
+App, both Runtime architectures, and frontend archives share this source; sizes and SHA-256
+match GitHub. GitHub/CNB asset URLs are routed through the current choice without another check.
 
 `update/ReleaseUrls.kt`: `BASE` is the fixed release address; mirrors use the
 ghproxy form (`prefix + full GitHub URL`). Five are built in:
@@ -125,7 +135,7 @@ ghproxy form (`prefix + full GitHub URL`). Five are built in:
 
 Users pick a built-in mirror or enter a custom prefix in Settings (same
 ghproxy form; `ReleaseUrls.normalizeCustom` sanitizes it, and invalid input
-falls back to direct). Storage: `github_mirror` (`direct` / a mirror prefix /
+falls back to direct). Storage: `github_mirror` (`cnb` / `direct` / a mirror prefix /
 `custom`) plus `github_mirror_custom`; the legacy boolean
 `use_github_mirror=true` migrates to ghproxy.net automatically.
 

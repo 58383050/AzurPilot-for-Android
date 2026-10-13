@@ -250,7 +250,7 @@ class RuntimeAutoUpdater(
 
             // 1. 下载 rootfs 归档
             while (true) {
-                val prefix = provisioner.mirrorPrefix()
+                val prefix = provisioner.downloadSource()
                 try {
                     provisioner.downloadArchive(runtime, prefix, archive) { done, total ->
                         _state.value = AutoUpdateState.Downloading(done, total)

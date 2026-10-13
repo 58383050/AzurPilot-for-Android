@@ -4,6 +4,7 @@ Mirrors verified GitHub release artifacts to CNB without rebuilding or re-signin
 """
 
 import argparse
+import base64
 import copy
 import hashlib
 import json
@@ -22,6 +23,7 @@ ABIS = ("arm64-v8a", "x86_64")
 CNB_REPOSITORY = "azurpilot/AzurPilot-for-Android"
 API_ENDPOINT = "https://api.cnb.cool"
 WEB_ENDPOINT = "https://cnb.cool"
+RELEASE_TAG = "azurpilot-android-latest"
 SHA = re.compile(r"[0-9a-f]{40}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 FRONTEND = re.compile(r"frontend-[0-9a-f]{40}\.tar\.xz")
@@ -108,8 +110,8 @@ def prepare(source: Path, output: Path, github_repo: str, github_tag: str,
     """
     if not re.fullmatch(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+", cnb_repo):
         raise ValueError("Invalid CNB repository")
-    if not re.fullmatch(r"github-android-\d+-\d+", tag):
-        raise ValueError("Invalid GitHub build release tag")
+    if tag != RELEASE_TAG:
+        raise ValueError("CNB publication must use the fixed latest tag")
     manifest = json.loads((source / "latest.json").read_text(encoding="utf-8"))
     validate_source_urls(manifest, github_repo, github_tag)
     if expected_host and manifest["androidHostCommit"] != expected_host:
@@ -187,7 +189,9 @@ class CnbClient:
         if not token.strip():
             raise ValueError("Missing CNB_TOKEN; configure a token with repo-release:rw")
         self.token = token.strip()
+        self.repo_base = f"{API_ENDPOINT}/{repo}/-"
         self.base = f"{API_ENDPOINT}/{repo}/-/releases"
+        self.tags_base = f"{self.repo_base}/git/tags"
         self.opener = opener or build_opener(_NoRedirect())
 
     def _api_path(self, url: str) -> str:
@@ -195,11 +199,12 @@ class CnbClient:
 
         Accepts CNB's canonical repository casing while enforcing host, repo, and path boundaries.
         """
-        parsed, base = urlsplit(url), urlsplit(self.base)
+        parsed, base = urlsplit(url), urlsplit(self.repo_base)
         suffix = parsed.path[len(base.path):]
         if (parsed.scheme != base.scheme or parsed.netloc.lower() != base.netloc.lower() or
                 parsed.path[:len(base.path)].lower() != base.path.lower() or
-                (suffix and not suffix.startswith("/"))):
+                not any(suffix == path or suffix.startswith(path + "/")
+                        for path in ("/releases", "/git/tags"))):
             raise ValueError("Unexpected CNB API URL")
         return suffix
 
@@ -245,7 +250,7 @@ class CnbClient:
                 raise ValueError("CNB upload URL must use HTTPS")
             verify_url = urljoin(API_ENDPOINT + "/", verify_url)
             if not self._api_path(verify_url).startswith(
-                    f"/{quote(release_id, safe='')}/asset-upload-confirmation/"):
+                    f"/releases/{quote(release_id, safe='')}/asset-upload-confirmation/"):
                 raise ValueError("Unexpected CNB upload confirmation URL")
             try:
                 with path.open("rb") as stream:
@@ -265,13 +270,15 @@ class CnbClient:
                     raise RuntimeError(f"CNB upload failed after 3 attempts: {path.name}") from None
                 time.sleep(2 ** (attempt + 1))
 
-    def verify(self, release: dict, output: Path) -> None:
+    def verify(self, release: dict, output: Path, include_index: bool = True) -> None:
         """核对服务端附件大小及可用的哈希，不接受缺失或不完整的发布。
 
         Checks server-side asset sizes and available hashes, rejecting missing or incomplete releases.
         """
         assets = {asset["name"]: asset for asset in release.get("assets", [])}
         for path in output.iterdir():
+            if not include_index and path.name == "latest.json":
+                continue
             asset = assets.get(path.name)
             if not asset or asset.get("size") != path.stat().st_size:
                 raise ValueError(f"CNB asset missing or incomplete: {path.name}")
@@ -282,34 +289,118 @@ class CnbClient:
                 if digest(path, algorithm) != asset["hash_value"].lower():
                     raise ValueError(f"CNB asset checksum mismatch: {path.name}")
 
-    def publish(self, output: Path, manifest: dict, tag: str) -> None:
-        """所有文件确认成功后才设为 Latest；失败保留草稿，不影响已有版本。
+    def _list(self, base: str) -> list[dict]:
+        """删除前获取完整分页快照，避免删除改变分页位置。
 
-        Sets Latest only after all files are confirmed; failures leave a draft and preserve prior releases.
+        Reads every page before deletion so mutations cannot shift pagination.
         """
+        records = []
+        page = 1
+        while True:
+            batch = self.request("GET", f"{base}?page={page}&page_size=100")
+            if not isinstance(batch, list):
+                raise ValueError("Invalid CNB list response")
+            records.extend(batch)
+            if len(batch) < 100:
+                return records
+            page += 1
+
+    def prune(self, release: dict, output: Path, tag: str) -> None:
+        """成功发布后只保留固定 Release/tag，附件保留当前产物及最近三版 APK。
+
+        Keeps only the fixed release/tag after successful publication, retaining current assets
+        and the three most recent APK versions.
+        """
+        releases = self._list(self.base)
+        tags = self._list(self.tags_base)
+        if not any(item.get("id") == release["id"] and item.get("tag_name") == tag
+                   and not item.get("draft", False) for item in releases):
+            raise ValueError("Published fixed CNB release is missing; refusing cleanup")
+        for item in releases:
+            if item["id"] != release["id"]:
+                self.request("DELETE", f"{self.base}/{quote(item['id'], safe='')}", missing_ok=True)
+                print(f"Removed obsolete CNB release: {item.get('tag_name', item['id'])}")
+        for item in tags:
+            if item["name"] != tag:
+                self.request("DELETE", f"{self.tags_base}/{quote(item['name'], safe='')}", missing_ok=True)
+                print(f"Removed obsolete CNB tag: {item['name']}")
+        apk_pattern = re.compile(r"AzurPilot-Android-(\d+\.\d+\.\d+)-.+\.apk")
+        assets = release.get("assets", [])
+        versions = {match[1] for asset in assets
+                    if (match := apk_pattern.fullmatch(asset["name"]))}
+        retained_versions = set(sorted(versions, key=lambda value: tuple(map(int, value.split('.'))),
+                                       reverse=True)[:3])
+        retained_files = {path.name for path in output.iterdir()}
+        for asset in assets:
+            match = apk_pattern.fullmatch(asset["name"])
+            if asset["name"] in retained_files or (match and match[1] in retained_versions):
+                continue
+            self.request("DELETE", f"{self.base}/{quote(release['id'], safe='')}/assets/"
+                         f"{quote(asset['id'], safe='')}", missing_ok=True)
+            print(f"Removed obsolete CNB asset: {asset['name']}")
+
+    def publish(self, output: Path, manifest: dict, tag: str) -> None:
+        """更新唯一固定 Release，附件校验后最后提交清单，再清理旧 Release/tag。
+
+        Updates the single fixed release, commits the index after verifying assets, and then
+        removes obsolete releases and tags.
+        """
+        if tag != RELEASE_TAG:
+            raise ValueError("CNB publication must use the fixed latest tag")
+        metadata = {
+            "name": f"AzurPilot Android {manifest['versionName']}",
+            "body": "GitHub Actions 构建并校验，同一批产物同步到 CNB。\n\n"
+                    "Built and verified by GitHub Actions; the same artifacts are mirrored to CNB.\n\n"
+                    f"- Android: `{manifest['androidHostCommit']}`\n"
+                    f"- AzurPilot: `{manifest['azurpilotCommit']}`\n"
+                    "- SHA-256: `SHA256SUMS`\n",
+            "prerelease": False,
+        }
         release = self.request("GET", f"{self.base}/tags/{quote(tag, safe='')}", missing_ok=True)
         if release is None:
             release = self.request("POST", self.base, {
                 "tag_name": tag, "target_commitish": manifest["androidHostCommit"],
-                "name": f"AzurPilot Android {manifest['versionName']}", "draft": True,
-                "prerelease": False, "make_latest": "false",
-                "body": "GitHub Actions 构建并校验，同一批产物同步到 CNB。\n\n"
-                        "Built and verified by GitHub Actions; the same artifacts are mirrored to CNB.\n\n"
-                        f"- Android: `{manifest['androidHostCommit']}`\n"
-                        f"- AzurPilot: `{manifest['azurpilotCommit']}`\n"
-                        "- SHA-256: `SHA256SUMS`\n",
+                **metadata, "draft": True, "make_latest": "false",
             })
-        if not release.get("draft", False):
-            self.verify(release, output)
-            return
         release_id = release["id"]
-        for path in sorted(output.iterdir(), key=lambda item: item.name == "latest.json"):
+        existing = {asset["name"]: asset for asset in release.get("assets", [])}
+        for path in sorted(output.iterdir(), key=lambda item: (item.name == "latest.json", item.name)):
+            if path.name == "latest.json":
+                self.verify(self.request("GET", f"{self.base}/{quote(release_id, safe='')}"),
+                            output, include_index=False)
+            asset = existing.get(path.name)
+            if (asset and asset.get("size") == path.stat().st_size
+                    and asset.get("hash_algo", "").lower().replace("-", "") == "sha256"
+                    and asset.get("hash_value", "").lower() == digest(path)):
+                continue
             print(f"Upload {path.name} ({path.stat().st_size} bytes)", flush=True)
             self.upload(release_id, path)
         complete = self.request("GET", f"{self.base}/{quote(release_id, safe='')}")
         self.verify(complete, output)
         self.request("PATCH", f"{self.base}/{quote(release_id, safe='')}",
-                     {"draft": False, "make_latest": "true"})
+                     {**metadata, "draft": False, "make_latest": "true"})
+        published = self.request("GET", f"{self.base}/{quote(release_id, safe='')}")
+        self.verify(published, output)
+        self.prune(published, output, tag)
+
+
+def sync_release_tag(token: str, repo: str, commit: str) -> None:
+    """通过 Git 上传目标提交并更新固定 tag，避免源码同步被 skip-ci 或并发顺序漏掉。
+
+    Uploads the target commit through Git and updates the fixed tag, independent of skip-ci
+    markers and source-sync scheduling.
+    """
+    environment = os.environ.copy()
+    count = int(environment.get("GIT_CONFIG_COUNT", "0"))
+    credential = base64.b64encode(f"cnb:{token}".encode()).decode()
+    environment.update({
+        "GIT_TERMINAL_PROMPT": "0", "GIT_CONFIG_COUNT": str(count + 1),
+        f"GIT_CONFIG_KEY_{count}": f"http.{WEB_ENDPOINT}/.extraheader",
+        f"GIT_CONFIG_VALUE_{count}": f"Authorization: Basic {credential}",
+    })
+    subprocess.run(["git", "cat-file", "-e", f"{commit}^{{commit}}"], check=True)
+    subprocess.run(["git", "push", "--force", f"{WEB_ENDPOINT}/{repo}.git",
+                    f"{commit}:refs/tags/{RELEASE_TAG}"], env=environment, check=True)
 
 
 def main() -> None:
@@ -324,7 +415,7 @@ def main() -> None:
     parser.add_argument("--github-repo", default=os.environ.get("GITHUB_REPOSITORY"))
     parser.add_argument("--github-tag", default="azurpilot-android-latest")
     parser.add_argument("--repo", default=CNB_REPOSITORY)
-    parser.add_argument("--tag")
+    parser.add_argument("--tag", default=RELEASE_TAG, choices=(RELEASE_TAG,))
     parser.add_argument("--expected-host-commit", default="")
     args = parser.parse_args()
     if not args.github_repo:
@@ -332,11 +423,10 @@ def main() -> None:
     if args.action == "download":
         download(args.source_dir, args.github_repo, args.github_tag)
         return
-    if not args.tag:
-        parser.error("--tag is required for publication")
     client = CnbClient(os.environ.get("CNB_TOKEN", ""), args.repo)
     manifest = prepare(args.source_dir, args.output_dir, args.github_repo, args.github_tag,
                        args.repo, args.tag, args.expected_host_commit)
+    sync_release_tag(client.token, args.repo, manifest["androidHostCommit"])
     client.publish(args.output_dir, manifest, args.tag)
     print(f"Published {WEB_ENDPOINT}/{args.repo}/-/releases/tag/{args.tag}")
 

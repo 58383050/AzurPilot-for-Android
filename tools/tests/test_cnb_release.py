@@ -11,6 +11,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
@@ -32,6 +33,8 @@ class FakeApi:
         self.fail_upload = False
         self.corrupt_remote = False
         self.existing = None
+        self.old_releases = []
+        self.old_tags = []
         self.confirmation_repo = cnb.CNB_REPOSITORY
 
     def open(self, request, timeout):
@@ -51,11 +54,18 @@ class FakeApi:
         if method == "GET" and "/tags/" in url:
             if self.existing is None:
                 raise HTTPError(url, 404, "missing", {}, None)
-            result = self.existing
+            result = {**self.existing, "assets": self.assets()}
+        elif method == "GET" and "?page=" in url:
+            query = parse_qs(urlsplit(url).query)
+            page, size = int(query["page"][0]), int(query["page_size"][0])
+            records = ([self.existing] + self.old_releases if "/-/releases?" in url
+                       else [{"name": cnb.RELEASE_TAG}] + self.old_tags)
+            result = records[(page - 1) * size:page * size]
         elif method == "POST" and url == cnb.API_ENDPOINT + "/" + cnb.CNB_REPOSITORY + "/-/releases":
             body = json.loads(request.data)
             assert body["draft"] is True and body["make_latest"] == "false"
-            result = {"id": "release-1", "draft": True}
+            result = {"id": "release-1", "draft": True, "tag_name": body["tag_name"]}
+            self.existing = result
         elif method == "POST" and url.endswith("/asset-upload-url"):
             body = json.loads(request.data)
             assert body["overwrite"] is True and body["ttl"] == 0
@@ -72,18 +82,32 @@ class FakeApi:
             self.confirmed.add(filename)
             result = None
         elif method == "GET" and url.endswith("/release-1"):
-            result = {"id": "release-1", "draft": True, "assets": self.assets()}
+            result = {**self.existing, "assets": self.assets()}
         elif method == "PATCH":
             body = json.loads(request.data)
-            assert body == {"draft": False, "make_latest": "true"}
+            assert body["draft"] is False and body["make_latest"] == "true"
+            assert body["name"].startswith("AzurPilot Android ") and not body["prerelease"]
             assert self.confirmed == set(self.files)
+            self.existing.update(body)
+            result = None
+        elif method == "DELETE" and "/assets/" in url:
+            name = next(asset["name"] for asset in self.assets() if asset["id"] == url.rsplit('/', 1)[-1])
+            self.files.pop(name)
+            self.confirmed.discard(name)
+            result = None
+        elif method == "DELETE" and "/-/git/tags/" in url:
+            self.old_tags = [item for item in self.old_tags if item["name"] != url.rsplit('/', 1)[-1]]
+            result = None
+        elif method == "DELETE":
+            self.old_releases = [item for item in self.old_releases if item["id"] != url.rsplit('/', 1)[-1]]
             result = None
         else:
             raise AssertionError((method, url))
         return io.BytesIO(json.dumps(result).encode() if result is not None else b"")
 
     def assets(self):
-        return [{"name": name, "size": len(data), "hash_algo": "SHA-256",
+        return [{"id": hashlib.sha256(name.encode()).hexdigest(),
+                 "name": name, "size": len(data), "hash_algo": "SHA-256",
                  "hash_value": "0" * 64 if self.corrupt_remote else hashlib.sha256(data).hexdigest()}
                 for name, data in self.files.items() if name in self.confirmed]
 
@@ -102,7 +126,7 @@ class CnbReleaseTest(unittest.TestCase):
         self.output = Path(self.tmp.name) / "release"
         self.source.mkdir()
         self.repo = "wess09/AzurPilot-for-Android"
-        self.tag = "github-android-123-1"
+        self.tag = cnb.RELEASE_TAG
         self.base = f"https://github.com/{self.repo}/releases/download/azurpilot-android-latest/"
         self.manifest = {"versionCode": 1900000000, "versionName": "1.3.0",
                          "appCommit": "a" * 40, "androidHostCommit": "b" * 40,
@@ -214,7 +238,7 @@ class CnbReleaseTest(unittest.TestCase):
         client = cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api)
         client.publish(self.output, mirror, self.tag)
         methods = [method for method, _, _ in api.requests]
-        self.assertEqual(methods[-1], "PATCH")
+        self.assertIn("PATCH", methods)
         self.assertEqual(api.confirmed, {path.name for path in self.output.iterdir()})
         self.assertEqual(api.files["latest.json"], (self.output / "latest.json").read_bytes())
 
@@ -237,16 +261,78 @@ class CnbReleaseTest(unittest.TestCase):
         cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(
             self.output, mirror, self.tag)
         self.assertEqual(api.confirmed, {path.name for path in self.output.iterdir()})
-        self.assertEqual(api.requests[-1][0], "PATCH")
+        self.assertTrue(any(method == "PATCH" for method, _, _ in api.requests))
 
-    def test_confirmed_release_rerun_verifies_without_replacing_assets(self):
+    def test_fixed_release_rerun_reuses_assets_and_refreshes_metadata(self):
         mirror = self.prepare()
         api = FakeApi()
         api.files = {path.name: path.read_bytes() for path in self.output.iterdir()}
         api.confirmed = set(api.files)
-        api.existing = {"id": "release-1", "draft": False, "assets": api.assets()}
+        api.existing = {"id": "release-1", "tag_name": self.tag, "draft": False}
         cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(self.output, mirror, self.tag)
-        self.assertEqual([method for method, _, _ in api.requests], ["GET"])
+        self.assertFalse(any(method == "PUT" for method, _, _ in api.requests))
+        self.assertEqual(api.existing["name"], "AzurPilot Android 1.3.0")
+
+    def test_public_fixed_release_can_replace_old_assets_and_commits_index_last(self):
+        mirror = self.prepare()
+        api = FakeApi()
+        api.files = {path.name: path.read_bytes() for path in self.output.iterdir()}
+        api.files["AzurPilot-Android-1.3.0-update.apk"] = b"previous APK"
+        api.files["latest.json"] = b"{}"
+        api.confirmed = set(api.files)
+        api.existing = {"id": "release-1", "tag_name": self.tag, "draft": False}
+        cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(
+            self.output, mirror, self.tag)
+        uploads = [url.rsplit('/', 1)[-1] for method, url, _ in api.requests if method == "PUT"]
+        self.assertEqual(uploads, ["AzurPilot-Android-1.3.0-update.apk", "latest.json"])
+        self.assertEqual(api.existing["id"], "release-1")
+        self.assertEqual(api.files["latest.json"], (self.output / "latest.json").read_bytes())
+
+    def test_cleanup_removes_other_releases_tags_and_preserves_three_apk_versions(self):
+        mirror = self.prepare()
+        api = FakeApi()
+        api.old_releases = [{"id": f"old-{i}", "tag_name": f"github-android-{i}-1"}
+                            for i in range(105)]
+        api.old_tags = [{"name": item["tag_name"]} for item in api.old_releases] + [{"name": "v0.1.0"}]
+        api.files = {f"AzurPilot-Android-1.2.{v}-update.apk": b"historical signed APK"
+                     for v in (1, 2, 3, 4)}
+        api.files["obsolete-frontend.tar.xz"] = b"old frontend"
+        api.confirmed = set(api.files)
+        cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(
+            self.output, mirror, self.tag)
+        self.assertFalse(api.old_releases)
+        self.assertFalse(api.old_tags)
+        self.assertIn("AzurPilot-Android-1.2.4-update.apk", api.files)
+        self.assertIn("AzurPilot-Android-1.2.3-update.apk", api.files)
+        self.assertNotIn("AzurPilot-Android-1.2.2-update.apk", api.files)
+        self.assertNotIn("obsolete-frontend.tar.xz", api.files)
+
+    def test_failed_replacement_does_not_commit_index_or_delete_old_releases(self):
+        mirror = self.prepare()
+        api = FakeApi()
+        api.old_releases = [{"id": "old", "tag_name": "github-android-123-1"}]
+        api.corrupt_remote = True
+        with self.assertRaises(ValueError):
+            cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(
+                self.output, mirror, self.tag)
+        self.assertNotIn("latest.json", api.files)
+        self.assertFalse(any(method == "DELETE" for method, _, _ in api.requests))
+
+    def test_only_fixed_tag_is_accepted(self):
+        with self.assertRaisesRegex(ValueError, "fixed latest tag"):
+            cnb.prepare(self.source, self.output, self.repo, self.tag,
+                        cnb.CNB_REPOSITORY, "github-android-123-1")
+
+    def test_release_tag_sync_uploads_commit_without_credentials_in_arguments(self):
+        with patch.object(cnb.subprocess, "run") as run:
+            cnb.sync_release_tag("test-access-token", cnb.CNB_REPOSITORY, "b" * 40)
+        self.assertEqual(run.call_count, 2)
+        args = run.call_args.args[0]
+        self.assertEqual(args[-1], f"{'b' * 40}:refs/tags/{cnb.RELEASE_TAG}")
+        self.assertNotIn("test-access-token", str(args))
+        environment = run.call_args.kwargs["env"]
+        header = environment[f"GIT_CONFIG_VALUE_{int(environment['GIT_CONFIG_COUNT']) - 1}"]
+        self.assertIn("Authorization: Basic ", header)
 
     def test_token_is_never_sent_to_foreign_api_urls(self):
         client = cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, FakeApi())

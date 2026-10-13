@@ -281,17 +281,18 @@
     <!-- 推播失敗原因；由各管道產出，顯示在測試回饋裡 -->
     <!-- 首啟 rootfs 部署 -->
     <string name="provision_title">部署 Runtime</string>
-    <string name="provision_subtitle">首次啟動需要部署約 1GB 的 Runtime：完整版直接解壓縮內建套件，輕量版從 GitHub 下載，只需一次</string>
+    <string name="provision_subtitle">首次啟動需要部署約 1GB 的 Runtime：完整版直接解壓縮內建套件，輕量版從所選下載來源取得，只需一次</string>
     <string name="provision_checking">正在檢查 Runtime…</string>
     <string name="provision_extracting">解壓縮中 %1$d%%（%2$d / %3$d MB）</string>
-    <string name="provision_downloading">正在從 GitHub 下載 Runtime %1$d%%…</string>
+    <string name="provision_downloading">正在下載 Runtime %1$d%%…</string>
     <string name="provision_low_disk">儲存空間不足：僅剩 %1$d MB，需要至少 2 GB 餘量</string>
-    <string name="provision_not_bundled">GitHub 發布中暫無可用 Runtime。請檢查網路後重試，或改用與裝置架構相符的完整版 APK</string>
+    <string name="provision_not_bundled">目前下載來源暫無可用 Runtime。請換來源重試，或改用與裝置架構相符的完整版 APK</string>
     <string name="provision_failed">部署失敗：%1$s</string>
     <string name="provision_retry">重試</string>
     <string name="provision_skip">略過（僅除錯用）</string>
     <string name="provision_source">下載來源</string>
     <string name="provision_source_direct">直連 GitHub</string>
+    <string name="provision_source_cnb">CNB 中國大陸來源（推薦）</string>
     <string name="provision_source_custom">自訂</string>
     <string name="provision_source_desc">可從內建鏡像中選擇，或在設定裡填自訂前綴；切換後會立即重新下載</string>
     <string name="app_update_title">AzurPilot Android 有新版本</string>
@@ -314,7 +315,7 @@
     <string name="runtime_update_now">立即更新</string>
     <string name="settings_runtime_managed">啟動時檢查 GitHub Latest；發現新版本會先詢問，只有確認後才下載並更新 Runtime。手動檢查可檢視版本，重新啟動 App 時可選擇更新。</string>
     <string name="settings_github_mirror">下載來源</string>
-    <string name="settings_github_mirror_desc">用於 Runtime 與 App 的更新檢查與下載，多執行緒分段下載自動啟用；檔案仍依發布清單驗證大小與 SHA-256。</string>
+    <string name="settings_github_mirror_desc">用於 App、Runtime 與前端更新。CNB 為中國大陸直連來源，檔案會驗證大小與 SHA-256。</string>
     <string name="settings_mirror_custom_save">儲存</string>
     <string name="settings_mirror_custom_hint">自訂鏡像前綴，如 https://your-proxy.example.com/</string>
     <string name="settings_runtime_check">檢查 Runtime 更新</string>

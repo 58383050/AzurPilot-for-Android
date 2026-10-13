@@ -281,17 +281,18 @@
     <!-- プッシュ失敗の理由；各プッシュ先が生成し、テスト結果に表示される -->
     <!-- 初回起動時の rootfs 展開 -->
     <string name="provision_title">Runtime のセットアップ</string>
-    <string name="provision_subtitle">初回起動時に約 1GB の Runtime をセットアップします。フル版は内蔵パッケージを展開し、軽量版は GitHub からダウンロードします。必要なのは一度だけです</string>
+    <string name="provision_subtitle">初回起動時に約 1GB の Runtime をセットアップします。フル版は内蔵パッケージを展開し、軽量版は選択した配信元からダウンロードします。必要なのは一度だけです</string>
     <string name="provision_checking">Runtime を確認中…</string>
     <string name="provision_extracting">展開中 %1$d%%（%2$d / %3$d MB）</string>
-    <string name="provision_downloading">GitHub から Runtime をダウンロード中 %1$d%%…</string>
+    <string name="provision_downloading">Runtime をダウンロード中 %1$d%%…</string>
     <string name="provision_low_disk">空き容量が不足しています：残り %1$d MB、2 GB 以上の余裕が必要です</string>
-    <string name="provision_not_bundled">GitHub リリースに利用可能な Runtime がありません。ネットワークを確認して再試行するか、デバイスのアーキテクチャに合ったフル版 APK を使用してください</string>
+    <string name="provision_not_bundled">この配信元に Runtime がありません。別の配信元を選ぶか、デバイスのアーキテクチャに合ったフル版 APK を使用してください</string>
     <string name="provision_failed">セットアップに失敗：%1$s</string>
     <string name="provision_retry">再試行</string>
     <string name="provision_skip">スキップ（デバッグ専用）</string>
     <string name="provision_source">ダウンロード元</string>
     <string name="provision_source_direct">GitHub に直接接続</string>
+    <string name="provision_source_cnb">CNB 中国向け（推奨）</string>
     <string name="provision_source_custom">カスタム</string>
     <string name="provision_source_desc">内蔵ミラーから選ぶか、設定でカスタム prefix を入力できます。切り替えるとすぐにダウンロードをやり直します</string>
     <string name="app_update_title">AzurPilot Android の新しいバージョン</string>
@@ -314,7 +315,7 @@
     <string name="runtime_update_now">今すぐ更新</string>
     <string name="settings_runtime_managed">起動時に GitHub Latest を確認します。新しいバージョンがあればまず確認し、承認した場合のみ Runtime をダウンロードして更新します。手動チェックではバージョンを確認でき、アプリを再起動すると更新を選べます。</string>
     <string name="settings_github_mirror">ダウンロード元</string>
-    <string name="settings_github_mirror_desc">Runtime とアプリの更新確認とダウンロードに使用し、マルチスレッドの分割ダウンロードは自動的に有効になります。ファイルはリリースマニフェストに従ってサイズと SHA-256 を検証します。</string>
+    <string name="settings_github_mirror_desc">アプリ、Runtime、フロントエンドの更新に使用します。CNB は中国向けの直接配信元です。ファイルのサイズと SHA-256 を検証します。</string>
     <string name="settings_mirror_custom_save">保存</string>
     <string name="settings_mirror_custom_hint">カスタムミラーの prefix（例：https://your-proxy.example.com/）</string>
     <string name="settings_runtime_check">Runtime の更新を確認</string>

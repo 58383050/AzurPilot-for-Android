@@ -111,7 +111,7 @@ class AppUpdateManager(
         if (!_state.compareAndSet(current, current.copy(checking = true, error = null))) return
         scope.launch(AppDispatchers.IO) {
             runCatching {
-                val indexUrl = ReleaseUrls.selected(ReleaseUrls.INDEX, mirrorPrefix())
+                val indexUrl = ReleaseUrls.selected(ReleaseUrls.INDEX, downloadSource())
                 val body = requestText("$indexUrl?t=${System.currentTimeMillis()}")
                 val json = JSONObject(body)
                 // Latest 可先只发布 rootfs；正式签名尚未配置时没有可安装的 APK。
@@ -123,7 +123,7 @@ class AppUpdateManager(
                     apkSha256 = json.getString("apkSha256"),
                     apkSize = json.getLong("apkSize"),
                 ).also {
-                    require(it.apkUrl.startsWith(ReleaseUrls.BASE))
+                    require(ReleaseUrls.isReleaseUrl(it.apkUrl))
                     require(it.apkSha256.matches(Regex("[0-9a-f]{64}")))
                     require(it.apkSize > 0)
                 }
@@ -183,7 +183,7 @@ class AppUpdateManager(
                     val partial = File(dir, "${info.apkSha256}.apk.part")
                     partial.delete()
                     try {
-                        val downloadUrl = ReleaseUrls.selected(info.apkUrl, mirrorPrefix())
+                        val downloadUrl = ReleaseUrls.selected(info.apkUrl, downloadSource())
                         ReleaseDownloader.download(
                             downloadUrl,
                             partial,
@@ -218,9 +218,9 @@ class AppUpdateManager(
      */
     fun dismiss() = _state.update { it.copy(available = null, error = null) }
 
-    /** 当前生效的镜像前缀（与 Runtime 下载共用同一个源选择）/ The effective mirror prefix (shares the source selection with the runtime download). */
-    private fun mirrorPrefix() =
-        ReleaseUrls.mirrorPrefix(settings.githubMirror.value, settings.githubMirrorCustom.value)
+    /** 当前下载源，与 Runtime 共用用户选择。 / Effective download source shared with the Runtime. */
+    private fun downloadSource() =
+        ReleaseUrls.source(settings.githubMirror.value, settings.githubMirrorCustom.value)
 
     /**
      * 拉取 URL 文本正文；12s 连接 / 读取超时，带 no-cache 头并跟随重定向

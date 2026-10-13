@@ -13,7 +13,7 @@ GitHub Actions 负责构建、签名和校验，CNB Releases 提供国内下载�
 
 在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 配置 `CNB_TOKEN`。
 仓库已有源码同步用的同名 Secret，可以复用，但令牌必须有目标 CNB 仓库的
-`repo-release:rw` 权限。源码同步还需要界面中 `repo-code` 的“读写”权限，更新令牌时保留它。
+`repo-release:rw` 权限。源码同步及发布 tag 更新还需要界面中 `repo-code` 的“读写”权限。
 令牌所属账号也必须有该仓库的 Release 写权限。
 
 参考 CNB 官方[访问令牌说明](https://docs.cnb.cool/en/guide/access-token.html)、
@@ -37,16 +37,22 @@ App 版本沿用 GitHub 的 `1.3.*` 版本规则，见[发布通道](release-cha
 
 脚本核对 GitHub 清单中的大小、SHA-256、当前主机提交及 Runtime 元数据。
 大型文件以流式方式上传；每次重试重新取得预签名地址，上传后通过 API 确认附件。
-CNB 访问令牌只发送到目标仓库的 CNB API，不发送到附件对象存储。
+CNB 访问令牌只发送到目标仓库的 CNB API 和 Git 服务，不发送到附件对象存储。
 
-每次发布使用唯一标签 `github-android-<GitHub Run ID>-<Run Attempt>`，
-以主机提交为目标创建草稿。全部附件上传完成，且服务端附件大小和可用哈希校验通过后，
-才公开 Release 并设为 Latest。失败时保留草稿，已有 CNB Latest 不变。
-原始 APK、Runtime 和前端归档的校验和与 GitHub 完全一致；CNB 下载地址包含唯一标签，
-后续发布不会覆盖这些附件。清单保留旧版 App 使用的 ARM64 扁平字段。
+CNB 与 GitHub 共用唯一固定标签 `azurpilot-android-latest`。发布前先通过 Git 上传目标
+主机提交并推进标签，不依赖独立源码同步的顺序，也覆盖 `[skip ci]` 的上游检查提交。
+首次发布创建草稿，后续复用同一个 Release；SHA-256 已匹配的附件无需重复上传。
+其它附件先上传并验证，`latest.json` 最后提交，再更新 Release 标题和 Latest 标记。
 
-`.github/workflows/sync-cnb.yml` 继续同步源码，不清理 CNB Release 标签。
-创建 Release 所需的主机提交必须已经同步到 CNB。
+成功后删除其它 CNB Release 和 Git tag，只保留固定发布。固定发布保留当前 Runtime、
+前端归档及最近三版 APK。旧源码历史 tag 不再同步回 CNB。产物字节与 GitHub 一致，
+清单保留 ARM64 扁平兼容字段。失败时不清理旧发布；公开发布的附件可能已部分替换，
+客户端大小及 SHA-256 校验会拒绝不匹配文件，重跑补传可完成替换。
+
+App 首次安装默认选用“CNB 国内源”；设置页和部署页可切回 GitHub 或代理镜像。
+App、Runtime 和前端共用该选择；已有保存的选择不变。
+
+`.github/workflows/sync-cnb.yml` 只同步分支；固定发布标签由产物分发步骤更新。
 自动发布与手动补传共用 `cnb-release-publish` 并发组，避免发布期间相互覆盖下载源。
 
 ### 手动补传已有产物
@@ -61,7 +67,7 @@ GitHub Release 保留的历史版本 APK 不会一起下载。
 
 若自动上传失败，GitHub 的构建和 Release 已完成，可通过此入口重试分发。
 出现 `CNB_TOKEN requires repo-release:rw` 时，给令牌增加权限并更新 GitHub Secret，
-然后重跑补传工作流。失败草稿可以在确认补传成功后手动清理。
+然后重跑补传工作流。成功补传会自动清理旧发布及标签。
 
 ### 停用 CNB 原生构建
 
@@ -95,8 +101,8 @@ The CNB index changes only their download URLs.
 Configure `CNB_TOKEN` under the GitHub repository's
 **Settings → Secrets and variables → Actions**.
 The existing source-mirroring Secret can be reused, provided its token has `repo-release:rw`
-for the target CNB repository. Keep Read/Write access for `repo-code`, needed for Git source
-mirroring, when updating the token. Its account must also have Release write access.
+for the target CNB repository. Git source sync and release-tag updates need Read/Write
+access for `repo-code`. Its account must also have Release write access.
 
 See CNB's official [access-token guide](https://docs.cnb.cool/en/guide/access-token.html),
 [repository role permissions](https://docs.cnb.cool/en/guide/role-permissions.html), and
@@ -122,18 +128,25 @@ After publishing the signed GitHub Release, the `publish` job in
 The script checks sizes, SHA-256 hashes, the current host commit, and Runtime metadata
 against the GitHub index. Large files are streamed. Each retry obtains a fresh presigned URL,
 and uploaded assets are confirmed through the API. The CNB token is sent only to the target
-repository's CNB API, never to attachment object storage.
+repository's CNB API and Git service, never to attachment object storage.
 
-Each publication creates a draft targeting the host commit with the unique tag
-`github-android-<GitHub Run ID>-<Run Attempt>`. It becomes public and Latest only after all
-uploads complete and server-side asset sizes and available hashes pass verification.
-Failures leave a draft and preserve the previous CNB Latest.
-Original APK, Runtime, and frontend checksums match GitHub exactly. Download URLs include
-the unique tag, so later publications do not overwrite those assets. The index retains
-legacy flat ARM64 fields for older App versions.
+CNB and GitHub share the single fixed tag `azurpilot-android-latest`. Before publication,
+Git uploads the host commit and advances that tag, independently of source-sync ordering
+and `[skip ci]` upstream-check commits. The first run creates a draft; subsequent runs reuse
+the same release. Assets matching SHA-256 need no upload. Other assets are uploaded and verified
+first, `latest.json` is committed last, and then the title and Latest marker are updated.
 
-`.github/workflows/sync-cnb.yml` continues to mirror source without pruning CNB Release tags.
-The host commit must already exist on CNB before the Release can be created.
+After success, other CNB releases and Git tags are deleted, leaving only the fixed publication.
+It retains current Runtimes and frontend archives plus the three most recent APK versions.
+Historical source tags are no longer copied back. Artifact bytes match GitHub, and legacy ARM64
+flat fields remain. Failed runs do not prune older publications. Public assets may already be
+partly replaced; client size and SHA-256 checks reject mismatches, and a backfill rerun completes
+the replacement.
+
+New installations default to CNB. Settings and provisioning allow switching to GitHub or proxies.
+App, Runtime, and frontend downloads share the selection; existing saved choices are retained.
+
+`.github/workflows/sync-cnb.yml` mirrors only branches; artifact publication advances the fixed tag.
 Automatic publishing and manual backfills share the `cnb-release-publish` concurrency group,
 preventing conflicting publication and changes to the download source during a backfill.
 
@@ -152,7 +165,7 @@ in the GitHub Release are excluded.
 If automatic uploading fails, the GitHub build and Release have already completed;
 retry distribution through this workflow. For `CNB_TOKEN requires repo-release:rw`, grant
 the permission, update the GitHub Secret, and rerun the backfill workflow.
-Failed drafts can be removed manually after confirming a successful backfill.
+Successful backfills automatically remove old releases and tags.
 
 ### Disable CNB native builds
 

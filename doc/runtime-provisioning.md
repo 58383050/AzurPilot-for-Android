@@ -31,6 +31,10 @@
 
 ### 下载链路
 
+新安装默认从 CNB 国内源获取固定发布清单，已保存的源选择保留。App、Runtime 和前端
+共用下载源，可在部署页或设置页选择 GitHub 直连及代理镜像。两侧清单和附件对应同一版本，
+换源只切换 URL，大小与 SHA-256 校验不变。
+
 - **单连接** `HttpURLConnection`（`update/ReleaseDownloader.kt`）：
   connect 20 s、read 120 s、跟随重定向；每个读块前检查 `shouldAbort`。
 - **换源语义**：用户在下载中切换下载源 → `shouldAbort` 命中 →
@@ -88,6 +92,11 @@
    download from the release.
 
 ### Download chain
+
+New installations use CNB's fixed release index by default; saved source choices are retained.
+App, Runtime, and frontend downloads share the source selected in provisioning or Settings.
+GitHub direct access and proxies remain available. Switching sources changes the URL while
+preserving version, size, and SHA-256 verification.
 
 - **Single connection** over `HttpURLConnection`
   (`update/ReleaseDownloader.kt`): 20 s connect, 120 s read, redirects

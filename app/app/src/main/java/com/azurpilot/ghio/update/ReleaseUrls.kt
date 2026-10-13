@@ -1,15 +1,14 @@
 package com.azurpilot.ghio.update
 
 /**
- * 解析 Release 资源地址与下载源；仅本项目的固定 GitHub Release 允许走镜像。
+ * 解析本项目固定 Release 的 GitHub、CNB 与代理镜像下载源。
  *
  * 镜像均为 ghproxy 形态：`前缀 + 完整 GitHub URL`（如
  * `https://ghproxy.net/https://github.com/…`）。镜像站时效性强，内置列表只是
  * 当前可用的常用快照；某站失效或过慢时，用户可在设置里换用其他镜像或填自定义前缀
  * （同样要求 ghproxy 形态）。
  *
- * Resolves release asset URLs and download sources; only this project's fixed
- * GitHub Release may be routed through a mirror.
+ * Resolves GitHub, CNB, and proxy download sources for this project's fixed release.
  *
  * Mirrors use the ghproxy form (`prefix + full GitHub URL`, e.g.
  * `https://ghproxy.net/https://github.com/…`). Mirror availability changes
@@ -20,6 +19,12 @@ package com.azurpilot.ghio.update
 internal object ReleaseUrls {
     const val BASE = "https://github.com/wess09/AzurPilot-for-Android/releases/download/azurpilot-android-latest/"
     const val INDEX = "${BASE}latest.json"
+
+    /** CNB 国内源，与 GitHub 共用固定 tag 和附件名称。 / CNB source sharing GitHub's fixed tag and asset names. */
+    const val CNB_BASE = "https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases/download/azurpilot-android-latest/"
+
+    /** 设置存储值：CNB 国内源。 / Settings value for the domestic CNB source. */
+    const val CNB = "cnb"
 
     /** 设置存储值：直连 GitHub / Settings value: direct GitHub connection. */
     const val DIRECT = "direct"
@@ -68,13 +73,34 @@ internal object ReleaseUrls {
     }
 
     /**
-     * 把镜像前缀拼到 Release 资源地址上；前缀为空即直连。
+     * 返回 CNB 标识或代理前缀；CNB 不是 GitHub 代理，不能用于 Git 源码 URL 拼接。
      *
-     * Applies a prefix to a release asset URL; an empty prefix means direct.
+     * Returns the CNB identifier or a proxy prefix. CNB is not a GitHub proxy and must not be
+     * used as a prefix for Git source URLs.
      */
-    fun selected(url: String, prefix: String): String {
-        require(url.startsWith(BASE)) { "Invalid release URL" }
-        return if (prefix.isEmpty()) url else "$prefix$url"
+    fun source(id: String, customRaw: String): String =
+        if (id == CNB) CNB else mirrorPrefix(id, customRaw)
+
+    /** 只接受本项目 GitHub/CNB 固定发布地址。 / Accepts only this project's fixed GitHub/CNB release URLs. */
+    fun isReleaseUrl(url: String): Boolean = url.startsWith(BASE) || url.startsWith(CNB_BASE)
+
+    /** 返回前端归档下载基址。 / Returns the download base for frontend archives. */
+    fun distributionBase(id: String, customRaw: String): String = selected(BASE, source(id, customRaw))
+
+    /**
+     * 按用户选择在 GitHub、CNB 和代理之间转换附件地址；清单与下载共用相同固定 tag。
+     *
+     * Routes assets between GitHub, CNB, and proxies using the selected source. Manifests and
+     * downloads share the same fixed tag.
+     */
+    fun selected(url: String, source: String): String {
+        require(isReleaseUrl(url)) { "Invalid release URL" }
+        val filename = url.removePrefix(BASE).removePrefix(CNB_BASE)
+        return when (source) {
+            CNB -> "$CNB_BASE$filename"
+            "" -> "$BASE$filename"
+            else -> "$source$BASE$filename"
+        }
     }
 
     /**

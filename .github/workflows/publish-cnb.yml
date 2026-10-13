@@ -23,6 +23,10 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify CNB release synchronization
+        run: python3 tools/tests/test_cnb_release.py
       - name: Download the existing GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,5 +42,4 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/cnb_release.py publish --source-dir .tmp/github-release \
-            --output-dir .tmp/cnb-release --github-tag "$GITHUB_TAG" \
-            --tag "github-android-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            --output-dir .tmp/cnb-release --github-tag "$GITHUB_TAG"

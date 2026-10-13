@@ -5,7 +5,7 @@ on:
     branches:
       - '**'
     tags:
-      - '**'
+      - azurpilot-android-latest
   workflow_dispatch:
 
 permissions:
@@ -39,6 +39,5 @@ jobs:
           # 添加配置了凭证的 CNB 远程镜像源
           git remote add cnb "https://cnb:${CNB_TOKEN}@cnb.cool/azurpilot/AzurPilot-for-Android.git"
 
-          # 以 GitHub 为准强制覆盖 CNB 分支和标签，并修剪 GitHub 已删除的分支。
+          # 分支与 GitHub 同步；发布 tag 由产物上传步骤推进，避免同步旧 tag 覆盖新发布。
           git push -f --prune cnb 'refs/remotes/origin/*:refs/heads/*'
-          git push -f --tags cnb

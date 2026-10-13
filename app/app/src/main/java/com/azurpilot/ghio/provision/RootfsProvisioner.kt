@@ -178,15 +178,15 @@ class RootfsProvisioner(
     private fun inputsHash(version: String): String = version.substringAfterLast('-')
 
     /**
-     * 当前生效的镜像前缀；「换源」判断以 (镜像, 自定义前缀) 二元组整体比较
+     * 当前生效的 CNB 标识或代理前缀；自定义前缀也纳入换源判断。
      *
-     * The mirror prefix in effect; "source switched" compares the
-     * (mirror, custom prefix) pair as a whole.
+     * The effective CNB identifier or proxy prefix; custom input also participates in
+     * source-switch detection.
      */
-    internal fun mirrorPrefix() = ReleaseUrls.mirrorPrefix(settings.githubMirror.value, settings.githubMirrorCustom.value)
+    internal fun downloadSource() = ReleaseUrls.source(settings.githubMirror.value, settings.githubMirrorCustom.value)
 
     /** 前缀与 [prefix] 不同即视为换了源 / True when the prefix differs from [prefix] — the source switched. */
-    internal fun sourceSwitched(prefix: String) = mirrorPrefix() != prefix
+    internal fun sourceSwitched(prefix: String) = downloadSource() != prefix
 
     /**
      * Latest 清单；镜像前缀与缓存绕过集中在这里。
@@ -197,7 +197,7 @@ class RootfsProvisioner(
      * @throws IOException 非 200 响应 / on a non-200 response
      */
     internal fun fetchIndex(): JSONObject {
-        val indexUrl = ReleaseUrls.selected(ReleaseUrls.INDEX, mirrorPrefix())
+        val indexUrl = ReleaseUrls.selected(ReleaseUrls.INDEX, downloadSource())
         val connection = URL("$indexUrl?t=${System.currentTimeMillis()}").openConnection() as HttpURLConnection
         return try {
             connection.connectTimeout = 12_000
@@ -240,7 +240,7 @@ class RootfsProvisioner(
             val sha = entry.optString("sha256")
             val size = entry.optLong("size", 0)
             require(version.isNotBlank()) { "运行时版本缺失" }
-            require(url.startsWith(ReleaseUrls.BASE)) { "运行时下载地址无效" }
+            require(ReleaseUrls.isReleaseUrl(url)) { "运行时下载地址无效" }
             require(sha.matches(SHA256)) { "运行时校验值无效" }
             require(size > 0) { "运行时大小无效" }
             return ReleaseRuntime(version, url, sha, size)
@@ -249,7 +249,7 @@ class RootfsProvisioner(
         val version = info.getString("rootfsVersion")
         require(version.isNotBlank()) { "运行时版本缺失" }
         val url = info.getString("rootfsUrl")
-        require(url.startsWith(ReleaseUrls.BASE)) { "运行时下载地址无效" }
+        require(ReleaseUrls.isReleaseUrl(url)) { "运行时下载地址无效" }
         val sha = info.getString("rootfsSha256")
         require(sha.matches(SHA256)) { "运行时校验值无效" }
         val size = info.getLong("rootfsSize")
@@ -496,7 +496,7 @@ class RootfsProvisioner(
         try {
             // 下载途中换源就从头再来：不同镜像的断点续传对不上号，删掉重下没有额外风险。
             while (true) {
-                val prefix = mirrorPrefix()
+                val prefix = downloadSource()
                 try {
                     downloadArchive(runtime, prefix, archive)
                     break
