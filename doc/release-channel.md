@@ -45,6 +45,7 @@
 App 更新弹窗显示下载百分比、已下载大小和清单中的总大小。下载完成后切换为校验提示和
 不定进度条；缓存安装包也重新校验。下载失败后可重试，进度从零重新开始。
 下载和校验期间，返回键或点击弹窗外侧不会隐藏进度。
+进度条用 200 ms 线性过渡连接相邻采样值，重试归零与完成时立即同步；百分比和大小显示真实值。
 
 APK 和 Runtime 共用下载器：至少 8 MiB 的文件在服务器通过首字节探测后采用四连接分段。
 分段不兼容或失败时，进度归零并自动重试一次单连接下载。每次下载完成后仍校验大小和 SHA-256。
@@ -124,6 +125,8 @@ The app-update dialog shows download percentage, downloaded size, and the manife
 After download it switches to a verification message and an indeterminate progress bar; cached
 APKs are also reverified. Retrying a failed download starts progress from zero. Back presses and
 outside taps do not hide the dialog during download or verification.
+The bar interpolates successive samples linearly over 200 ms, snapping on reset and completion;
+percentage and byte labels show actual values.
 
 APK and Runtime downloads share the downloader: files of at least 8 MiB use four connections after
 a successful one-byte range probe. Incompatible or failed segmented transfers reset progress and

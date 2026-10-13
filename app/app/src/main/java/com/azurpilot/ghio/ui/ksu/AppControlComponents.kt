@@ -2,11 +2,16 @@
 
 package com.azurpilot.ghio.ui.ksu
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -188,12 +193,30 @@ fun AppLinearProgressIndicator(modifier: Modifier = Modifier) {
     else LinearProgressIndicator(modifier)
 }
 
-/** 确定进度由业务计算。 / Determinate progress is provided by business state. */
+/**
+ * 平滑显示业务进度；重试归零和完成立即同步，两套 UI 共用相同插值。
+ *
+ * 插值对齐下载器的 200 ms 采样间隔；动画沿用 Compose 的系统动画时长缩放。
+ *
+ * Smooths business progress, snapping on resets and completion with shared interpolation in both UIs.
+ *
+ * Interpolation matches the downloader's 200 ms sampling interval and honors Compose's system
+ * animation duration scale.
+ */
 @Composable
 fun AppLinearProgressIndicator(progress: () -> Float, modifier: Modifier = Modifier) {
+    val target = progress().coerceIn(0f, 1f)
+    val animated = remember { Animatable(target) }
+    LaunchedEffect(target) {
+        if (target <= 0f || target >= 1f || target < animated.targetValue) {
+            animated.snapTo(target)
+        } else {
+            animated.animateTo(target, tween(durationMillis = 200, easing = LinearEasing))
+        }
+    }
     if (LocalUiMode.current == UiMode.Miuix)
-        top.yukonga.miuix.kmp.basic.LinearProgressIndicator(modifier, progress())
-    else LinearProgressIndicator(progress, modifier)
+        top.yukonga.miuix.kmp.basic.LinearProgressIndicator(modifier, animated.value)
+    else LinearProgressIndicator({ animated.value }, modifier)
 }
 
 /** 导出等底部操作复用原生弹层。 / Bottom actions use framework sheets. */
