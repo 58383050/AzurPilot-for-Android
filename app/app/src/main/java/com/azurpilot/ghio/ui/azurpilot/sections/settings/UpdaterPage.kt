@@ -31,6 +31,8 @@ import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApStatusPill
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
+import com.azurpilot.ghio.ui.components.AnimatedTransferIcon
+import com.azurpilot.ghio.ui.components.TransferStage
 import com.azurpilot.ghio.ui.ksu.AppButton as Button
 import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
@@ -100,7 +102,10 @@ fun UpdaterPage(repository: AzurPilotRepository) {
                     content = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
                 if (data.busy) {
-                    ExpressiveLoadingIndicator(modifier = Modifier.size(AppTokens.IconSize.md))
+                    AnimatedTransferIcon(
+                        stage = TransferStage.APPLY,
+                        modifier = Modifier.size(AppTokens.IconSize.md),
+                    )
                 }
             }
             ApKeyValueRow(

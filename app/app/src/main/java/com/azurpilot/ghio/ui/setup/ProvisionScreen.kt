@@ -17,6 +17,8 @@ import com.azurpilot.ghio.R
 import com.azurpilot.ghio.provision.ProvisionState
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.components.MirrorSourcePicker
+import com.azurpilot.ghio.ui.components.AnimatedTransferIcon
+import com.azurpilot.ghio.ui.components.TransferStage
 import com.azurpilot.ghio.ui.ksu.AppButton as Button
 import com.azurpilot.ghio.ui.ksu.AppLinearProgressIndicator as LinearProgressIndicator
 import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
@@ -57,6 +59,16 @@ fun ProvisionScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            val transferStage = when (state) {
+                is ProvisionState.Downloading -> TransferStage.DOWNLOAD
+                is ProvisionState.Extracting -> TransferStage.EXTRACT
+                ProvisionState.Checking -> TransferStage.VERIFY
+                else -> null
+            }
+            if (transferStage != null) {
+                AnimatedTransferIcon(transferStage)
+                Spacer(Modifier.height(AppTokens.Spacing.lg))
+            }
             Text(
                 text = stringResource(R.string.provision_title),
                 style = MaterialTheme.typography.headlineMedium,

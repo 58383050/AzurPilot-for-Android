@@ -62,6 +62,8 @@ import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.azurpilot.AzurPilotDetailPage
 import com.azurpilot.ghio.ui.azurpilot.AzurPilotPage
 import com.azurpilot.ghio.ui.components.AppLockGate
+import com.azurpilot.ghio.ui.components.AnimatedTransferIcon
+import com.azurpilot.ghio.ui.components.TransferStage
 import com.azurpilot.ghio.ui.components.CommunityWarningDialog
 import com.azurpilot.ghio.ui.components.ShizukuReadinessDialog
 import com.azurpilot.ghio.ui.hangar.HangarScreen
@@ -344,6 +346,16 @@ fun AppRoot(
                             title = { Text(stringResource(R.string.app_update_title)) },
                             text = {
                                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    if (appUpdateState.downloading) {
+                                        AnimatedTransferIcon(
+                                            stage = if (appUpdateState.verifying) {
+                                                TransferStage.VERIFY
+                                            } else {
+                                                TransferStage.DOWNLOAD
+                                            },
+                                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                                        )
+                                    }
                                     Text(
                                         when {
                                             appUpdateState.verifying ->

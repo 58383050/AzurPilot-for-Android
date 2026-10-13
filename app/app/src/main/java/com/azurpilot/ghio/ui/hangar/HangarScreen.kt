@@ -79,6 +79,8 @@ import com.azurpilot.ghio.service.HostSnapshot
 import com.azurpilot.ghio.service.HostState
 import com.azurpilot.ghio.theme.AzurPilotTheme
 import com.azurpilot.ghio.ui.components.AppCard
+import com.azurpilot.ghio.ui.components.AnimatedTransferIcon
+import com.azurpilot.ghio.ui.components.TransferStage
 import com.azurpilot.ghio.ui.components.ScreenSaverButton
 import com.azurpilot.ghio.ui.ksu.AppButton
 import com.azurpilot.ghio.ui.ksu.AppIcon
@@ -388,7 +390,17 @@ private fun HomeRunCard(
                 enabled = isActive || canStart || canRetry || canResolve,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
             ) {
-                if (isWorking) {
+                if (mode == HomeMode.UPDATING) {
+                    AnimatedTransferIcon(
+                        stage = TransferStage.APPLY,
+                        modifier = Modifier.size(20.dp),
+                        color = if (LocalUiMode.current == UiMode.Miuix) {
+                            top.yukonga.miuix.kmp.theme.LocalContentColor.current
+                        } else {
+                            androidx.compose.material3.LocalContentColor.current
+                        },
+                    )
+                } else if (isWorking) {
                     HomeLoadingClock(
                         modifier = Modifier.size(20.dp),
                         color = if (LocalUiMode.current == UiMode.Miuix) {

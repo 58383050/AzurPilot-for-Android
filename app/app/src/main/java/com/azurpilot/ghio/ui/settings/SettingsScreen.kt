@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -38,6 +39,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -72,6 +74,8 @@ import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.components.AppNavigationRow
 import com.azurpilot.ghio.ui.components.AppSingleChoiceFlow
 import com.azurpilot.ghio.ui.components.MirrorSourcePicker
+import com.azurpilot.ghio.ui.components.AnimatedTransferIcon
+import com.azurpilot.ghio.ui.components.TransferStage
 import com.azurpilot.ghio.ui.components.ScreenSaverSettingsCard
 import com.azurpilot.ghio.ui.ksu.AppButton as Button
 import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
@@ -1246,12 +1250,29 @@ fun RuntimeSettingsPage(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                hot.busy && phaseText != null ->
-                    Text(
-                        stringResource(R.string.settings_hot_update_updating, phaseText),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                hot.busy ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
+                    ) {
+                        AnimatedTransferIcon(
+                            stage = if (hot.phase == "git") {
+                                TransferStage.DOWNLOAD
+                            } else {
+                                TransferStage.APPLY
+                            },
+                            modifier = Modifier.size(AppTokens.IconSize.md),
+                        )
+                        Text(
+                            if (phaseText != null) {
+                                stringResource(R.string.settings_hot_update_updating, phaseText)
+                            } else {
+                                stringResource(R.string.home_updating_title)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 hot.error.isNotEmpty() ->
                     Text(
                         stringResource(R.string.settings_hot_update_failed, hot.error),
