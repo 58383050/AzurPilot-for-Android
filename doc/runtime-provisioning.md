@@ -29,6 +29,16 @@
 3. 在位 → 只做 `checkForUpdates()` 提示，不自动替换。
 4. 未在位 → 内置资产（架构匹配时）或 Release 下载。
 
+### 更新判断
+
+- 更新检查使用 `BUILD_MANIFEST.azurpilot_commit` 表示当前 AP 源码版本；热更后立即刷新
+  已查询的更新状态，无需重启 App 或重新下载发布清单。
+- 发布版与当前 AP 提交相同时，不提示或下载整包 Runtime，即使版本号末段的构建输入
+  哈希不同。该哈希还包含构建脚本、overlay 和种子配置，不能单独代表运行库变化。
+- AP 提交不同时，沿用热更或整包更新流程。旧版非标准版本号继续按完整字符串比较。
+- `.provisioned` 和 `BUILD_MANIFEST.rootfs_version` 保留原始部署版本，部署完整性检查
+  仍比较这两个值，避免热更后误判为损坏并重装。
+
 ### 下载链路
 
 新安装默认从 CNB 国内源获取固定发布清单，已保存的源选择保留。App、Runtime 和前端
@@ -92,6 +102,18 @@
    automatically.
 4. When missing → extract the bundled asset (if the ABI matches) or
    download from the release.
+
+### Update decisions
+
+- Update checks use `BUILD_MANIFEST.azurpilot_commit` as the current AP source version. Once
+  a hot update settles, the cached check refreshes without an app restart or another index download.
+- Matching AP commits suppress full Runtime prompts and downloads even when the build-input hash
+  suffix differs. That hash also covers build scripts, overlays, and seed configuration, so its
+  change alone does not establish a runtime-library change.
+- Different AP commits retain the hot-update or full-update paths. Legacy version formats still
+  use complete-string comparisons.
+- `.provisioned` and `BUILD_MANIFEST.rootfs_version` retain the original deployment version.
+  Installation integrity still compares these values to avoid reinstalling after a hot update.
 
 ### Download chain
 

@@ -152,16 +152,11 @@ fun AppRoot(
     val showProvision = provisionState !is ProvisionState.Ready && !provisionSkipped
 
     // 启动时只查版本，先等用户决定是否更新，再启动 proot。
-    val installedRuntime = provisioner.installedVersion()
-    val runtimeAvailable =
-        runtimeCheck.checked &&
-            runtimeCheck.error == null &&
-            runtimeCheck.latestVersion != null &&
-            runtimeCheck.latestVersion != installedRuntime
+    val installedRuntime = runtimeCheck.installedVersion
+    val runtimeAvailable = runtimeCheck.available
     val hotUpdateOn by appSettings.hotUpdateEnabled.collectAsStateWithLifecycle()
-    // 整包重部署只在「基础镜像有差异」时弹出：rootfs_version 仅上游提交前缀不同
-    // (commitOnly) 且热更开启时，源码差异交给热更通道，不弹整包。用户主动打开 App
-    // 时全量更新必须前台提示（每日定时自动更新只是兜底，不抢前台的知情权）。
+    // AP 提交相同时不要求整包更新；仅源码有差异且热更开启时交给热更通道。
+    // 其余 AP 更新在用户打开 App 时前台提示，每日定时自动更新作为兜底。
     val fullUpdatePending = runtimeAvailable && !(runtimeCheck.commitOnly && hotUpdateOn)
     LaunchedEffect(
         provisionState,
@@ -322,7 +317,7 @@ fun AppRoot(
                 if (
                     applyingRuntimeUpdate &&
                         provisionState is ProvisionState.Ready &&
-                        runtimeCheck.latestVersion == provisioner.installedVersion()
+                        !runtimeCheck.available && runtimeCheck.error == null
                 )
                     applyingRuntimeUpdate = false
                 if (

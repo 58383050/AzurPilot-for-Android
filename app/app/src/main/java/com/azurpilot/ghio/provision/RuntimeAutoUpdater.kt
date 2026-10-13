@@ -227,8 +227,10 @@ class RuntimeAutoUpdater(
                 ?: throw IOException("发布渠道暂无 $abi 的 Runtime")
 
             val installed = provisioner.installedVersion()
-            if (runtime.version == installed) {
-                Timber.d("auto update: runtime is up-to-date ($installed)")
+            if (!runtimeUpdateNeeded(installed, runtime.version)) {
+                Timber.d(
+                    "auto update: AP is up-to-date (installed=%s latest=%s)", installed, runtime.version,
+                )
                 _state.value = AutoUpdateState.Idle
                 return@withContext false
             }

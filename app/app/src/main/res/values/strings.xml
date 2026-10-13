@@ -327,7 +327,7 @@
     <string name="settings_mirror_custom_hint">自定义镜像前缀，如 https://your-proxy.example.com/</string>
     <string name="settings_runtime_check">检查 Runtime 更新</string>
     <string name="settings_runtime_checking">正在检查 Runtime…</string>
-    <string name="settings_runtime_current">Runtime 已是 Latest 版本</string>
+    <string name="settings_runtime_current">AP 已是 Latest 版本，Runtime 无需更新</string>
     <string name="settings_runtime_commit_only">源码有新版本，可通过热更获取</string>
     <string name="settings_runtime_new_version">发现新版本；重启 App 时可选择更新</string>
     <string name="settings_runtime_check_failed">检查失败：%1$s</string>

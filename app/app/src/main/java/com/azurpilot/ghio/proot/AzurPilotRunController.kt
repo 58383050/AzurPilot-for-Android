@@ -157,6 +157,7 @@ class AzurPilotRunController(
     private val autoUpdateBusy: StateFlow<Boolean> = MutableStateFlow(false),
     private val tryBeginHotUpdate: () -> Boolean = { true },
     private val endHotUpdate: () -> Unit = {},
+    private val onHotUpdateSettled: () -> Unit = {},
 ) {
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -228,7 +229,9 @@ class AzurPilotRunController(
     private fun fetchHotUpdateState(): HotUpdateState? = parseHotUpdate(
         // 上游检查可能等满 30s；客户端必须允许服务端返回真实网络失败状态。
         get("$BASE/update/status", HOT_UPDATE_HTTP_TIMEOUT_MS),
-    )
+    ).also { status ->
+        if (status != null && !status.busy) onHotUpdateSettled()
+    }
 
     /** 手动刷新热更状态（设置页「检查更新」按钮） / Manually refreshes the hot-update status (the settings "check" button). */
     fun refreshHotUpdate() {

@@ -1000,10 +1000,7 @@ fun RuntimeSettingsPage(
     val prootState by prootHost.state.collectAsStateWithLifecycle()
     var showHourDialog by remember { mutableStateOf(false) }
     var showRestartConfirm by remember { mutableStateOf(false) }
-    val installedVersionState by produceState<String?>(null, prootState.phase) {
-        value = withContext(AppDispatchers.IO) { provisioner.installedVersion() }
-    }
-    val installedVersion = installedVersionState
+    val installedVersion = runtimeCheck.installedVersion
     // 会话正处在准备/启动链上即视为忙：重启按钮置灰并切到「正在重启」文案
     val sessionBusy =
         prootState.phase == ProotPhase.PREPARING ||
@@ -1086,7 +1083,7 @@ fun RuntimeSettingsPage(
                                 R.string.settings_runtime_check_failed,
                                 runtimeCheck.error!!,
                             )
-                        runtimeCheck.latestVersion == installedVersion ->
+                        runtimeCheck.latestVersion != null && !runtimeCheck.available ->
                             stringResource(R.string.settings_runtime_current)
                         runtimeCheck.latestVersion != null && runtimeCheck.commitOnly ->
                             stringResource(R.string.settings_runtime_commit_only)

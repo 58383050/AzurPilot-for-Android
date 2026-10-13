@@ -31,6 +31,7 @@ val prootModule = module {
             autoUpdateBusy = autoUpdater.busy,
             tryBeginHotUpdate = autoUpdater::tryBeginHotUpdate,
             endHotUpdate = autoUpdater::endHotUpdate,
+            onHotUpdateSettled = get<com.azurpilot.ghio.provision.RootfsProvisioner>()::refreshSourceUpdateCheck,
         )
     }
     // /api/v1/ws 富接口：原生界面（总览 / 配置 / 统计 / 设置）的全部数据来源

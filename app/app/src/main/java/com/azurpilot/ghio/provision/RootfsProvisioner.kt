@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
@@ -75,28 +76,6 @@ sealed interface ProvisionState {
 }
 
 /**
- * 运行时更新检查的界面态
- *
- * UI state of the runtime update check.
- */
-data class RuntimeUpdateCheck(
-    val checking: Boolean = false,
-    val checked: Boolean = false,
-    val latestVersion: String? = null,
-    val error: String? = null,
-    /**
-     * 最新包与已装包的 rootfs_version 只有上游提交前缀不同、构建输入哈希后段一致——
-     * 即基础镜像无变化、差异仅在源码，热更可替代整包重部署
-     *
-     * The latest and installed rootfs_version differ only in the upstream-commit
-     * prefix while the build-input hash suffix matches — the base image is
-     * unchanged and the difference is source-only, so a hot update can replace
-     * a full redeploy.
-     */
-    val commitOnly: Boolean = false,
-)
-
-/**
  * 首启解压流水线：assets 的 rootfs.tar.xz → 内部存储 files/rootfs
  *
  * - **必须内部 filesDir**：/sdcard 模拟存储不支持符号链接（ubuntu-base 有 740 个），
@@ -154,28 +133,28 @@ class RootfsProvisioner(
      */
     fun checkForUpdates() {
         if (_updateCheck.value.checking) return
-        _updateCheck.value = RuntimeUpdateCheck(checking = true)
+        _updateCheck.update { it.copy(checking = true) }
         scope.launch(Dispatchers.IO) {
             runCatching {
                 val abi = RuntimeArch.deviceAbi() ?: throw IOException("设备架构不受支持")
                 parseRuntime(fetchIndex(), abi)?.version
             }.onSuccess { version ->
-                // rootfs_version = <上游提交前12位>-<构建输入哈希前10位>：整串不等但
-                // 后段一致时，基础镜像没变、差异仅在源码，整包重部署可由热更替代
-                val commitOnly = version != null && installedVersion()?.let { installed ->
-                    version != installed && inputsHash(version) == inputsHash(installed)
-                } == true
-                _updateCheck.value = RuntimeUpdateCheck(
-                    checked = true, latestVersion = version, commitOnly = commitOnly,
+                val result = RuntimeUpdateCheck(
+                    checked = true, latestVersion = version, installedVersion = installedVersion(),
+                )
+                _updateCheck.value = result
+                Timber.i(
+                    "runtime update check: installed=%s latest=%s available=%s commitOnly=%s",
+                    result.installedVersion, version, result.available, result.commitOnly,
                 )
             }.onFailure { error ->
-                _updateCheck.value = RuntimeUpdateCheck(checked = true, error = error.message ?: "检查失败")
+                _updateCheck.value = RuntimeUpdateCheck(
+                    checked = true, installedVersion = installedVersion(),
+                    error = error.message ?: "检查失败",
+                )
             }
         }
     }
-
-    /** rootfs_version 的构建输入段（末段哈希）；热更不改它，整包更新才会变 / The build-input segment (trailing hash) of rootfs_version; hot updates never touch it, full redeploys do. */
-    private fun inputsHash(version: String): String = version.substringAfterLast('-')
 
     /**
      * 当前生效的 CNB 标识或代理前缀；自定义前缀也纳入换源判断。
@@ -276,7 +255,7 @@ class RootfsProvisioner(
         scope.launch(Dispatchers.IO) {
             try {
                 installFromRelease()
-                _updateCheck.value = RuntimeUpdateCheck(checked = true, latestVersion = installedVersion())
+                refreshUpdateCheck()
             } catch (error: Exception) {
                 Timber.w(error, "rootfs update failed")
                 _updateCheck.value = _updateCheck.value.copy(error = error.message ?: "更新失败")
@@ -335,13 +314,37 @@ class RootfsProvisioner(
     fun retry() = start()
 
     /**
-     * 已装版本（marker 内容），设置页/诊断展示用
+     * 返回当前源码与已部署镜像组成的版本，用于展示和更新检查；在 IO 线程读取。
      *
-     * The installed version (marker content), for the settings page and
-     * diagnostics.
+     * 热更只更新清单的 azurpilot_commit，不改变 .provisioned 或 rootfs_version。
+     * 部署完整性检查继续使用原始 marker，避免热更后被当作损坏而重装。
+     *
+     * Returns the current source plus deployed image version for display and update checks;
+     * reads on an IO thread. Hot updates change only azurpilot_commit, leaving .provisioned and
+     * rootfs_version intact. Installation integrity keeps using the original marker to avoid
+     * treating a hot update as corruption and reinstalling.
      */
-    fun installedVersion(): String? =
+    fun installedVersion(): String? {
+        val deployed = deployedVersion() ?: return null
+        return readManifest { manifest ->
+            runtimeVersionWithSource(
+                deployed, parseVersion(manifest), JSONObject(manifest).optString("azurpilot_commit"),
+            )
+        } ?: deployed
+    }
+
+    private fun deployedVersion(): String? =
         runCatching { markerFile.takeIf { it.isFile }?.readText()?.trim() }.getOrNull()
+
+    /**
+     * 热更收尾后在 IO 线程刷新当前版本，保留已查询的发布版与错误。
+     *
+     * Refreshes the current version on an IO thread after a hot update settles, preserving
+     * the queried release version and errors.
+     */
+    internal fun refreshSourceUpdateCheck() {
+        _updateCheck.update { it.copy(installedVersion = installedVersion()) }
+    }
 
     /**
      * 用当前已装版本刷新更新检查缓存；整包更新落地或回滚后调用，
@@ -353,7 +356,10 @@ class RootfsProvisioner(
      * [_updateCheck] itself, and a stale one keeps showing the old verdict).
      */
     internal fun refreshUpdateCheck() {
-        _updateCheck.value = RuntimeUpdateCheck(checked = true, latestVersion = installedVersion())
+        val installed = installedVersion()
+        _updateCheck.value = RuntimeUpdateCheck(
+            checked = true, latestVersion = installed, installedVersion = installed,
+        )
     }
 
     /**
@@ -407,7 +413,7 @@ class RootfsProvisioner(
         val version = parseVersion(manifest) ?: return false
         // 旧包没写 rootfs_arch，视为 arm64
         if ((parseArch(manifest) ?: RuntimeArch.ARM64) != deviceAbi) return false
-        return installedVersion() == version &&
+        return deployedVersion() == version &&
                 File(rootDir, PYTHON_REL).let {
                     it.isFile || java.nio.file.Files.isSymbolicLink(it.toPath())
                 }
@@ -468,15 +474,15 @@ class RootfsProvisioner(
     /**
      * 从 Release 下载并部署 Runtime。
      *
-     * 清单里还没有 Runtime 字段（旧版 latest.json 只发布 APK）时返回 false；版本已与已装
-     * 一致时也返回 false。设备架构不受支持、清单里没有该架构的包时抛异常，调用方把
+     * 清单里还没有 Runtime 字段（旧版 latest.json 只发布 APK）时返回 false；已有可用部署且
+     * AP 提交一致时也返回 false。设备架构不受支持、清单里没有该架构的包时抛异常，调用方把
      * 消息带进 Failed/错误态。
      *
      * Downloads and deploys the Runtime from Release.
      *
      * Returns false when the manifest has no Runtime fields yet (old latest.json
-     * shipped only the APK) and when the version already matches what is
-     * installed. Throws for an unsupported device arch or a manifest without
+     * shipped only the APK) and when a usable installation has the same AP commit.
+     * Throws for an unsupported device arch or a manifest without
      * this arch's package — callers funnel the message into Failed/error states.
      *
      * @return 是否真的部署了新 Runtime / whether a new Runtime was actually deployed
@@ -490,7 +496,7 @@ class RootfsProvisioner(
             ?: throw IOException("设备架构不受支持：${Build.SUPPORTED_ABIS.firstOrNull()}，需要 ${RuntimeArch.SUPPORTED.joinToString()}")
         val runtime = parseRuntime(info, abi)
             ?: throw IOException("发布渠道暂无 $abi 的 Runtime")
-        if (runtime.version == installedVersion()) return false
+        if (isInstalled() && !runtimeUpdateNeeded(installedVersion(), runtime.version)) return false
         checkDisk()
         val archive = File(app.filesDir, "rootfs-update.tar.xz")
         try {
