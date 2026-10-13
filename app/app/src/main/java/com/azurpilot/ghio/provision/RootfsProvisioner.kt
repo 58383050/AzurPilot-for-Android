@@ -401,7 +401,7 @@ class RootfsProvisioner(
      * Whether the installed rootfs is usable: arch matches, the marker matches
      * the manifest version, python is present.
      */
-    private fun isInstalled(): Boolean {
+    internal fun isInstalled(): Boolean {
         val deviceAbi = RuntimeArch.deviceAbi() ?: return false
         val manifest = readManifest { it } ?: return false
         val version = parseVersion(manifest) ?: return false

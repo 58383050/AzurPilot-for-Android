@@ -139,6 +139,8 @@ class RuntimeAutoUpdater(
      */
     private suspend fun scheduledTick() {
         if (!settings.hotUpdateEnabled.value) return
+        // 首次部署由前台显示进度，尚未在位时不消耗当天的自动检查机会。
+        if (!provisioner.isInstalled()) return
         val now = Calendar.getInstance()
         val hour = now.get(Calendar.HOUR_OF_DAY)
         val targetHour = settings.autoUpdateHour.value
@@ -188,6 +190,11 @@ class RuntimeAutoUpdater(
      * @return 更新是否成功 / whether the update succeeded
      */
     suspend fun checkAndApplyUpdate(force: Boolean = false): Boolean = withContext(AppDispatchers.IO) {
+        // Application 启动早于部署页；自动更新不能抢走首次部署的流水线。
+        if (!provisioner.isInstalled()) {
+            Timber.d("auto update: runtime not installed, leaving first deployment to provisioner")
+            return@withContext false
+        }
         // 与首启部署/手动整包更新（applyUpdate）共用同一把流水线锁：三条链都写 rootfs.tmp
         // 并对 rootfs 做换名，并发会互相覆盖；抢不到锁直接让位
         if (!provisioner.tryBeginPipeline()) {

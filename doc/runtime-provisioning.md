@@ -59,6 +59,8 @@
 
 ### 首启行为
 
+- 后台自动更新只处理已经在位的 Runtime；首次部署由前台流水线负责，下载与解压进度
+  显示在部署页。Runtime 未在位时，不记录当天的自动检查日期。
 - 解压剥离了 `__pycache__`，新 rootfs 首次启动要重建全部字节码，
   WebUI 可能超过 90 秒才就绪——ProotHost 会打
   `AzurPilot WebUI not ready within 90000ms` 警告，属预期，服务随后自然就绪。
@@ -129,6 +131,9 @@ preserving version, size, and SHA-256 verification.
 
 ### First boot
 
+- Background automatic updates only handle an installed Runtime. The foreground pipeline owns
+  first-time deployment and shows download and extraction progress. An absent Runtime does not
+  consume the day's scheduled check.
 - Extraction strips `__pycache__`, so the first boot of a fresh rootfs
   rebuilds all bytecode. The WebUI can take longer than 90 seconds; ProotHost
   logs `AzurPilot WebUI not ready within 90000ms` as an expected warning, and
