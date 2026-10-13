@@ -1,10 +1,10 @@
 package com.azurpilot.ghio.update
 
+import com.azurpilot.download.DownloadCancelledException
+import com.azurpilot.download.ParallelDownloader
 import java.io.File
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
+import timber.log.Timber
 
 /**
  * 表示下载被主动中止（换源）；调用方据此把「换源重来」与「真失败」区分开。
@@ -33,33 +33,32 @@ internal fun sha256Hex(file: File): String {
 }
 
 /**
- * 用单连接 HttpURLConnection 直下 Release 资源。
+ * 使用 OkHttp 下载 Release 资源，大文件自动采用四连接分段。
  *
- * 曾试过 okdownload 多连接分段：真机收益不稳（部分镜像对并发 Range 行为参差），
- * 排障面也大，按产品决定回退单连接；大小与 SHA-256 由调用方在完成后统一校验。
+ * 进程级单例；每次下载独立管理连接。镜像分段失败时自动回退单连接，大小与 SHA-256
+ * 由调用方在完成后统一校验。阻塞 API 在 IO 线程调用。
  *
- * Downloads release assets over a single `HttpURLConnection`.
+ * Downloads release assets through OkHttp, using four parallel connections for large files.
  *
- * Segmented multi-connection downloads (okdownload) were tried and rolled
- * back: real-device gains were unstable (mirrors handle concurrent `Range`
- * requests inconsistently) and the troubleshooting surface grew. Size and
- * SHA-256 are verified by the caller once the download completes.
+ * Process-wide singleton with independently managed calls per download. Mirrors failing segmented
+ * transfers fall back to a single connection. Callers verify size and SHA-256 after completion.
+ * Invoke the blocking API on an IO thread.
  */
 object ReleaseDownloader {
+
+    private val downloader = ParallelDownloader()
 
     /**
      * 阻塞下载 [url] 到 [target]（覆盖写）。
      *
-     * - [shouldAbort] 在每个读块前检查（换源）→ [DownloadAborted]；连接阶段
-     *   挂死时最长 [CONNECT_TIMEOUT_MS]、读阶段最长 [READ_TIMEOUT_MS] 能脱身
+     * - [shouldAbort] 每 100 ms 检查（换源）并取消活动请求，抛出 [DownloadAborted]。
      * - [totalBytes] 传清单里的大小供进度显示；未知传 -1，[onProgress] 收到的
      *   total 即该值
      *
      * Downloads [url] into [target] (overwriting), blocking the caller.
      *
-     * - [shouldAbort] is polled before every read chunk (source switch) and
-     *   trips [DownloadAborted]; a stalled connect gives up within
-     *   [CONNECT_TIMEOUT_MS], a stalled read within [READ_TIMEOUT_MS]
+     * - [shouldAbort] is polled every 100 ms (source switch), cancels active requests, and
+     *   throws [DownloadAborted].
      * - Pass the manifest size as [totalBytes] for progress display, or -1
      *   when unknown; [onProgress] reports that same value as its total
      */
@@ -70,33 +69,17 @@ object ReleaseDownloader {
         totalBytes: Long = -1L,
         onProgress: (doneBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
     ) {
-        val connection = URL(url).openConnection() as HttpURLConnection
         try {
-            connection.connectTimeout = CONNECT_TIMEOUT_MS
-            connection.readTimeout = READ_TIMEOUT_MS
-            connection.instanceFollowRedirects = true
-            check(connection.responseCode in 200..299) { "下载失败（HTTP ${connection.responseCode}）" }
-            connection.inputStream.use { input ->
-                target.outputStream().buffered(BUFFER_SIZE).use { output ->
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    var done = 0L
-                    while (true) {
-                        // 连接卡住时 read 会阻塞到超时，这里保证一换源就尽快放弃当前连接
-                        if (shouldAbort()) throw DownloadAborted()
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        done += count
-                        output.write(buffer, 0, count)
-                        onProgress(done, totalBytes)
-                    }
-                }
-            }
-        } finally {
-            connection.disconnect()
+            downloader.download(
+                url = url,
+                target = target,
+                totalBytes = totalBytes,
+                shouldAbort = shouldAbort,
+                onFallback = { Timber.w(it, "Segmented download failed; retrying with one connection") },
+                onProgress = onProgress,
+            )
+        } catch (_: DownloadCancelledException) {
+            throw DownloadAborted()
         }
     }
-
-    private const val CONNECT_TIMEOUT_MS = 20_000
-    private const val READ_TIMEOUT_MS = 120_000
-    private const val BUFFER_SIZE = 256 * 1024
 }

@@ -521,11 +521,11 @@ class RootfsProvisioner(
     }
 
     /**
-     * 单连接下载，进度直推状态机；SHA-256 由调用方在完成后统一校验
+     * 分段下载并自动回退，进度直推状态机；SHA-256 由调用方在完成后统一校验。
+     * 在 IO 调度器上执行。
      *
-     * Single-connection download with progress pushed straight into the state
-     * machine; the caller verifies SHA-256 after completion. IO 调度器上执行
-     * / Runs on the IO dispatcher.
+     * Segmented download with automatic fallback and progress pushed straight into the state
+     * machine; the caller verifies SHA-256 after completion. Runs on the IO dispatcher.
      *
      * @throws DownloadAborted 下载途中换了源 / when the mirror source switches
      *   mid-download

@@ -45,14 +45,23 @@
 共用下载源，可在部署页或设置页选择 GitHub 直连及代理镜像。两侧清单和附件对应同一版本，
 换源只切换 URL，大小与 SHA-256 校验不变。
 
-- **单连接** `HttpURLConnection`（`update/ReleaseDownloader.kt`）：
-  connect 20 s、read 120 s、跟随重定向；每个读块前检查 `shouldAbort`。
+- **分段下载**：`update/ReleaseDownloader.kt` 共用 `download-core` 的 OkHttp 下载器。
+  清单大小至少 8 MiB 时，先请求 `bytes=0-0` 验证服务器，再用四条连接下载互不重叠的区间。
+  每段严格检查 HTTP 206、`Content-Range`、响应长度和可用的文件版本标识；禁用响应压缩。
+  小文件和未知大小的文件直接单连接下载。使用 HTTP/1.1 保持分段连接独立，
+  connect 20 s、read 120 s，跟随重定向。
+- **兼容回退**：探测返回完整 HTTP 200 时复用该响应；分段请求失败或返回错误区间时，
+  取消全部分段，等待写线程退出，进度归零，然后从头单连接重试一次。失败后删除半成品。
 - **换源语义**：用户在下载中切换下载源 → `shouldAbort` 命中 →
   `DownloadAborted` → 删除半成品 → 按新源从头重下（`SourceChanged` 循环）。
-  连接阶段挂死时最长 20 s、读阶段最长 120 s 脱身。
+  每 100 ms 检查换源并主动取消 OkHttp 请求，连接或读取卡住时也无需等待网络超时。
 - **校验**：下载完成后先比大小再比 SHA-256（清单 `sha256` 字段），
   任一不符抛错进 `Failed`。
 - **进度口径**：`Downloading` 与 `Extracting` 都按压缩字节计，total 取清单 `size`。
+  分段进度聚合所有线程实际写入的字节，约每 200 ms 在调用线程报告一次。
+
+下载器的本地 HTTP 回归测试独立运行，不依赖 Android 测试桩：
+`cd app && ./gradlew :download-core:test`。
 
 ### 解压流水线
 
@@ -122,17 +131,28 @@ App, Runtime, and frontend downloads share the source selected in provisioning o
 GitHub direct access and proxies remain available. Switching sources changes the URL while
 preserving version, size, and SHA-256 verification.
 
-- **Single connection** over `HttpURLConnection`
-  (`update/ReleaseDownloader.kt`): 20 s connect, 120 s read, redirects
-  followed; `shouldAbort` is checked before every read chunk.
+- **Segmented downloads**: `update/ReleaseDownloader.kt` shares the OkHttp downloader in
+  `download-core`. Manifest sizes of at least 8 MiB trigger a `bytes=0-0` probe, followed by four
+  connections covering disjoint ranges. Every part validates HTTP 206, `Content-Range`, response
+  length, and available entity validators; response compression is disabled. Small files and
+  unknown sizes use one connection. HTTP/1.1 keeps segment connections independent. Connect timeout
+  is 20 s, read timeout 120 s; redirects follow.
+- **Compatibility fallback**: a whole HTTP 200 probe response is reused. Failed parts or invalid
+  ranges cancel every part and wait for writers to finish, reset progress, and restart once over
+  one connection. Failures delete partial files.
 - **Source-switch semantics**: switching the download source mid-download
   trips `shouldAbort` → `DownloadAborted` → the partial file is deleted and
-  the download restarts from the new source (`SourceChanged` loop). A stalled
-  connect gives up within 20 s; a stalled read within 120 s.
+  the download restarts from the new source (`SourceChanged` loop). Polling every 100 ms actively
+  cancels OkHttp calls, including stalled connections and reads, without waiting for network timeouts.
 - **Verification**: after download, compare size and then SHA-256 against the
   manifest's `sha256`. Any mismatch raises into `Failed`.
 - **Progress unit**: both `Downloading` and `Extracting` count compressed
   bytes; the total comes from the manifest's `size`.
+  Segmented progress sums bytes actually written by every worker and reports on the calling thread
+  approximately every 200 ms.
+
+The downloader's local HTTP regression tests run independently of Android test stubs:
+`cd app && ./gradlew :download-core:test`.
 
 ### Extraction pipeline
 

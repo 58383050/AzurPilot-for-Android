@@ -53,6 +53,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "AzurPilotApp"
 include(":app")
+include(":download-core")
 include(":adb-runtime")
 include(":hidden-api")
 include(":navigation-runtime")
