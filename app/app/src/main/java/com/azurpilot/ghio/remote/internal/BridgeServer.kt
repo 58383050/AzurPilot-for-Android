@@ -30,12 +30,13 @@ import kotlin.math.roundToInt
  *
  * 服务仅绑定回环地址 `127.0.0.1:22301`。请求与常规响应均为一行 JSON；`screencap` 成功时，
  * 元数据 JSON 行之后立即写入 `length` 字节的原始 BGR 数据。当前端点为 `ping`、`screencap`、
- * `click`、`swipe`、`equipment_code_read`、`equipment_code_input` 和 `shell`，
+ * `click`、`swipe`、`equipment_code_read`、`equipment_code_input`、`app_focus` 和 `shell`，
  * 每个响应都会回显请求的 `id`。协议的兼容性以此实现和
  * `doc/privileged-bridge-protocol.md` 为准，不应凭不存在的历史脚本或未固定的上游补丁推断。
  *
  * 一个线程接受连接，每个客户端使用一个守护线程。屏幕读取、触摸和装备码操作由
  * [DEVICE_LOCK] 串行，装备码输入仅接受有界 Base64 文本并始终绑定当前虚拟屏。
+ * 启动聚焦同样持锁，校验目标包后向当前副屏发送按下与取消序列。
  * `shell` 不持有该锁。 [start] 在 [RemoteServiceImpl] 初始化期间调用；绑定失败只记录日志。
  * [SharedFrameServer] 提供独立共享内存截图通道，ping 返回其能力及 Unix socket 名称；
  * 此通道不取得 [DEVICE_LOCK]，仅保留按连接顺序取帧的约束。
@@ -45,14 +46,16 @@ import kotlin.math.roundToInt
  * The service binds only `127.0.0.1:22301`. Requests and ordinary responses are one JSON line;
  * after a successful `screencap` metadata line it immediately writes `length` bytes of raw BGR data.
  * Current endpoints are `ping`, `screencap`, `click`, `swipe`, `equipment_code_read`,
- * `equipment_code_input`, and `shell`, and every response echoes
+ * `equipment_code_input`, `app_focus`, and `shell`, and every response echoes
  * the request `id`. Compatibility is defined by this implementation and
  * `doc/privileged-bridge-protocol.md`; do not infer it from absent historical scripts or an
  * unpinned upstream patch.
  *
  * One thread accepts connections and each client has a daemon thread. [DEVICE_LOCK] serializes
  * screen reads, touch injection, and equipment-code operations. Equipment input accepts only
- * bounded Base64 text on the current virtual display; `shell` does not take the lock. [start] is
+ * bounded Base64 text on the current virtual display. Launch focus takes the same lock, verifies
+ * the target package, and sends down/cancel on the current secondary display.
+ * `shell` does not take the lock. [start] is
  * called while [RemoteServiceImpl] initializes, and a bind failure is logged only.
  * [SharedFrameServer] provides independent shared-memory capture; ping reports its capability
  * and Unix socket name. It does not take [DEVICE_LOCK] and requires sequential per-client reads.
@@ -226,6 +229,7 @@ object BridgeServer {
                         .put("ok", true)
                         .put("pong", true)
                         .put("capabilities", JSONObject().put("equipmentCode", true)
+                            .put("appFocus", true)
                             .put("sharedMemoryScreencap", SharedFrameServer.isRunning()))
                         .put("sharedFrameSocket", SharedFrameServer.SOCKET_NAME)
                         .put("displayId", VirtualDisplayManager.getDisplayId())
@@ -239,6 +243,17 @@ object BridgeServer {
                 "equipment_code_read" -> handleEquipmentCodeRead(::reply)
                 "equipment_code_input" -> handleEquipmentCodeInput(request, ::reply)
                 "shell" -> handleShell(request, ::reply)
+                "app_focus" -> DEVICE_LOCK.withLock {
+                    val packageName = request.getString("package")
+                    val displayId = request.getInt("displayId")
+                    if (packageName.isBlank() ||
+                        !ActivityUtils.focusAppOnDisplay(packageName, displayId)
+                    ) {
+                        reply(err("no ready target window on display $displayId"))
+                    } else {
+                        reply(JSONObject().put("ok", true).put("displayId", displayId))
+                    }
+                }
                 else -> reply(err(if (method == null) "unknown method: None" else "unknown method: '$method'"))
             }
         } catch (e: Exception) {

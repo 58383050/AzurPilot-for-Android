@@ -134,6 +134,8 @@ install -m 0644 "$REPO_ROOT/rootfs/overlays/sitecustomize.py" "$VENV_SITE_PACKAG
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_ocr.py" "$VENV_SITE_PACKAGES/android_ocr.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_equipment.py" "$VENV_SITE_PACKAGES/android_equipment.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_capture.py" "$VENV_SITE_PACKAGES/android_capture.py"
+install -m 0644 "$REPO_ROOT/rootfs/overlays/android_app_launch.py" "$VENV_SITE_PACKAGES/android_app_launch.py"
+install -m 0644 "$REPO_ROOT/rootfs/overlays/android_device.py" "$VENV_SITE_PACKAGES/android_device.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_update.py" "$VENV_SITE_PACKAGES/android_update.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_update.py" "$ROOTFS_DIR/opt/azurpilot/android_update.py"
 guest /bin/sh -c 'cd /opt/azurpilot && .venv/bin/python -m module.config.config_updater'
@@ -158,8 +160,9 @@ python3 "$REPO_ROOT/rootfs/build/compact-runtime.py" "$ROOTFS_DIR" \
     --report "$ROOTFS_DIR/opt/azurpilot/RUNTIME_SIZE_REPORT.json"
 
 # 冒烟验证：真实导入重依赖，并确认进程枚举与装备码已接到 Android 兼容层。
+guest /bin/sh -c 'cd /opt/azurpilot && AZURPILOT_ANDROID=1 .venv/bin/python -c "import module.device.method.azurpilot_android as device; assert device.AzurPilotAndroid._android_launch_adapter; print(\"LAUNCH_ADAPTER_OK\")"'
 guest /bin/sh -c 'cd /opt/azurpilot && AZURPILOT_ANDROID=1 .venv/bin/python -c "import module.device.method.azurpilot_android as device; assert device.AzurPilotAndroid._android_capture_adapter; print(\"CAPTURE_ADAPTER_OK\")"'
-guest /bin/sh -c 'cd /opt/azurpilot && AZURPILOT_ANDROID=1 .venv/bin/python -c "import cv2,numpy,scipy,onnxruntime,rapidocr,ncnn,psutil,numba,uvloop,av; import module.api.app, module.device.device, module.ocr.al_ocr; import module.equipment.equipment_code as equipment; assert equipment.EquipmentCodeHandler._android_equipment_adapter; assert numba.njit(lambda x: x + 1)(2) == 3; assert scipy.linalg.norm(numpy.array([3.,4.])) == 5.; loop = uvloop.new_event_loop(); loop.close(); assert psutil.Process.children.__module__ == \"android_process_compat\"; print(\"IMPORTS_OK\")"'
+guest /bin/sh -c 'cd /opt/azurpilot && AZURPILOT_ANDROID=1 .venv/bin/python -c "import cv2,numpy,scipy,onnxruntime,rapidocr,ncnn,psutil,numba,uvloop,av; import module.api.app, module.device.device, module.ocr.al_ocr; import module.equipment.equipment_code as equipment; assert equipment.EquipmentCodeHandler._android_equipment_adapter; import module.device.method.azurpilot_android as device; assert device.AzurPilotAndroid._android_display_adapter; assert numba.njit(lambda x: x + 1)(2) == 3; assert scipy.linalg.norm(numpy.array([3.,4.])) == 5.; loop = uvloop.new_event_loop(); loop.close(); assert psutil.Process.children.__module__ == \"android_process_compat\"; print(\"IMPORTS_OK\")"'
 guest /bin/sh -c 'cd /opt/azurpilot && .venv/bin/python azurpilot-ocr-gate.py'
 # 原模型只用于上述构建对照；发布镜像用宿主身份文件，字典与配置保留。
 python3 "$REPO_ROOT/rootfs/build/compact-ocr-models.py" "$ROOTFS_DIR" \

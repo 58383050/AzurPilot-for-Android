@@ -36,6 +36,7 @@ object SharedFrameServer {
     private const val MAX_CLIENTS = 8
     private const val MAX_BYTES = 32 * 1024 * 1024
     private const val MAX_LINE = 4096
+    private const val IDLE_TIMEOUT_MS = 60_000
     private val clients = mutableSetOf<LocalSocket>()
 
     private var accepting = false
@@ -62,7 +63,7 @@ object SharedFrameServer {
         check(clients.size < MAX_CLIENTS) { "too many capture clients" }
         val owned = ParcelFileDescriptor.dup(descriptor.fileDescriptor)
         val socket = try {
-            // 包装器只接管已连接 FD，不重新连接；特权域允许使用隐藏框架入口。
+            // 此构造器只包裹已连接 FD，不重新连接；特权域允许使用隐藏框架入口。
             adoptConnectedSocket(owned.fileDescriptor)
         } catch (error: Exception) {
             owned.close()
@@ -76,7 +77,6 @@ object SharedFrameServer {
 
     /**
      * 包裹已连接 FD，兼容旧系统的静态工厂和新系统的构造器；调用方负责关闭 FD。
-     * 仅在允许隐藏 API 的特权进程中调用。
      *
      * Wraps a connected FD using the legacy static factory or the newer constructor. The caller
      * owns FD closure. Runs only in the privileged process, where hidden API access is allowed.
@@ -94,10 +94,10 @@ object SharedFrameServer {
     }
 
     /**
-     * 幂等停止接入并关闭所有连接，让客户端线程释放各自内存。可在任意线程调用。
+     * 幂等关闭监听和所有连接，唤醒阻塞读并让客户端线程释放各自内存。可在任意线程调用。
      *
-     * Stops admission and closes clients idempotently so client threads release their own memory.
-     * May be called from any thread.
+     * Closes the listener and clients idempotently, waking blocked reads so client threads release
+     * their own memory. May be called from any thread.
      */
     @Synchronized
     fun stop() {
@@ -114,6 +114,7 @@ object SharedFrameServer {
         var memory: SharedMemory? = null
         var mapping: ByteBuffer? = null
         try {
+            socket.soTimeout = IDLE_TIMEOUT_MS
             val input = BufferedInputStream(socket.inputStream)
             val output = socket.outputStream
             while (true) {

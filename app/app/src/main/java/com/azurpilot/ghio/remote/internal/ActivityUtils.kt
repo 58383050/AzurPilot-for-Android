@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import android.view.Display
+import com.azurpilot.ghio.bridge.InputControlUtils
 import com.azurpilot.ghio.third.FakeContext
 import com.azurpilot.ghio.third.Ln
 import com.azurpilot.ghio.third.wrappers.ServiceManager
@@ -224,6 +225,38 @@ object ActivityUtils {
                 ?.topActivity?.packageName
         }.onFailure { Ln.w("getTopPackageOnDisplay: failed", it) }.getOrNull()
     }
+
+    /**
+     * 等待目标应用的副屏窗口接收聚焦序列；只操作当前虚拟屏上的指定包。
+     *
+     * 启动后 Activity 和输入窗口不一定同时就绪，最多重试 3 秒；无法确认顶层包时不注入。
+     * 特权工作线程调用，持显示生命周期锁，防止等待期间虚拟屏被重建。
+     *
+     * Waits for the app's secondary window to accept focus, targeting only the current virtual display.
+     *
+     * Activities and input windows can become ready at different times after launch, so it retries
+     * for up to three seconds. No input is injected without verifying the top package. Privileged
+     * worker threads hold the display lifecycle lock to prevent recreation during the wait.
+     */
+    fun focusAppOnDisplay(packageName: String, displayId: Int): Boolean =
+        synchronized(displayLifecycleLock) {
+            if (displayId <= 0 || displayId != VirtualDisplayManager.getDisplayId()) {
+                return@synchronized false
+            }
+            val target = packageNameOf(packageName)
+            val deadline = SystemClock.uptimeMillis() + 3_000L
+            do {
+                if (getTopPackageOnDisplay(displayId) == target &&
+                    InputControlUtils.requestFocus(displayId)
+                ) {
+                    Ln.i("focusAppOnDisplay: focused $target on display $displayId")
+                    return@synchronized true
+                }
+                SystemClock.sleep(100L)
+            } while (SystemClock.uptimeMillis() < deadline)
+            Ln.w("focusAppOnDisplay: no ready window for $target on display $displayId")
+            false
+        }
 
     /**
      * 检查指定包名的应用最近的活动 task 是否运行在给定 displayId 上。

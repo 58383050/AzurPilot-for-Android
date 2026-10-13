@@ -332,6 +332,42 @@ object InputControlUtils {
     }
 
     /**
+     * 用按下后取消的序列请求副屏窗口焦点；有进行中的手势时返回 false。
+     *
+     * Android 11 的部分 ROM 不会给已恢复的副屏 Activity 分发窗口焦点，Unity 因此停在
+     * 启动画面。此序列只走窗口聚焦路径，不发送抬起事件；在特权工作线程持手势锁执行。
+     *
+     * Requests secondary-window focus with a down/cancel sequence; returns false during a gesture.
+     *
+     * Some Android 11 ROMs omit window focus for a resumed secondary Activity, leaving Unity on
+     * its startup screen. This sequence requests focus without an up event. It runs on privileged
+     * worker threads under the gesture lock.
+     */
+    @Synchronized
+    fun requestFocus(displayId: Int): Boolean {
+        if (displayId <= 0 || slots.isNotEmpty()) return false
+        val downTime = SystemClock.uptimeMillis()
+        fun event(action: Int): MotionEvent =
+            MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, 1f, 1f, 0).apply {
+                source = DEFAULT_SOURCE
+            }
+        var cancelled = false
+        val accepted = try {
+            injectInputEvent(
+                event(MotionEvent.ACTION_DOWN), displayId,
+                InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT
+            )
+        } finally {
+            // 即使按下失败也取消，避免窗口就绪的竞态留下未释放触点。
+            cancelled = injectInputEvent(
+                event(MotionEvent.ACTION_CANCEL), displayId,
+                InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT
+            )
+        }
+        return accepted && cancelled
+    }
+
+    /**
      * 注入按键按下
      *
      * 等待分发完成（WAIT_FOR_FINISH），保证随后的 keyUp 不会超前于 keyDown。

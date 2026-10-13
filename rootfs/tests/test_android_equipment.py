@@ -150,15 +150,20 @@ class EquipmentAdapterTest(unittest.TestCase):
         equipment = Mock()
         process = Mock()
         update = Mock()
+        device = Mock()
+        launch = Mock()
         capture = Mock()
         with patch.dict(sys.modules, android_equipment=equipment, android_process_compat=process,
-                        android_update=update, android_capture=capture):
+                        android_update=update, android_device=device, android_app_launch=launch,
+                        android_capture=capture):
             for enabled in ('0', '1'):
                 with patch.dict('os.environ', {'AZURPILOT_ANDROID': enabled,
                                               'AZURPILOT_OCR_ADDRESS': ''}):
                     exec(compile(site.read_text(encoding='utf-8'), str(site), 'exec'), {})
                 self.assertEqual(equipment.install.call_count, int(enabled))
                 self.assertEqual(update.install.call_count, int(enabled))
+                self.assertEqual(device.install.call_count, int(enabled))
+                self.assertEqual(launch.install.call_count, int(enabled))
                 self.assertEqual(capture.install.call_count, int(enabled))
 
 
