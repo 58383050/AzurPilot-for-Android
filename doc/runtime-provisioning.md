@@ -63,6 +63,11 @@
 下载器的本地 HTTP 回归测试独立运行，不依赖 Android 测试桩：
 `cd app && ./gradlew :download-core:test`。
 
+设备下载实测使用 `:app:assembleDebugAndroidTest -Pazurpilot.downloadBenchmark=true` 单独编译。
+运行 `ReleaseDownloadInstrumentedTest` 时显式传入 `releaseUrl`、`releaseSize` 和 `releaseSha256`，
+对同一发布资源各下载一次单连接和四连接；两次都校验摘要，结果写入应用
+`externalFiles/debug/download-benchmark.json`。未提供资源参数时跳过，不在普通测试中消耗流量。
+
 ### 解压流水线
 
 1. 解到 `rootfs.tmp`，全部成功后原子改名——半途失败不留半成品。
@@ -153,6 +158,13 @@ preserving version, size, and SHA-256 verification.
 
 The downloader's local HTTP regression tests run independently of Android test stubs:
 `cd app && ./gradlew :download-core:test`.
+
+Build the isolated device benchmark with
+`:app:assembleDebugAndroidTest -Pazurpilot.downloadBenchmark=true`. Run
+`ReleaseDownloadInstrumentedTest` with explicit `releaseUrl`, `releaseSize`, and `releaseSha256`
+arguments to download the same release asset once in each mode. Both transfers verify checksums
+and save results to the app's `externalFiles/debug/download-benchmark.json`. Missing asset arguments
+skip the test, preventing network usage in ordinary test runs.
 
 ### Extraction pipeline
 

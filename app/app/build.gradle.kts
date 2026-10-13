@@ -17,7 +17,10 @@ android {
     sourceSets {
         named("androidTest") {
             // 独立设备测试避开引用旧运行时类型的历史测试集。
-            if (providers.gradleProperty("embeddedAdbTestsOnly").orNull == "true") {
+            if (providers.gradleProperty("azurpilot.downloadBenchmark").orNull == "true") {
+                kotlin.directories.clear()
+                kotlin.directories.add("src/downloadTest/java")
+            } else if (providers.gradleProperty("embeddedAdbTestsOnly").orNull == "true") {
                 kotlin.directories.clear()
                 kotlin.directories.add("src/embeddedAdbTest/java")
             } else if (providers.gradleProperty("navigationTestsOnly").orNull == "true") {
