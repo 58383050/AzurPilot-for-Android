@@ -43,6 +43,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppActionLabel
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.proot.ApValue
 import com.azurpilot.ghio.proot.AzurPilotEditorState
 import com.azurpilot.ghio.proot.AzurPilotField
@@ -275,7 +277,7 @@ fun TaskConfigPage(
                         run(what)
                     }
                 ) {
-                    Text(stringResource(R.string.ap_run_confirm))
+                    AppActionLabel(AppSymbol.Play, stringResource(R.string.ap_run_confirm))
                 }
             },
             dismissButton = {

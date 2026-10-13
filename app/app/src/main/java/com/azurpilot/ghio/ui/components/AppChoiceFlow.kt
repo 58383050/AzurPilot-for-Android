@@ -25,9 +25,11 @@ fun <T> AppSingleChoiceFlow(
     title: String = "",
     enabled: Boolean = true,
     arrangement: Alignment.Horizontal = Alignment.Start,
+    icon: AppSymbol = AppSymbol.Options,
 ) {
     com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
         title = title,
+        icon = icon,
         insideMargin = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
         modifier = modifier,
         items = options.map { it.second },

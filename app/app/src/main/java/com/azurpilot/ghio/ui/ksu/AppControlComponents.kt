@@ -10,6 +10,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import com.azurpilot.ghio.ui.components.LocalActionIconTrigger
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -37,27 +42,31 @@ fun AppTextButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (LocalUiMode.current == UiMode.Miuix)
-        top.yukonga.miuix.kmp.basic.Button(onClick, modifier, enabled) {
-            androidx.compose.runtime.CompositionLocalProvider(
-                LocalAppTextStyle provides top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.button
-            ) {
-                content()
+    var iconTrigger by remember { mutableIntStateOf(0) }
+    val action = { iconTrigger++; onClick() }
+    CompositionLocalProvider(LocalActionIconTrigger provides iconTrigger) {
+        if (LocalUiMode.current == UiMode.Miuix)
+            top.yukonga.miuix.kmp.basic.Button(action, modifier, enabled) {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    LocalAppTextStyle provides top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.button
+                ) {
+                    content()
+                }
             }
-        }
-    else
-        TextButton(
-            onClick,
-            modifier,
-            enabled,
-            shape,
-            colors,
-            elevation,
-            border,
-            contentPadding,
-            interactionSource,
-            content,
-        )
+        else
+            TextButton(
+                action,
+                modifier,
+                enabled,
+                shape,
+                colors,
+                elevation,
+                border,
+                contentPadding,
+                interactionSource,
+                content,
+            )
+    }
 }
 
 /** 多选控制使用当前主题的复选框。 / Checkboxes follow the active framework. */

@@ -334,6 +334,7 @@ fun NavigationRailItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     badge: (@Composable () -> Unit)? = null,
+    iconContent: (@Composable (Modifier, Color, String?) -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -356,6 +357,7 @@ fun NavigationRailItem(
             iconColorFilter = iconColorFilter,
             interactionSource = interactionSource,
             badge = badge,
+            iconContent = iconContent,
             modifier = modifier,
         )
         return
@@ -395,7 +397,9 @@ fun NavigationRailItem(
                 ),
         ) {
             NavigationItemIcon(badge = badge, modifier = Modifier) { iconModifier ->
-                Image(
+                if (iconContent != null) {
+                    iconContent(iconModifier.size(NavigationRailDefaults.IconSize), tint, null)
+                } else Image(
                     modifier = iconModifier.size(NavigationRailDefaults.IconSize),
                     imageVector = icon,
                     // Decorative: the adjacent label already names the item; avoids TalkBack double-read.
@@ -437,6 +441,7 @@ private fun NavigationRailItemExpandable(
     iconColorFilter: ColorFilter,
     interactionSource: MutableInteractionSource,
     badge: (@Composable () -> Unit)?,
+    iconContent: (@Composable (Modifier, Color, String?) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val indicatorColor = MiuixTheme.colorScheme.surfaceContainerHigh
@@ -477,7 +482,9 @@ private fun NavigationRailItemExpandable(
                         .indication(interactionSource, indication),
                 )
                 NavigationItemIcon(badge = badge, modifier = Modifier.layoutId("icon")) { iconModifier ->
-                    Image(
+                    if (iconContent != null) {
+                        iconContent(iconModifier.size(NavigationRailDefaults.IconSize), tint, null)
+                    } else Image(
                         modifier = iconModifier.size(NavigationRailDefaults.IconSize),
                         imageVector = icon,
                         // Decorative: the always-present label names the item; avoids double-read.

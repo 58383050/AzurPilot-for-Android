@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppActionLabel
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.provision.ProvisionState
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.components.MirrorSourcePicker
@@ -153,7 +155,7 @@ fun ProvisionScreen(
             if (onSkip != null) {
                 Spacer(Modifier.height(AppTokens.Spacing.sm))
                 Button(onClick = onSkip) {
-                    Text(stringResource(R.string.provision_skip))
+                    AppActionLabel(AppSymbol.Play, stringResource(R.string.provision_skip))
                 }
             }
 
@@ -200,6 +202,6 @@ private fun StatusLine(text: String, isError: Boolean = false) {
 private fun RetryButton(onRetry: () -> Unit) {
     Spacer(Modifier.height(AppTokens.Spacing.lg))
     Button(onClick = onRetry) {
-        Text(stringResource(R.string.provision_retry))
+        AppActionLabel(AppSymbol.Refresh, stringResource(R.string.provision_retry))
     }
 }

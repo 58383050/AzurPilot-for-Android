@@ -61,6 +61,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppActionLabel
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.constant.DefaultDisplayConfig
 import com.azurpilot.ghio.domain.RemoteBackend
 import com.azurpilot.ghio.theme.ksu.LocalUiMode
@@ -535,7 +537,7 @@ private fun HomeAttention(onOpenSettings: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 AppTextButton(onClick = onOpenSettings) {
-                    AppText(stringResource(R.string.home_attention_settings))
+                    AppActionLabel(AppSymbol.Settings, stringResource(R.string.home_attention_settings))
                 }
             }
         }
@@ -561,7 +563,7 @@ private fun HomeTasks(
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             )
             AppTextButton(onClick = onOpenTasks) {
-                AppText(stringResource(R.string.home_tasks_view_all))
+                AppActionLabel(AppSymbol.Clock, stringResource(R.string.home_tasks_view_all))
             }
         }
 

@@ -15,6 +15,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppActionLabel
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.ocr.OcrDiagnosticsViewModel
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppFieldLabel
@@ -63,7 +65,7 @@ fun OcrSettingsPage(
         modifier = modifier,
     ) {
         AppCard {
-            AppLabeledControlRow(stringResource(R.string.ocr_hardware_acceleration)) {
+            AppLabeledControlRow(stringResource(R.string.ocr_hardware_acceleration), icon = AppSymbol.Cpu) {
                 Switch(
                     checked =
                         status?.get("hardware_acceleration_enabled")?.jsonPrimitive?.booleanOrNull
@@ -77,7 +79,7 @@ fun OcrSettingsPage(
             if (state.updating) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         AppCard {
-            AppInfoRow(stringResource(R.string.ocr_soc), status.text("soc").ifEmpty { "—" })
+            AppInfoRow(stringResource(R.string.ocr_soc), status.text("soc").ifEmpty { "—" }, icon = AppSymbol.Cpu)
             AppInfoRow(
                 stringResource(R.string.ocr_vendor),
                 stringResource(
@@ -89,6 +91,7 @@ fun OcrSettingsPage(
                         else -> R.string.ocr_vendor_other
                     }
                 ),
+                icon = AppSymbol.Cpu,
             )
             AppInfoRow(
                 stringResource(R.string.ocr_libraries),
@@ -96,6 +99,7 @@ fun OcrSettingsPage(
                     if (status.flag("npu_libraries_bundled")) R.string.ocr_ready
                     else R.string.ocr_unavailable
                 ),
+                icon = AppSymbol.Layers,
             )
             AppInfoRow(
                 stringResource(R.string.ocr_npu_state),
@@ -109,19 +113,21 @@ fun OcrSettingsPage(
                         else -> R.string.ocr_npu_untested
                     }
                 ),
+                icon = AppSymbol.Activity,
             )
             AppInfoRow(
                 stringResource(R.string.ocr_ap_runtime),
                 stringResource(
                     if (state.runtimeReady) R.string.ocr_running else R.string.ocr_not_running
                 ),
+                icon = AppSymbol.Terminal,
             )
             OcrHint(stringResource(R.string.ocr_status_hint))
             TextButton(
                 onClick = viewModel::refresh,
                 enabled = !state.testing && !state.refreshing && !state.updating,
             ) {
-                Text(stringResource(R.string.ocr_refresh))
+                AppActionLabel(AppSymbol.Refresh, stringResource(R.string.ocr_refresh))
             }
         }
         AppCard {
@@ -134,6 +140,7 @@ fun OcrSettingsPage(
                 selected = state.selectedHash,
                 onSelect = viewModel::select,
                 enabled = !state.testing && !state.updating,
+                icon = AppSymbol.Cpu,
             )
             OcrHint(stringResource(R.string.ocr_test_hint))
             if (!state.runtimeReady) OcrHint(stringResource(R.string.ocr_start_ap_hint))
@@ -146,7 +153,11 @@ fun OcrSettingsPage(
                         state.selectedHash.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(if (state.testing) R.string.ocr_testing else R.string.ocr_test))
+                AppActionLabel(
+                    AppSymbol.Cpu,
+                    stringResource(if (state.testing) R.string.ocr_testing else R.string.ocr_test),
+                    busy = state.testing,
+                )
             }
             if (state.testing) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -157,11 +168,13 @@ fun OcrSettingsPage(
                 AppInfoRow(
                     stringResource(R.string.ocr_backend),
                     backendLabel(result.text("backend")),
+                    icon = AppSymbol.Cpu,
                 )
-                AppInfoRow(stringResource(R.string.ocr_cold_time), milliseconds(result, "cold_ms"))
+                AppInfoRow(stringResource(R.string.ocr_cold_time), milliseconds(result, "cold_ms"), icon = AppSymbol.Clock)
                 AppInfoRow(
                     stringResource(R.string.ocr_steady_time),
                     milliseconds(result, "steady_ms"),
+                    icon = AppSymbol.Clock,
                 )
                 AppInfoRow(stringResource(R.string.ocr_cpu_time), milliseconds(result, "cpu_ms"))
                 if (result.flag("cpu_execution_verified"))
@@ -191,6 +204,7 @@ fun OcrSettingsPage(
                         AppInfoRow(
                             stringResource(R.string.ocr_backend),
                             backendLabel(result.text("backend")),
+                            icon = AppSymbol.Cpu,
                         )
                         AppInfoRow(
                             stringResource(R.string.ocr_recognized_text),
@@ -225,6 +239,7 @@ fun OcrSettingsPage(
                 AppInfoRow(
                     stringResource(R.string.ocr_backend),
                     backendLabel(model.text("backend")),
+                    icon = AppSymbol.Cpu,
                 )
                 AppInfoRow(stringResource(R.string.ocr_ap_requests), model.text("ap_requests"))
                 AppInfoRow(
@@ -247,6 +262,7 @@ fun OcrSettingsPage(
                     AppInfoRow(
                         stringResource(R.string.ocr_last_time),
                         milliseconds(model, "last_ms"),
+                        icon = AppSymbol.Clock,
                     )
                 }
                 val reason =
@@ -275,7 +291,7 @@ fun OcrSettingsPage(
                     },
                     enabled = !state.testing,
                 ) {
-                    Text(stringResource(R.string.ocr_copy_report))
+                    AppActionLabel(AppSymbol.Copy, stringResource(R.string.ocr_copy_report))
                 }
             }
         }

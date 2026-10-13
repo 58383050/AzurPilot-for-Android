@@ -33,6 +33,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppPreferenceIcon
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.ui.ksu.material.ExpressiveScaffold
 import com.azurpilot.ghio.ui.ksu.material.SegmentedColumn
 import com.azurpilot.ghio.ui.ksu.material.SegmentedListItem
@@ -99,6 +101,7 @@ fun AboutScreenMaterial(
                         {
                             SegmentedListItem(
                                 onClick = { actions.onOpenLink(linkInfo.url) },
+                                leadingContent = { AppPreferenceIcon(AppSymbol.Link) },
                                 headlineContent = { Text(linkInfo.fullText) }
                             )
                         }

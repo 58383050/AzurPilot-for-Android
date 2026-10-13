@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppActionLabel
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.proot.AzurPilotCommit
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.theme.AppTokens
@@ -157,7 +159,7 @@ fun UpdaterPage(repository: AzurPilotRepository) {
                         enabled = data.canApply,
                         onClick = { repository.updaterAction("apply") },
                     ) {
-                        Text(stringResource(R.string.ap_updater_apply))
+                        AppActionLabel(AppSymbol.Download, stringResource(R.string.ap_updater_apply))
                     }
                     if (data.canCancel) {
                         TextButton(onClick = { repository.updaterAction("cancel") }) {

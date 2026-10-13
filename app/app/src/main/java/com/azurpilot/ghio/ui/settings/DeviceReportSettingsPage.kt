@@ -1,7 +1,6 @@
 package com.azurpilot.ghio.ui.settings
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,18 +11,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppActionLabel
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.report.DeviceReportUiState
 import com.azurpilot.ghio.report.DeviceReportViewModel
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppInfoRow
-import com.azurpilot.ghio.ui.components.AppLabeledControlRow
+import com.azurpilot.ghio.ui.components.AppCheckboxPreference
 import com.azurpilot.ghio.ui.components.AppSingleChoiceFlow
 import com.azurpilot.ghio.ui.ksu.AppButton as Button
-import com.azurpilot.ghio.ui.ksu.AppCheckbox as Checkbox
 import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
 import com.azurpilot.ghio.ui.ksu.AppLinearProgressIndicator as LinearProgressIndicator
 import com.azurpilot.ghio.ui.ksu.AppText as Text
@@ -87,7 +85,7 @@ internal fun DeviceReportSettingsContent(
                         uriHandler.openUri(result.commentUrl)
                     }
                 ) {
-                    Text(stringResource(R.string.device_report_open_issue))
+                    AppActionLabel(AppSymbol.Link, stringResource(R.string.device_report_open_issue))
                 }
             },
             dismissButton = {
@@ -109,7 +107,7 @@ internal fun DeviceReportSettingsContent(
                     onClick = { uriHandler.openUri(result.commentUrl) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(stringResource(R.string.device_report_open_issue))
+                    AppActionLabel(AppSymbol.Link, stringResource(R.string.device_report_open_issue))
                 }
             }
         }
@@ -125,30 +123,35 @@ internal fun DeviceReportSettingsContent(
                 AppInfoRow(
                     stringResource(R.string.device_report_marketing_name),
                     report.marketingName,
+                    icon = AppSymbol.Phone,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_rom),
                     (report.romName + " " + report.romVersion).trim(),
+                    icon = AppSymbol.Terminal,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_build_incremental),
                     report.buildIncremental,
+                    icon = AppSymbol.Tools,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_build_display),
                     report.buildDisplay,
+                    icon = AppSymbol.Terminal,
                 )
-                AppInfoRow(stringResource(R.string.device_report_manufacturer), report.manufacturer)
-                AppInfoRow(stringResource(R.string.device_report_brand), report.brand)
-                AppInfoRow(stringResource(R.string.device_report_model), report.model)
-                AppInfoRow(stringResource(R.string.device_report_device), report.device)
-                AppInfoRow(stringResource(R.string.device_report_product), report.product)
-                AppInfoRow(stringResource(R.string.device_report_hardware), report.hardware)
+                AppInfoRow(stringResource(R.string.device_report_manufacturer), report.manufacturer, icon = AppSymbol.Phone)
+                AppInfoRow(stringResource(R.string.device_report_brand), report.brand, icon = AppSymbol.Phone)
+                AppInfoRow(stringResource(R.string.device_report_model), report.model, icon = AppSymbol.Phone)
+                AppInfoRow(stringResource(R.string.device_report_device), report.device, icon = AppSymbol.Phone)
+                AppInfoRow(stringResource(R.string.device_report_product), report.product, icon = AppSymbol.Phone)
+                AppInfoRow(stringResource(R.string.device_report_hardware), report.hardware, icon = AppSymbol.Cpu)
                 AppInfoRow(
                     stringResource(R.string.device_report_soc),
                     (report.socManufacturer + " " + report.socModel).trim().ifEmpty {
                         stringResource(R.string.device_report_unknown)
                     },
+                    icon = AppSymbol.Cpu,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_android),
@@ -157,14 +160,17 @@ internal fun DeviceReportSettingsContent(
                         report.androidRelease,
                         report.sdkInt,
                     ),
+                    icon = AppSymbol.Phone,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_patch),
                     report.securityPatch.ifEmpty { stringResource(R.string.device_report_unknown) },
+                    icon = AppSymbol.Security,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_abis),
                     report.supportedAbis.joinToString(),
+                    icon = AppSymbol.Cpu,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_screen),
@@ -175,10 +181,12 @@ internal fun DeviceReportSettingsContent(
                         report.densityDpi,
                         report.refreshRate,
                     ),
+                    icon = AppSymbol.Display,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_memory),
                     stringResource(R.string.device_report_memory_value, report.memoryGiB),
+                    icon = AppSymbol.Cpu,
                 )
                 AppInfoRow(
                     stringResource(R.string.settings_version),
@@ -187,6 +195,7 @@ internal fun DeviceReportSettingsContent(
                 AppInfoRow(
                     stringResource(R.string.device_report_backend),
                     if (report.backend == "ROOT") "Root" else "Shizuku",
+                    icon = AppSymbol.Security,
                 )
                 AppInfoRow(
                     stringResource(R.string.device_report_run_mode),
@@ -194,6 +203,7 @@ internal fun DeviceReportSettingsContent(
                         if (report.runMode == "FOREGROUND") R.string.device_report_foreground
                         else R.string.device_report_background
                     ),
+                    icon = AppSymbol.Activity,
                 )
             }
             if (!state.sending && state.result == null) {
@@ -218,25 +228,19 @@ internal fun DeviceReportSettingsContent(
                     state.errorRes?.let { error ->
                         Text(stringResource(error), color = MaterialTheme.colorScheme.error)
                     }
-                    AppLabeledControlRow(
-                        label = stringResource(R.string.device_report_consent),
-                        modifier =
-                            Modifier.semantics(mergeDescendants = true) {}
-                                .toggleable(
-                                    value = consent,
-                                    role = Role.Checkbox,
-                                    onValueChange = { consent = it },
-                                ),
-                    ) {
-                        Checkbox(checked = consent, onCheckedChange = null)
-                    }
+                    AppCheckboxPreference(
+                        title = stringResource(R.string.device_report_consent),
+                        checked = consent,
+                        onCheckedChange = { consent = it },
+                        icon = AppSymbol.Security,
+                    )
                     Button(
                         onClick = onSubmit,
                         enabled =
                             consent && report.compatibility in setOf("working", "not_working"),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(stringResource(R.string.device_report_submit))
+                        AppActionLabel(AppSymbol.Upload, stringResource(R.string.device_report_submit))
                     }
                 }
             }

@@ -5,6 +5,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.theme.ksu.LocalUiMode
 import com.azurpilot.ghio.theme.ksu.UiMode
+import com.azurpilot.ghio.ui.components.AppPreferenceIcon
+import com.azurpilot.ghio.ui.components.AppSymbol
 
 /** KSU 两种主题的下拉设置行。 / KSU dropdown preference for both themes. */
 @Composable
@@ -18,6 +20,7 @@ fun AppDropdownPreference(
     selectedIndex: Int,
     enabled: Boolean = true,
     onSelectedIndexChange: (Int) -> Unit,
+    icon: AppSymbol = AppSymbol.Options,
 ) {
     if (items.isEmpty()) return
     androidx.compose.foundation.layout.Box(modifier) {
@@ -26,6 +29,7 @@ fun AppDropdownPreference(
                 title = title.ifEmpty { items[selectedIndex.coerceIn(items.indices)] },
                 showValue = title.isNotEmpty(),
                 summary = summary,
+                startAction = { AppPreferenceIcon(icon, animationKey = selectedIndex) },
                 insideMargin = insideMargin,
                 maxHeight = 360.dp,
                 items = items,
@@ -36,6 +40,8 @@ fun AppDropdownPreference(
         else
             com.azurpilot.ghio.ui.ksu.material.SegmentedDropdownItem(
                 title = title,
+                leadingContent = { AppPreferenceIcon(icon, animationKey = selectedIndex) },
+                summary = summary,
                 items = items,
                 selectedIndex = selectedIndex,
                 enabled = enabled,

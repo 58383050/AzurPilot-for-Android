@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
@@ -75,11 +76,14 @@ fun AppLabeledControlRow(
     modifier: Modifier = Modifier,
     labelStyle: TextStyle = MaterialTheme.typography.bodyLarge,
     labelColor: Color = Color.Unspecified,
+    icon: AppSymbol = AppSymbol.Options,
+    iconActive: Boolean? = null,
     trailing: @Composable () -> Unit,
 ) {
     if (LocalUiMode.current == UiMode.Miuix) {
         top.yukonga.miuix.kmp.basic.BasicComponent(
             title = label,
+            startAction = { AppPreferenceIcon(icon, active = iconActive) },
             insideMargin =
                 if (LocalInsideAppCard.current) PaddingValues(vertical = 12.dp)
                 else top.yukonga.miuix.kmp.basic.BasicComponentDefaults.InsideMargin,
@@ -90,6 +94,7 @@ fun AppLabeledControlRow(
         SegmentedListItem(
             modifier = modifier,
             headlineContent = { Text(label, style = labelStyle, color = labelColor) },
+            leadingContent = { AppPreferenceIcon(icon, active = iconActive) },
             trailingContent = trailing,
         )
 }
@@ -101,18 +106,23 @@ fun AppNavigationRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     description: String? = null,
+    icon: AppSymbol = AppSymbol.Options,
 ) {
+    var activation by remember { mutableIntStateOf(0) }
+    val open = { activation++; onClick() }
     if (LocalUiMode.current == UiMode.Miuix) {
         top.yukonga.miuix.kmp.preference.ArrowPreference(
             title = label,
             summary = description,
-            onClick = onClick,
+            onClick = open,
+            startAction = { AppPreferenceIcon(icon, animationKey = activation) },
             modifier = modifier,
         )
     } else
         SegmentedListItem(
             modifier = modifier,
-            onClick = onClick,
+            onClick = open,
+            leadingContent = { AppPreferenceIcon(icon, animationKey = activation) },
             headlineContent = { Text(label) },
             supportingContent = description?.let { { Text(it) } },
             trailingContent = {
@@ -166,12 +176,14 @@ fun AppSwitchPreference(
     modifier: Modifier = Modifier,
     summary: String? = null,
     enabled: Boolean = true,
+    icon: AppSymbol = AppSymbol.Power,
 ) {
     if (LocalUiMode.current == UiMode.Miuix) {
         top.yukonga.miuix.kmp.preference.SwitchPreference(
             title = title,
             summary = summary,
             checked = checked,
+            startAction = { AppPreferenceIcon(icon, active = checked) },
             enabled = enabled,
             onCheckedChange = onCheckedChange,
             modifier = modifier,
@@ -181,6 +193,7 @@ fun AppSwitchPreference(
             modifier = modifier,
             onClick = { if (enabled) onCheckedChange(!checked) },
             headlineContent = { Text(title) },
+            leadingContent = { AppPreferenceIcon(icon, active = checked) },
             supportingContent = summary?.let { { Text(it) } },
             trailingContent = {
                 AppSwitch(
@@ -188,6 +201,43 @@ fun AppSwitchPreference(
                     onCheckedChange = onCheckedChange,
                     enabled = enabled,
                 )
+            },
+        )
+    }
+}
+
+/**
+ * 使用主题原生复选设置行统一点击与无障碍状态，整行只触发一次值变更。
+ *
+ * Uses themed checkbox preference rows with unified clicks and accessibility state, triggering
+ * exactly one value change per row activation.
+ */
+@Composable
+fun AppCheckboxPreference(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    icon: AppSymbol = AppSymbol.Check,
+) {
+    if (LocalUiMode.current == UiMode.Miuix) {
+        top.yukonga.miuix.kmp.preference.CheckboxPreference(
+            title = title,
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = modifier,
+            checkboxLocation = top.yukonga.miuix.kmp.preference.CheckboxLocation.End,
+            startAction = { AppPreferenceIcon(icon, active = checked) },
+        )
+    } else {
+        SegmentedListItem(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = modifier,
+            headlineContent = { Text(title) },
+            leadingContent = { AppPreferenceIcon(icon, active = checked) },
+            trailingContent = {
+                com.azurpilot.ghio.ui.ksu.AppCheckbox(checked, onCheckedChange = null)
             },
         )
     }
@@ -208,6 +258,7 @@ fun AppEditablePreference(
     enabled: Boolean = true,
     password: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
+    icon: AppSymbol = if (password) AppSymbol.Lock else AppSymbol.Edit,
 ) {
     var editing by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf(value) }
@@ -217,6 +268,7 @@ fun AppEditablePreference(
         AppNavigationRow(
             label = title,
             description = detail,
+            icon = icon,
             modifier = modifier,
             onClick = {
                 draft = value
@@ -225,7 +277,7 @@ fun AppEditablePreference(
             },
         )
     } else {
-        AppInfoRow(label = title, value = detail)
+        AppInfoRow(label = title, value = detail, icon = icon)
     }
     if (editing) {
         AppDialog(
@@ -239,6 +291,7 @@ fun AppEditablePreference(
                         invalid = false
                     },
                     labelText = title,
+                    leadingIcon = { AppSymbolIcon(icon) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                     visualTransformation =
@@ -275,14 +328,19 @@ fun AppEditablePreference(
 
 /** 信息通过主题列表行展示。 / Displays information through themed list rows. */
 @Composable
-fun AppInfoRow(label: String, value: String) {
+fun AppInfoRow(label: String, value: String, icon: AppSymbol = AppSymbol.Info) {
     if (LocalUiMode.current == UiMode.Miuix)
         top.yukonga.miuix.kmp.basic.BasicComponent(
             title = label,
             summary = value,
+            startAction = { AppPreferenceIcon(icon) },
             insideMargin =
                 if (LocalInsideAppCard.current) PaddingValues(vertical = 12.dp)
                 else top.yukonga.miuix.kmp.basic.BasicComponentDefaults.InsideMargin,
         )
-    else SegmentedListItem(headlineContent = { Text(label) }, supportingContent = { Text(value) })
+    else SegmentedListItem(
+        headlineContent = { Text(label) },
+        supportingContent = { Text(value) },
+        leadingContent = { AppPreferenceIcon(icon) },
+    )
 }

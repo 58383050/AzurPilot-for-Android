@@ -26,6 +26,7 @@ fun MirrorSourcePicker(
     arrangement: Alignment.Horizontal = Alignment.Start,
 ) {
     AppSingleChoiceFlow(
+        icon = AppSymbol.Download,
         options = buildList {
             add(ReleaseUrls.CNB to stringResource(R.string.provision_source_cnb))
             add(ReleaseUrls.DIRECT to stringResource(R.string.provision_source_direct))

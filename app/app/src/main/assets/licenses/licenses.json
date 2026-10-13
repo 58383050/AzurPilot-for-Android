@@ -122,7 +122,7 @@
       "version": "88b845d9a4330b95bc7f456a17f32ce54157b32f",
       "licenseId": "MIT-UseAnimations",
       "url": "https://github.com/useAnimations/react-useanimations",
-      "description": "Download, archive, file-text, and refresh animated icon assets",
+      "description": "Animated icons for app navigation, settings, actions, and transfer stages",
       "category": "android_lib",
       "isCore": false
     },

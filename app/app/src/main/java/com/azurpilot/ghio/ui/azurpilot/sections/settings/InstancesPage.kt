@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppActionLabel
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotRunState
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
@@ -101,7 +103,7 @@ fun InstancesPage(repository: AzurPilotRepository) {
                         }
                     },
                 ) {
-                    Text(stringResource(R.string.ap_instances_import_confirm))
+                    AppActionLabel(AppSymbol.Download, stringResource(R.string.ap_instances_import_confirm))
                 }
             },
             dismissButton = {

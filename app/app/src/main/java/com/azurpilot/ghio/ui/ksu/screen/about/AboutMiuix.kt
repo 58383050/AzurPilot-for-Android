@@ -61,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.onEach
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppPreferenceIcon
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.ui.ksu.component.miuix.effect.BgEffectBackground
 import com.azurpilot.ghio.ui.ksu.component.miuix.effect.ColorBlendToken
 import com.azurpilot.ghio.theme.ksu.LocalEnableBlur
@@ -411,6 +413,7 @@ private fun AboutContent(
                         state.links.forEach {
                             ArrowPreference(
                                 title = it.fullText,
+                                startAction = { AppPreferenceIcon(AppSymbol.Link) },
                                 onClick = {
                                     actions.onOpenLink(it.url)
                                 }

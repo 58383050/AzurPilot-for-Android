@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.ui.components.AppNavigationRow
 import com.azurpilot.ghio.ui.ksu.AppSettingsGroup
@@ -42,6 +43,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_instances_import),
+                    icon = AppSymbol.Download,
                     description = stringResource(R.string.ap_import_default_hint),
                     onClick = onOpenInstances,
                 )
@@ -49,6 +51,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_title_deploy),
+                    icon = AppSymbol.Terminal,
                     description = deploy?.let {
                         stringResource(R.string.ap_settings_deploy_count, it.groups.size)
                     } ?: stringResource(R.string.ap_waiting_data),
@@ -62,6 +65,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_title_updater),
+                    icon = AppSymbol.Refresh,
                     description = updater?.let {
                         if (it.managedByAndroid) stringResource(R.string.ap_updater_managed)
                         else if (it.behind > 0) stringResource(R.string.ap_updater_behind, it.behind)
@@ -73,6 +77,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_title_announcement),
+                    icon = AppSymbol.Info,
                     description = announcement?.title,
                     onClick = onOpenAnnouncement,
                 )
@@ -80,6 +85,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_title_meowfficer),
+                    icon = AppSymbol.Tools,
                     onClick = onOpenMeowfficer,
                 )
             }

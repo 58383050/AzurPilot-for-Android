@@ -73,6 +73,8 @@ import com.azurpilot.ghio.ui.components.AppInfoRow
 import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.components.AppNavigationRow
 import com.azurpilot.ghio.ui.components.AppSingleChoiceFlow
+import com.azurpilot.ghio.ui.components.AppSymbol
+import com.azurpilot.ghio.ui.components.AppActionLabel
 import com.azurpilot.ghio.ui.components.MirrorSourcePicker
 import com.azurpilot.ghio.ui.components.AnimatedTransferIcon
 import com.azurpilot.ghio.ui.components.TransferStage
@@ -136,6 +138,23 @@ enum class SettingsSection(val route: AppRoute, val titleRes: Int, val descRes: 
         R.string.device_report_description,
     ),
     About(AppRoute.About, R.string.settings_cat_about, R.string.settings_cat_about_desc),
+    ;
+
+    /** 分类对应的语义图标。 / Semantic icon for this category. */
+    val icon: AppSymbol
+        get() = when (this) {
+            Appearance -> AppSymbol.Appearance
+            Display -> AppSymbol.Display
+            VirtualDisplay -> AppSymbol.Phone
+            Logs -> AppSymbol.Logs
+            KeepAlive -> AppSymbol.Activity
+            Advanced -> AppSymbol.Security
+            Widget -> AppSymbol.Grid
+            Runtime -> AppSymbol.Terminal
+            Ocr -> AppSymbol.Cpu
+            DeviceReport -> AppSymbol.Report
+            About -> AppSymbol.Info
+        }
 }
 
 /**
@@ -184,6 +203,7 @@ fun SettingsScreen(
                 ) {
                     com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
                         title = stringResource(R.string.ksu_settings_ui_mode),
+                        icon = AppSymbol.Layers,
                         items = listOf("Miuix", "Material"),
                         selectedIndex = if (appearance.uiMode == "miuix") 0 else 1,
                         onSelectedIndexChange = { index ->
@@ -207,6 +227,7 @@ fun SettingsScreen(
                 ) {
                     AppNavigationRow(
                         label = stringResource(section.titleRes),
+                        icon = section.icon,
                         description = stringResource(section.descRes),
                         onClick = { onOpenSection(section) },
                     )
@@ -221,6 +242,7 @@ fun SettingsScreen(
                             label = stringResource(R.string.settings_feedback_bug),
                             description = stringResource(R.string.settings_feedback_bug_desc),
                             onClick = { uriHandler.openUri(ProjectLinks.ISSUES) },
+                            icon = AppSymbol.Help,
                         )
                     }
                     item {
@@ -228,6 +250,7 @@ fun SettingsScreen(
                             label = stringResource(R.string.settings_feedback_group),
                             description = stringResource(R.string.settings_feedback_group_desc),
                             onClick = { uriHandler.openUri(ProjectLinks.QQ_FEEDBACK_GROUP) },
+                            icon = AppSymbol.Community,
                         )
                     }
                 }
@@ -315,6 +338,7 @@ fun DisplaySettingsPage(
                 AppNavigationRow(
                     label = stringResource(R.string.ksu_settings_theme),
                     onClick = onOpenAppearance,
+                    icon = AppSymbol.Appearance,
                 )
             }
         }
@@ -378,6 +402,7 @@ private fun ColumnScope.LanguageChoice(onIntent: (SettingsIntent) -> Unit) {
                 onIntent(SettingsIntent.SetLanguage(tag))
             }
         },
+        icon = AppSymbol.Globe,
     )
     Text(
         text = stringResource(R.string.settings_language_hint),
@@ -468,10 +493,12 @@ fun VirtualDisplaySettingsPage(
             AppInfoRow(
                 stringResource(R.string.settings_virtual_display_resolution),
                 "1280 × 720",
+                icon = AppSymbol.Display,
             )
             AppInfoRow(
                 stringResource(R.string.settings_virtual_display_device_dpi),
                 stringResource(R.string.settings_virtual_display_dpi_value, deviceDpi),
+                icon = AppSymbol.Phone,
             )
             OutlinedTextField(
                 value = dpiDraft,
@@ -494,11 +521,11 @@ fun VirtualDisplaySettingsPage(
                 TextButton(
                     enabled = loaded && !savingDpi && draftDpi != null && draftDpi != savedDpi,
                     onClick = { draftDpi?.let(::saveDpi) },
-                ) { Text(stringResource(R.string.ap_deploy_save)) }
+                ) { AppActionLabel(AppSymbol.Save, stringResource(R.string.ap_deploy_save)) }
                 TextButton(
                     enabled = loaded && !savingDpi && (savedDpi != 0 || dpiDraft != "0"),
                     onClick = { saveDpi(0) },
-                ) { Text(stringResource(R.string.settings_virtual_display_dpi_auto)) }
+                ) { AppActionLabel(AppSymbol.Refresh, stringResource(R.string.settings_virtual_display_dpi_auto)) }
             }
             Text(
                 stringResource(R.string.settings_virtual_display_dpi_hint),
@@ -511,6 +538,7 @@ fun VirtualDisplaySettingsPage(
                 AppInfoRow(
                     stringResource(R.string.settings_virtual_display_rate_requested),
                     stringResource(R.string.settings_virtual_display_rate_value, selected),
+                    icon = AppSymbol.Activity,
                 )
                 Slider(
                     value = selected,
@@ -528,6 +556,7 @@ fun VirtualDisplaySettingsPage(
                     AppInfoRow(
                         stringResource(R.string.settings_virtual_display_rate_maximum),
                         stringResource(R.string.settings_virtual_display_rate_value, maximum),
+                        icon = AppSymbol.Activity,
                     )
                 }
                 Text(
@@ -582,6 +611,7 @@ fun LogsSettingsPage(
                     label = stringResource(R.string.app_log_title),
                     description = stringResource(R.string.settings_log_launcher_desc),
                     onClick = onOpenAppLog,
+                    icon = AppSymbol.Logs,
                 )
             }
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -589,17 +619,20 @@ fun LogsSettingsPage(
                     label = stringResource(R.string.azurpilot_log_title),
                     description = stringResource(R.string.settings_log_azurpilot_desc),
                     onClick = onOpenRunnerLog,
+                    icon = AppSymbol.Terminal,
                 )
             }
             AppNavigationRow(
                 label = stringResource(R.string.log_export_azurpilot_title),
                 description = stringResource(R.string.settings_log_export_azurpilot_desc),
                 onClick = onExportRunnerLogs,
+                icon = AppSymbol.Upload,
             )
             AppNavigationRow(
                 label = stringResource(R.string.log_export_launcher_title),
                 description = stringResource(R.string.settings_log_export_launcher_desc),
                 onClick = onExportLauncherLogs,
+                icon = AppSymbol.Upload,
             )
         }
         AppCard {
@@ -615,6 +648,8 @@ fun LogsSettingsPage(
                         },
                     )
                 },
+                icon = AppSymbol.Trash,
+                iconActive = state.autoCleanLogs,
             )
             Text(
                 text = stringResource(R.string.settings_auto_clean_logs_desc),
@@ -692,6 +727,8 @@ fun KeepAliveSettingsPage(
                         },
                     )
                 },
+                icon = AppSymbol.Activity,
+                iconActive = state.keepAliveEnabled,
             )
             Text(
                 text = stringResource(R.string.settings_keepalive_desc),
@@ -713,6 +750,7 @@ fun KeepAliveSettingsPage(
                             R.string.settings_keepalive_status_inactive
                         }
                     ),
+                icon = AppSymbol.Audio,
             )
             Text(
                 text = stringResource(R.string.settings_keepalive_audio_desc),
@@ -733,6 +771,7 @@ fun KeepAliveSettingsPage(
                             else -> R.string.settings_keepalive_status_inactive
                         }
                     ),
+                icon = AppSymbol.Layers,
             )
             Text(
                 text = stringResource(R.string.settings_keepalive_pixel_desc),
@@ -751,6 +790,7 @@ fun KeepAliveSettingsPage(
                             R.string.settings_keepalive_status_inactive
                         }
                     ),
+                icon = AppSymbol.Power,
             )
             Text(
                 text = stringResource(R.string.settings_keepalive_wakelock_desc),
@@ -766,6 +806,7 @@ fun KeepAliveSettingsPage(
                         if (state.keepAliveEnabled) R.string.settings_keepalive_status_active
                         else R.string.settings_keepalive_status_inactive
                     ),
+                icon = AppSymbol.Clock,
             )
             Text(
                 text = stringResource(R.string.settings_keepalive_alarm_job_desc),
@@ -781,6 +822,7 @@ fun KeepAliveSettingsPage(
                         if (state.keepAliveEnabled) R.string.settings_keepalive_status_active
                         else R.string.settings_keepalive_status_inactive
                     ),
+                icon = AppSymbol.Layers,
             )
             Text(
                 text = stringResource(R.string.settings_keepalive_daemon_broadcast_desc),
@@ -796,6 +838,7 @@ fun KeepAliveSettingsPage(
                         if (state.keepAliveEnabled) R.string.settings_keepalive_status_active
                         else R.string.settings_keepalive_status_inactive
                     ),
+                icon = AppSymbol.Community,
             )
             Text(
                 text = stringResource(R.string.settings_keepalive_companion_desc),
@@ -815,6 +858,7 @@ fun KeepAliveSettingsPage(
                             else -> R.string.settings_keepalive_status_need_accessibility
                         }
                     ),
+                icon = AppSymbol.Security,
             )
             Text(
                 text = stringResource(R.string.settings_keepalive_accessibility_desc),
@@ -855,10 +899,11 @@ fun AdvancedSettingsPage(
                 options = RemoteBackend.entries.map { it to it.display },
                 selected = state.remoteAccess.configuredBackend,
                 onSelect = { onIntent(SettingsIntent.SetBackend(it)) },
+                icon = AppSymbol.Security,
             )
             if (state.remoteAccess.configuredBackend == RemoteBackend.SHIZUKU) {
                 TextButton(onClick = { permissionManager.openShizuku(context) }) {
-                    Text(stringResource(R.string.adb_title))
+                    AppActionLabel(AppSymbol.Security, stringResource(R.string.adb_title))
                 }
             }
         }
@@ -889,6 +934,8 @@ fun AdvancedSettingsPage(
                         },
                     )
                 },
+                icon = AppSymbol.Lock,
+                iconActive = state.appLockEnabled,
             )
             Text(
                 text =
@@ -951,11 +998,13 @@ fun WidgetSettingsPage(
                 label = stringResource(R.string.widget_pin_control),
                 description = stringResource(R.string.widget_control_description),
                 onClick = { pinWidget(AzurPilotControlWidgetReceiver::class.java) },
+                icon = AppSymbol.Grid,
             )
             AppNavigationRow(
                 label = stringResource(R.string.widget_pin_quick),
                 description = stringResource(R.string.widget_quick_description),
                 onClick = { pinWidget(AzurPilotQuickWidgetReceiver::class.java) },
+                icon = AppSymbol.Power,
             )
         }
     }
@@ -1142,12 +1191,13 @@ fun RuntimeSettingsPage(
                 updater?.localHead?.take(12)
                     ?: installedVersion?.substringBefore('-')
                     ?: stringResource(R.string.settings_runtime_unknown),
+                icon = AppSymbol.Terminal,
             )
             if (installedVersion != null) {
-                AppInfoRow(stringResource(R.string.settings_runtime_installed), installedVersion)
+                AppInfoRow(stringResource(R.string.settings_runtime_installed), installedVersion, icon = AppSymbol.Terminal)
             }
             runtimeCheck.latestVersion?.let { latest ->
-                AppInfoRow(stringResource(R.string.settings_runtime_latest), latest)
+                AppInfoRow(stringResource(R.string.settings_runtime_latest), latest, icon = AppSymbol.Download)
             }
             if (runtimeCheck.checked) {
                 val status =
@@ -1183,11 +1233,13 @@ fun RuntimeSettingsPage(
                         provisionState is com.azurpilot.ghio.provision.ProvisionState.Ready,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(
+                AppActionLabel(
+                    AppSymbol.Refresh,
                     stringResource(
                         if (runtimeCheck.checking) R.string.settings_runtime_checking
                         else R.string.settings_runtime_check
-                    )
+                    ),
+                    busy = runtimeCheck.checking,
                 )
             }
         }
@@ -1204,6 +1256,8 @@ fun RuntimeSettingsPage(
                         },
                     )
                 },
+                icon = AppSymbol.Refresh,
+                iconActive = hotUpdateEnabled,
             )
             Text(
                 text = stringResource(R.string.settings_hot_update_desc),
@@ -1223,6 +1277,7 @@ fun RuntimeSettingsPage(
                             )
                         }
                     },
+                    icon = AppSymbol.Clock,
                 )
                 Text(
                     text = stringResource(R.string.settings_auto_update_hour_desc),
@@ -1309,13 +1364,13 @@ fun RuntimeSettingsPage(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md)) {
                 TextButton(onClick = { runController.refreshHotUpdate() }) {
-                    Text(stringResource(R.string.settings_hot_update_check))
+                    AppActionLabel(AppSymbol.Refresh, stringResource(R.string.settings_hot_update_check))
                 }
                 Button(
                     onClick = { runController.applyHotUpdate() },
                     enabled = hot != null && hot.available && !hot.busy,
                 ) {
-                    Text(stringResource(R.string.settings_hot_update_apply))
+                    AppActionLabel(AppSymbol.Download, stringResource(R.string.settings_hot_update_apply))
                 }
             }
         }
@@ -1333,6 +1388,8 @@ fun RuntimeSettingsPage(
                         },
                     )
                 },
+                icon = AppSymbol.Wifi,
+                iconActive = lanControlEnabled,
             )
             Text(
                 text = stringResource(R.string.settings_lan_control_desc),
@@ -1341,12 +1398,13 @@ fun RuntimeSettingsPage(
             )
             if (lanControlEnabled) {
                 lanAddress?.let {
-                    AppInfoRow(stringResource(R.string.settings_lan_control_address), it)
+                    AppInfoRow(stringResource(R.string.settings_lan_control_address), it, icon = AppSymbol.Link)
                 }
                 if (webUiPassword != null) {
                     AppInfoRow(
                         stringResource(R.string.settings_lan_control_password),
                         webUiPassword,
+                        icon = AppSymbol.Lock,
                     )
                 } else {
                     Text(
@@ -1371,6 +1429,8 @@ fun RuntimeSettingsPage(
                         },
                     )
                 },
+                icon = AppSymbol.Globe,
+                iconActive = remoteAccessEnabled,
             )
             Text(
                 text = stringResource(R.string.settings_remote_access_desc),
@@ -1392,11 +1452,13 @@ fun RuntimeSettingsPage(
                             else -> R.string.settings_remote_state_waiting
                         }
                     ),
+                    icon = AppSymbol.Activity,
                 )
                 if (status?.address?.isNotEmpty() == true) {
                     AppInfoRow(
                         stringResource(R.string.settings_remote_access_address),
                         status.address,
+                        icon = AppSymbol.Link,
                     )
                 }
                 // error 只在没拿到地址时展示：上游 WebRTC provider 首轮等 SSH 回包
@@ -1413,6 +1475,7 @@ fun RuntimeSettingsPage(
                     AppInfoRow(
                         stringResource(R.string.settings_remote_access_password),
                         remotePassword,
+                        icon = AppSymbol.Lock,
                     )
                 }
             }
@@ -1425,11 +1488,13 @@ fun RuntimeSettingsPage(
                 enabled = !sessionBusy,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(
+                AppActionLabel(
+                    AppSymbol.Refresh,
                     stringResource(
                         if (sessionBusy) R.string.settings_runtime_restarting
                         else R.string.settings_runtime_restart
-                    )
+                    ),
+                    busy = sessionBusy,
                 )
             }
             Text(
@@ -1463,7 +1528,7 @@ fun RuntimeSettingsPage(
                     enabled = customDraft != githubMirrorCustom,
                     onClick = { scope.launch { settings.setGithubMirrorCustom(customDraft) } },
                 ) {
-                    Text(stringResource(R.string.settings_mirror_custom_save))
+                    AppActionLabel(AppSymbol.Save, stringResource(R.string.settings_mirror_custom_save))
                 }
             }
             Text(
@@ -1476,7 +1541,7 @@ fun RuntimeSettingsPage(
                 enabled = !updateState.downloading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.settings_app_check))
+                AppActionLabel(AppSymbol.Refresh, stringResource(R.string.settings_app_check))
             }
         }
     }

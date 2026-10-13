@@ -36,6 +36,8 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.ui.components.AppSymbol
+import com.azurpilot.ghio.ui.components.AppSymbolIcon
 import com.azurpilot.ghio.ui.ksu.*
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
 import com.azurpilot.ghio.ui.ksu.AppSnackbarHost as SnackbarHost
@@ -57,6 +59,15 @@ internal enum class TopDestination(
     AzurPilot(R.string.nav_azurpilot, Icons.Outlined.DashboardCustomize, Icons.Filled.DashboardCustomize),
     /** 虚拟屏。 / Virtual display. */
     Screen(R.string.nav_screen, Icons.Outlined.PhoneAndroid, Icons.Filled.PhoneAndroid),
+    ;
+
+    /** 主页面对应的动态图标。 / Animated icon for this main destination. */
+    val symbol: AppSymbol
+        get() = when (this) {
+            Hangar -> AppSymbol.Home
+            AzurPilot -> AppSymbol.Terminal
+            Screen -> AppSymbol.Phone
+        }
 }
 
 /**
@@ -185,6 +196,12 @@ internal fun AppNavigationScaffold(
                                 selected = mainPagerState.selectedPage == index,
                                 onClick = { mainPagerState.animateToPage(index) },
                                 icon = destination.filledIcon,
+                                iconContent = { iconModifier, tint, description ->
+                                    AppSymbolIcon(
+                                        destination.symbol, iconModifier, description, tint,
+                                        active = mainPagerState.selectedPage == index,
+                                    )
+                                },
                                 label = stringResource(destination.labelRes),
                             )
                         }
@@ -232,10 +249,7 @@ internal fun AppNavigationScaffold(
                                         onClick = { activateTab(index) },
                                         modifier = Modifier.defaultMinSize(minWidth = 76.dp),
                                     ) {
-                                        top.yukonga.miuix.kmp.basic.Icon(
-                                            destination.filledIcon,
-                                            stringResource(destination.labelRes),
-                                        )
+                                        DestinationIcon(destination, mainPagerState.selectedPage == index)
                                         top.yukonga.miuix.kmp.basic.Text(
                                             stringResource(destination.labelRes),
                                             fontSize = 11.sp,
@@ -261,6 +275,12 @@ internal fun AppNavigationScaffold(
                                         MiuixNavigationBarItem(
                                             modifier = Modifier.weight(1f),
                                             icon = destination.filledIcon,
+                                            iconContent = { iconModifier, tint, description ->
+                                                AppSymbolIcon(
+                                                    destination.symbol, iconModifier, description, tint,
+                                                    active = mainPagerState.selectedPage == index,
+                                                )
+                                            },
                                             label = stringResource(destination.labelRes),
                                             selected = mainPagerState.selectedPage == index,
                                             onClick = { mainPagerState.animateToPage(index) },
@@ -385,8 +405,5 @@ internal fun AppNavigationScaffold(
 
 @Composable
 private fun DestinationIcon(destination: TopDestination, selected: Boolean) {
-    Icon(
-        if (selected) destination.filledIcon else destination.outlinedIcon,
-        stringResource(destination.labelRes),
-    )
+    AppSymbolIcon(destination.symbol, active = selected)
 }

@@ -431,6 +431,7 @@ fun SegmentedDropdownItem(
     onClick: (() -> Unit)? = null,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
+    leadingContent: (@Composable () -> Unit)? = null,
 ) {
     val haptic = LocalHapticFeedback.current
     var expanded by remember { mutableStateOf(false) }
@@ -454,7 +455,7 @@ fun SegmentedDropdownItem(
             } else null,
             enabled = enabled,
             colors = colors,
-            leadingContent = icon?.let { { Icon(it, title) } },
+            leadingContent = leadingContent ?: icon?.let { { Icon(it, null) } },
             headlineContent = { Text(text = title) },
             supportingContent = summary?.let { { Text(it) } },
             trailingContent = {

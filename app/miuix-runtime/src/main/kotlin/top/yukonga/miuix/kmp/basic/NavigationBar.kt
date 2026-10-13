@@ -140,6 +140,8 @@ fun NavigationBar(
  * @param enabled Whether the item is enabled.
  * @param colors The icon and label colors, with state opacity applied to their alpha.
  * @param badge The optional badge shown on the item's icon, typically a [Badge].
+ * @param iconContent 可选图标绘制器，接收尺寸、颜色和无障碍名称。
+ *   Optional icon renderer receiving dimensions, tint and accessibility label.
  */
 @Composable
 fun RowScope.NavigationBarItem(
@@ -151,6 +153,7 @@ fun RowScope.NavigationBarItem(
     enabled: Boolean = true,
     colors: NavigationBarItemColors = NavigationBarDefaults.navigationBarItemColors(),
     badge: (@Composable () -> Unit)? = null,
+    iconContent: (@Composable (Modifier, Color, String?) -> Unit)? = null,
 ) {
     val itemHeight = NavigationBarDefaults.ItemHeight
     val interactionSource = remember { MutableInteractionSource() }
@@ -182,7 +185,9 @@ fun RowScope.NavigationBarItem(
                     badge = badge,
                     modifier = Modifier.padding(top = NavigationBarDefaults.IconTopPadding),
                 ) { iconModifier ->
-                    Image(
+                    if (iconContent != null) {
+                        iconContent(iconModifier.size(NavigationBarDefaults.IconSize), tint, null)
+                    } else Image(
                         modifier = iconModifier.size(NavigationBarDefaults.IconSize),
                         imageVector = icon,
                         // Decorative: the adjacent label already names the item; avoids TalkBack double-read.
@@ -223,7 +228,9 @@ fun RowScope.NavigationBarItem(
                         }
                     },
                 ) { iconModifier ->
-                    Image(
+                    if (iconContent != null) {
+                        iconContent(iconModifier.size(NavigationBarDefaults.IconSize), tint, null)
+                    } else Image(
                         modifier = iconModifier.size(NavigationBarDefaults.IconSize),
                         imageVector = icon,
                         // Decorative: the label (always present in the tree) names the item; avoids double-read.
@@ -245,7 +252,9 @@ fun RowScope.NavigationBarItem(
 
             else -> {
                 NavigationItemIcon(badge = badge, modifier = Modifier) { iconModifier ->
-                    Image(
+                    if (iconContent != null) {
+                        iconContent(iconModifier.size(NavigationBarDefaults.IconSize), tint, label)
+                    } else Image(
                         modifier = iconModifier.size(NavigationBarDefaults.IconSize),
                         imageVector = icon,
                         contentDescription = label,

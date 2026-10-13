@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -187,6 +188,8 @@ fun AzurPilotControlPanel(
                             onCheckedChange = { repository.setStartup(enabled = it) },
                         )
                     },
+                    icon = AppSymbol.Power,
+                    iconActive = startup?.enabled == true,
                 )
             }
         }
@@ -588,10 +591,21 @@ fun ToolSlotButton(
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "toolSlotLabel",
         ) { isRunning ->
-            Text(
-                text = stringResource(if (isRunning) R.string.tool_stop else labelRes),
-                textAlign = TextAlign.Center,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                AppSymbolIcon(
+                    if (isRunning) AppSymbol.Power else AppSymbol.Tools,
+                    modifier = Modifier.size(18.dp),
+                    active = isRunning,
+                )
+                Text(
+                    text = stringResource(if (isRunning) R.string.tool_stop else labelRes),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
