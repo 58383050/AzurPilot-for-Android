@@ -107,6 +107,15 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
      */
     val virtualDisplayRefreshRate: StateFlow<Float> = _virtualDisplayRefreshRate.asStateFlow()
 
+    private val _virtualDisplayDpi = MutableStateFlow(0)
+
+    /**
+     * 虚拟屏 DPI；0 跟随设备，非法盘上值回落 0。
+     *
+     * Virtual display DPI; 0 follows the device, also used for invalid stored values.
+     */
+    val virtualDisplayDpi: StateFlow<Int> = _virtualDisplayDpi.asStateFlow()
+
     private val _loaded = MutableStateFlow(false)
 
     /**
@@ -217,6 +226,9 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
                     s.virtualDisplayRefreshRate.toFloatOrNull()?.takeIf {
                         it.isFinite() && it >= 0f
                     } ?: 0f
+                _virtualDisplayDpi.value = s.virtualDisplayDpi.toIntOrNull()?.takeIf {
+                    it == 0 || it in 72..960
+                } ?: 0
                 _startupBackend.value = parseBackend(s.startupBackend)
                 _skipShizukuCheck.value = s.skipShizukuCheck.toBoolean()
                 _shizukuLaunchPackage.value = s.shizukuLaunchPackage
@@ -287,6 +299,16 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
             require(rate.isFinite() && rate >= 0f)
             context.dataStore.edit { it[virtualDisplayRefreshRate] = rate.toString() }
         }
+
+    /**
+     * 保存虚拟屏 DPI；0 跟随设备，其余允许 72–960。
+     *
+     * Persists display DPI; 0 follows the device, otherwise 72–960.
+     */
+    suspend fun setVirtualDisplayDpi(dpi: Int): Unit = with(AppSettingsSchema) {
+        require(dpi == 0 || dpi in 72..960)
+        context.dataStore.edit { it[virtualDisplayDpi] = dpi.toString() }
+    }
 
     /** 写入「跳过 Shizuku 提醒」 / Writes the "skip Shizuku reminder" flag. */
     suspend fun setSkipShizukuCheck(skip: Boolean) =

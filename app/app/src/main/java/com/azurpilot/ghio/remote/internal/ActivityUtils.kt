@@ -201,6 +201,14 @@ object ActivityUtils {
         if (forceStop) {
             ServiceManager.getActivityManager().forceStopPackage(targetPackage)
         }
+        if (displayId > 0 && displayId == VirtualDisplayManager.getDisplayId()) {
+            try {
+                GameResolutionController.prepare(targetPackage, displayId)
+            } catch (error: Exception) {
+                Ln.e("Native resolution preparation failed for $targetPackage", error)
+                return false
+            }
+        }
         Ln.i("startApp ${intent.component?.flattenToShortString()}")
         lastLaunchedPackage = targetPackage
 

@@ -825,4 +825,12 @@
     <string name="home_reconnect">重新連線</string>
     <string name="ap_deploy_save_failed">儲存失敗，請檢查 Runtime 連線後重試</string>
     <string name="ap_deploy_host_help">127.0.0.1 僅本機；0.0.0.0 允許區域網路存取。IPv6 可用 ::1 或 ::。</string>
+    <string name="settings_virtual_display_resolution">解析度</string>
+    <string name="settings_virtual_display_device_dpi">裝置目前 DPI</string>
+    <string name="settings_virtual_display_dpi">虛擬螢幕 DPI</string>
+    <string name="settings_virtual_display_dpi_value">%d DPI</string>
+    <string name="settings_virtual_display_dpi_auto">跟隨裝置</string>
+    <string name="settings_virtual_display_dpi_invalid">輸入 0 跟隨裝置，或輸入 72–960。</string>
+    <string name="settings_virtual_display_dpi_hint">預設跟隨裝置 DPI，解析度固定為 1280×720。儲存後，下次啟動虛擬螢幕時生效。</string>
+    <string name="settings_virtual_display_dpi_save_failed">儲存失敗，請重試</string>
 </resources>

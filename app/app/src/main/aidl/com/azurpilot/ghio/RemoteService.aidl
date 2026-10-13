@@ -94,9 +94,10 @@ interface RemoteService {
     boolean setVirtualDisplayMode(int mode) = 10;
 
     /**
-     * 设置下一次虚拟屏创建使用的尺寸和 DPI；活动虚拟屏会重建。
+     * 设置虚拟屏创建使用的尺寸和 DPI；0 DPI 跟随设备，活动虚拟屏会按需重建。
      *
-     * Sets dimensions and DPI for virtual-display creation; an active virtual display is recreated.
+     * Sets virtual-display dimensions and DPI; 0 DPI follows the device. A live display is recreated
+     * when its effective configuration changes.
      */
     void setVirtualDisplayResolution(int width, int height, int dpi) = 11;
 

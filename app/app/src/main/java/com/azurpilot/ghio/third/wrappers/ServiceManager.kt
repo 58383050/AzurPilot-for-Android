@@ -70,6 +70,21 @@ object ServiceManager {
         }
     }
 
+    /**
+     * 在特权工作线程按服务自身的 AIDL 描述符解析可选接口；未注册返回 null，
+     * 解析或权限错误向上传播。
+     *
+     * Resolves an optional service using its own AIDL descriptor. An unregistered service returns
+     * null; reflection and permission failures propagate. Called on privileged worker threads.
+     */
+    internal fun getOptionalService(service: String): IInterface? {
+        val binder = GET_SERVICE_METHOD.invoke(null, service) as IBinder? ?: return null
+        val descriptor = checkNotNull(binder.interfaceDescriptor) { "Missing descriptor: $service" }
+        return Class.forName("$descriptor\$Stub")
+            .getMethod("asInterface", IBinder::class.java)
+            .invoke(null, binder) as IInterface
+    }
+
     /** 懒加载 [WindowManager] 包装 / Lazily creates the [WindowManager] wrapper. */
     fun getWindowManager(): WindowManager {
         if (windowManager == null) {

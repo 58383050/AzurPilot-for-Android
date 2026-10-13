@@ -3,6 +3,7 @@ package com.azurpilot.ghio.remote.internal
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.os.Build
+import android.view.Display
 import android.view.Surface
 import com.azurpilot.ghio.bridge.NativeBridgeLib
 import com.azurpilot.ghio.constant.AndroidVersions
@@ -92,6 +93,8 @@ object VirtualDisplayManager {
 
     private val state = AtomicInteger(STATE_IDLE)
     private val config = AtomicReference(DisplayConfig())
+    // 0 在每次建屏时解析主屏 DPI，避免保存一个过时的设备密度。
+    private val requestedDpi = AtomicInteger(0)
     private val requestedRefreshRate = AtomicReference(0f)
 
     /**
@@ -171,17 +174,19 @@ object VirtualDisplayManager {
     }
 
     /**
-     * 改虚拟屏分辨率；采集中的屏在配置实际变化时才重启
+     * 改虚拟屏分辨率；DPI 为 0 时跟随设备，采集中的屏在配置实际变化时才重启。
      *
-     * Changes the virtual display resolution; a live display restarts only when the config
-     * actually changed.
+     * Changes the virtual display resolution. A DPI of 0 follows the device; a live display restarts
+     * only when the configuration actually changes.
      */
-    fun setResolution(width: Int, height: Int, dpi: Int = config.get().dpi) {
+    fun setResolution(width: Int, height: Int, dpi: Int = requestedDpi.get()) {
         synchronized(displayLifecycleLock) {
-            val newConfig = DisplayConfig(width, height, dpi)
+            require(width > 0 && height > 0 && (dpi == 0 || dpi in 72..960))
+            requestedDpi.set(dpi)
+            val newConfig = DisplayConfig(width, height, resolveDpi(dpi))
             val oldConfig = config.getAndSet(newConfig)
             if (state.get() == STATE_CAPTURING && oldConfig != newConfig) {
-                Ln.i("Resolution changed: ${oldConfig.width}x${oldConfig.height} -> ${width}x${height}, restart")
+                Ln.i("Display config changed: $oldConfig -> $newConfig, restart")
                 restart()
             }
         }
@@ -208,7 +213,8 @@ object VirtualDisplayManager {
         try {
             // 释放失败时保留的旧屏必须先清理，不能被新引用覆盖。
             if (virtualDisplay.get() != null || capturerOwned) releaseResources()
-            val cfg = config.get()
+            val cfg = config.get().copy(dpi = resolveDpi(requestedDpi.get()))
+            config.set(cfg)
             capturerOwned = true
             val surface = checkNotNull(NativeBridgeLib.setupNativeCapturer(cfg.width, cfg.height)) {
                 "Native capturer returned no surface"
@@ -269,6 +275,7 @@ object VirtualDisplayManager {
         Ln.i(
             "VD created: id=$vdId" +
             ", configured=${cfg.width}x${cfg.height}" +
+            ", dpi=${cfg.dpi}, requestedDpi=${requestedDpi.get()}" +
             ", actual=${d.width}x${d.height}" +
             ", rotation=${d.rotation}" +
             ", requestedRefreshRate=${requestedRefreshRate.get()}, refreshRate=${d.refreshRate}" +
@@ -297,6 +304,11 @@ object VirtualDisplayManager {
                 }.onFailure { e -> Ln.w("setForcedDisplaySize failed: ${e.message}") }
             }
         }
+    }
+
+    private fun resolveDpi(dpi: Int): Int = if (dpi != 0) dpi else {
+        ServiceManager.getDisplayManager().getDisplayInfo(Display.DEFAULT_DISPLAY)?.dpi
+            ?.takeIf { it > 0 } ?: DefaultDisplayConfig.DPI
     }
 
     /**

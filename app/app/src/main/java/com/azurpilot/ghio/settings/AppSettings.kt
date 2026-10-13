@@ -81,6 +81,13 @@ data class AppSettings(
     @PrefKey(default = "0") val virtualDisplayRefreshRate: String = "0",
 
     /**
+     * 虚拟屏 DPI；0 跟随设备，下次启动生效。
+     *
+     * Virtual display DPI; 0 follows the device on next start.
+     */
+    @PrefKey(default = "0") val virtualDisplayDpi: String = "0",
+
+    /**
      * [com.azurpilot.ghio.domain.RemoteBackend] 的 name / The name of a
      * [com.azurpilot.ghio.domain.RemoteBackend].
      */

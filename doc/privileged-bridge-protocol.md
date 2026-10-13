@@ -30,6 +30,7 @@
 | `equipment_code_read` | 无 | `ok=true`、`code` | 从系统剪贴板的首项读取装备码；无有效码返回 `code=null`，不展开 URI，不返回其他内容。无活动虚拟屏或系统拒绝访问时返回错误。 |
 | `equipment_code_input` | `code` | `ok=true` | 仅接受 16–4096 字符、长度为 4 的倍数的 Base64 文本，末尾至多两个 `=`。在当前虚拟屏的已聚焦输入框执行 Ctrl+A、Delete、文本输入和 Enter；失败返回错误，并释放已按下的键。逐键序列预算 10 秒（不打断进行中的系统注入调用）。客户端仍须通过截图确认预览已加载。 |
 | `shell` | `cmd` | `ok`、`code`、`stdout`、`stderr` | 可选 `timeout` 为秒；每个输出流最多保留 64 KiB，超时会返回错误。 |
+| `app_prepare` | `package`、`displayId` | `ok=true` | `ping.capabilities.nativeGameResolution=true` 时可用；只允许当前 1280×720 虚拟屏和已安装的有效包名。启动前关闭目标包的标准及 APS 兼容缩放，回读验证并在 APS 设备上强停旧进程。拒绝修改时返回错误，客户端须停止任务。见 [原生分辨率](virtual-display-startup.md)。 |
 | `app_focus` | `package`、`displayId` | `ok=true`、`displayId` | `ping.capabilities.appFocus=true` 时可用；只聚焦当前虚拟屏的匹配顶层包，拒绝主屏或失效 ID。按下后立即取消，不完成点击；窗口就绪重试预算为 3 秒。见 [启动聚焦](virtual-display-startup.md)。 |
 
 未知或缺失 `method` 返回 `ok=false`。请求参数类型错误由 JSON 访问器抛出后返回错误响应；客户端不得依赖具体错误文案。
@@ -104,6 +105,7 @@ The current service implementation and this document define compatibility. No hi
 | `equipment_code_read` | None | `ok=true`, `code` | Reads an equipment code from the first system clipboard item; an invalid or absent code returns `code=null`. Does not resolve URIs or return other content. An absent virtual display or denied system access returns an error. |
 | `equipment_code_input` | `code` | `ok=true` | Accepts only 16–4096 Base64 characters, a length divisible by 4, and at most two trailing `=` characters. Sends Ctrl+A, Delete, text, and Enter to the focused field on the current virtual display. Failure returns an error and releases pressed keys. The key sequence has a 10-second budget, without interrupting a system injection call in progress. Clients must still confirm a loaded preview from screenshots. |
 | `shell` | `cmd` | `ok`, `code`, `stdout`, `stderr` | Optional `timeout` is seconds; each output stream retains at most 64 KiB, and timeout returns an error. |
+| `app_prepare` | `package`, `displayId` | `ok=true` | Available with `ping.capabilities.nativeGameResolution=true`. Requires the current 1280×720 virtual display and a valid installed package. Before launch, disables and verifies package-specific standard and APS scaling, then force-stops the old process on APS devices. Rejection returns an error; the client must stop the task. See [native resolution](virtual-display-startup.md). |
 | `app_focus` | `package`, `displayId` | `ok=true`, `displayId` | Available with `ping.capabilities.appFocus=true`. Focuses only the matching top package on the current virtual display; rejects primary or stale IDs. Sends down/cancel without completing a click, with a 3-second window-readiness retry budget. See [launch focus](virtual-display-startup.md). |
 
 An unknown or missing `method` returns `ok=false`. Type errors in request fields become an error response; clients must not depend on exact error wording.

@@ -30,7 +30,8 @@ import kotlin.math.roundToInt
  *
  * 服务仅绑定回环地址 `127.0.0.1:22301`。请求与常规响应均为一行 JSON；`screencap` 成功时，
  * 元数据 JSON 行之后立即写入 `length` 字节的原始 BGR 数据。当前端点为 `ping`、`screencap`、
- * `click`、`swipe`、`equipment_code_read`、`equipment_code_input`、`app_focus` 和 `shell`，
+ * `click`、`swipe`、`equipment_code_read`、`equipment_code_input`、`app_prepare`、`app_focus` 和
+ * `shell`，
  * 每个响应都会回显请求的 `id`。协议的兼容性以此实现和
  * `doc/privileged-bridge-protocol.md` 为准，不应凭不存在的历史脚本或未固定的上游补丁推断。
  *
@@ -46,7 +47,7 @@ import kotlin.math.roundToInt
  * The service binds only `127.0.0.1:22301`. Requests and ordinary responses are one JSON line;
  * after a successful `screencap` metadata line it immediately writes `length` bytes of raw BGR data.
  * Current endpoints are `ping`, `screencap`, `click`, `swipe`, `equipment_code_read`,
- * `equipment_code_input`, `app_focus`, and `shell`, and every response echoes
+ * `equipment_code_input`, `app_prepare`, `app_focus`, and `shell`, and every response echoes
  * the request `id`. Compatibility is defined by this implementation and
  * `doc/privileged-bridge-protocol.md`; do not infer it from absent historical scripts or an
  * unpinned upstream patch.
@@ -230,6 +231,7 @@ object BridgeServer {
                         .put("pong", true)
                         .put("capabilities", JSONObject().put("equipmentCode", true)
                             .put("appFocus", true)
+                            .put("nativeGameResolution", true)
                             .put("sharedMemoryScreencap", SharedFrameServer.isRunning()))
                         .put("sharedFrameSocket", SharedFrameServer.SOCKET_NAME)
                         .put("displayId", VirtualDisplayManager.getDisplayId())
@@ -243,6 +245,12 @@ object BridgeServer {
                 "equipment_code_read" -> handleEquipmentCodeRead(::reply)
                 "equipment_code_input" -> handleEquipmentCodeInput(request, ::reply)
                 "shell" -> handleShell(request, ::reply)
+                "app_prepare" -> DEVICE_LOCK.withLock {
+                    GameResolutionController.prepare(
+                        request.getString("package"), request.getInt("displayId")
+                    )
+                    reply(ok())
+                }
                 "app_focus" -> DEVICE_LOCK.withLock {
                     val packageName = request.getString("package")
                     val displayId = request.getInt("displayId")

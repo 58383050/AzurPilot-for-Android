@@ -837,4 +837,12 @@
     <string name="home_reconnect">Reconnect</string>
     <string name="ap_deploy_save_failed">Could not save. Check the Runtime connection and retry.</string>
     <string name="ap_deploy_host_help">127.0.0.1 allows local access; 0.0.0.0 allows LAN access. For IPv6, use ::1 or ::.</string>
+    <string name="settings_virtual_display_resolution">Resolution</string>
+    <string name="settings_virtual_display_device_dpi">Current device DPI</string>
+    <string name="settings_virtual_display_dpi">Virtual display DPI</string>
+    <string name="settings_virtual_display_dpi_value">%d DPI</string>
+    <string name="settings_virtual_display_dpi_auto">Follow device</string>
+    <string name="settings_virtual_display_dpi_invalid">Enter 0 to follow the device, or a value from 72 to 960.</string>
+    <string name="settings_virtual_display_dpi_hint">DPI follows the device by default. Resolution stays at 1280×720. Saved changes apply the next time the virtual display starts.</string>
+    <string name="settings_virtual_display_dpi_save_failed">Could not save. Please try again.</string>
 </resources>

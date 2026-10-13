@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -381,12 +383,12 @@ private fun ColumnScope.LanguageChoice(onIntent: (SettingsIntent) -> Unit) {
 }
 
 /**
- * 渲染虚拟屏二级页：刷新率滑杆，上限跟随主屏当前刷新率
+ * 渲染虚拟屏二级页：固定 720P、自定义 DPI 和刷新率，下次启动生效。
  *
  * 滑杆经 round 取整只落整数档；「最大档存 0」的约定见行内注释。
  *
- * Renders the virtual-display page: a refresh-rate slider whose ceiling follows the main display's
- * current refresh rate.
+ * Renders the virtual-display page with fixed 720p, custom DPI, and refresh rate, applied on next
+ * start. The refresh-rate ceiling follows the main display.
  *
  * The slider rounds to whole-number tiers; see the inline notes for the "max tier stored as 0"
  * convention.
@@ -424,8 +426,28 @@ fun VirtualDisplaySettingsPage(
         onDispose { displays.unregisterDisplayListener(listener) }
     }
     val savedRate by settings.virtualDisplayRefreshRate.collectAsStateWithLifecycle()
+    val savedDpi by settings.virtualDisplayDpi.collectAsStateWithLifecycle()
     val loaded by settings.loaded.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val deviceDpi = context.resources.displayMetrics.densityDpi
+    var dpiDraft by remember(savedDpi) { mutableStateOf(savedDpi.toString()) }
+    var savingDpi by remember { mutableStateOf(false) }
+    val draftDpi = dpiDraft.toIntOrNull()?.takeIf { it == 0 || it in 72..960 }
+    val dpiSaveFailure = stringResource(R.string.settings_virtual_display_dpi_save_failed)
+    fun saveDpi(dpi: Int) {
+        savingDpi = true
+        scope.launch {
+            try {
+                settings.setVirtualDisplayDpi(dpi)
+                dpiDraft = dpi.toString()
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                Toast.makeText(context, dpiSaveFailure, Toast.LENGTH_SHORT).show()
+            } finally {
+                savingDpi = false
+            }
+        }
+    }
     val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
     val available = maximum.isFinite() && maximum > 1f
     val upper = if (available) maximum else 60f
@@ -438,6 +460,48 @@ fun VirtualDisplaySettingsPage(
         onBack = onBack,
         modifier = modifier,
     ) {
+        AppCard {
+            AppInfoRow(
+                stringResource(R.string.settings_virtual_display_resolution),
+                "1280 × 720",
+            )
+            AppInfoRow(
+                stringResource(R.string.settings_virtual_display_device_dpi),
+                stringResource(R.string.settings_virtual_display_dpi_value, deviceDpi),
+            )
+            OutlinedTextField(
+                value = dpiDraft,
+                onValueChange = { dpiDraft = it },
+                labelText = stringResource(R.string.settings_virtual_display_dpi),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                enabled = loaded && !savingDpi,
+                isError = draftDpi == null,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (draftDpi == null) {
+                Text(
+                    stringResource(R.string.settings_virtual_display_dpi_invalid),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
+                TextButton(
+                    enabled = loaded && !savingDpi && draftDpi != null && draftDpi != savedDpi,
+                    onClick = { draftDpi?.let(::saveDpi) },
+                ) { Text(stringResource(R.string.ap_deploy_save)) }
+                TextButton(
+                    enabled = loaded && !savingDpi && (savedDpi != 0 || dpiDraft != "0"),
+                    onClick = { saveDpi(0) },
+                ) { Text(stringResource(R.string.settings_virtual_display_dpi_auto)) }
+            }
+            Text(
+                stringResource(R.string.settings_virtual_display_dpi_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         AppCard {
             if (supported) {
                 AppInfoRow(

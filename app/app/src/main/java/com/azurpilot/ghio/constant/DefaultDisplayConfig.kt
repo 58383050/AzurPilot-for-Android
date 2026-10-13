@@ -25,6 +25,6 @@ object DefaultDisplayConfig {
     /** 虚拟屏高（像素）/ Virtual display height in pixels. */
     const val HEIGHT = 720
 
-    /** 虚拟屏密度 / Virtual display density. */
+    /** 无法读取设备 DPI 时的密度回退值。 / Density fallback when the device DPI cannot be read. */
     const val DPI = 160
 }

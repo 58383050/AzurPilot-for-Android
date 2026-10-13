@@ -1,6 +1,6 @@
-"""在 AP 启动游戏后请求虚拟屏窗口焦点，避免 Unity 停在黑屏。
+"""在 AP 启动游戏前关闭兼容缩放，启动后请求虚拟屏窗口焦点。
 
-Requests virtual-window focus after AP launches a game, avoiding Unity startup black screens.
+Disables compatibility scaling before AP launches a game and requests virtual-window focus afterward.
 """
 
 import importlib.abc
@@ -11,9 +11,10 @@ TARGET_MODULE = 'module.device.method.azurpilot_android'
 
 
 def patch_ap_module(module):
-    """保留上游启动参数和等待行为，只在支持的桥上追加聚焦。
+    """保留上游启动参数和等待行为，在支持的桥上准备原生渲染并追加聚焦。
 
-    Retains upstream launch arguments and wait behavior, adding focus on supporting bridges.
+    Retains upstream launch arguments and wait behavior, preparing native rendering and adding focus
+    on supporting bridges.
     """
     backend = module.AzurPilotAndroid
     if getattr(backend, '_android_launch_adapter', False):
@@ -21,10 +22,24 @@ def patch_ap_module(module):
     original = backend.app_start_azurpilot_android
 
     def app_start(self, package=None, activity=None, wait=True):
-        """启动成功后聚焦指定包；旧桥和聚焦失败只记录警告。
+        """准备原生渲染后启动并聚焦指定包；准备失败停止任务，聚焦失败只记录警告。
 
-        Focuses the specified package after launch; older bridges and focus failures only warn.
+        Prepares native rendering, then launches and focuses the package. Preparation failure stops
+        the task, while focus failure only warns.
         """
+        target = package or self.package
+        ping = self._azurpilot_android_call({'method': 'ping'})
+        if ping.get('capabilities', {}).get('nativeGameResolution'):
+            try:
+                response = self._azurpilot_android_call({
+                    'method': 'app_prepare', 'package': target, 'displayId': ping['displayId'],
+                })
+                if not response.get('ok'):
+                    raise RuntimeError(response.get('error', 'unknown'))
+            except Exception as error:
+                # 启动失败不能继续走 Restart，否则同一裁切画面会形成无限重启循环。
+                raise module.RequestHumanTakeover(
+                    f'无法关闭游戏分辨率缩放，请检查系统权限：{error}') from error
         result = original(self, package=package, activity=activity, wait=wait)
         try:
             ping = self._azurpilot_android_call({'method': 'ping'})
@@ -33,7 +48,7 @@ def patch_ap_module(module):
                 return result
             response = self._azurpilot_android_call({
                 'method': 'app_focus',
-                'package': package or self.package,
+                'package': target,
                 'displayId': ping['displayId'],
             })
             if not response.get('ok'):

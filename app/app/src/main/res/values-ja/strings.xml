@@ -825,4 +825,12 @@
     <string name="home_reconnect">再接続</string>
     <string name="ap_deploy_save_failed">保存できませんでした。Runtime の接続を確認して再試行してください。</string>
     <string name="ap_deploy_host_help">127.0.0.1 は端末内のみ、0.0.0.0 は LAN アクセスを許可。IPv6 は ::1 または ::。</string>
+    <string name="settings_virtual_display_resolution">解像度</string>
+    <string name="settings_virtual_display_device_dpi">端末の現在の DPI</string>
+    <string name="settings_virtual_display_dpi">仮想画面の DPI</string>
+    <string name="settings_virtual_display_dpi_value">%d DPI</string>
+    <string name="settings_virtual_display_dpi_auto">端末に合わせる</string>
+    <string name="settings_virtual_display_dpi_invalid">端末に合わせる場合は 0、手動設定は 72～960 を入力してください。</string>
+    <string name="settings_virtual_display_dpi_hint">DPI は標準で端末に合わせます。解像度は 1280×720 固定です。保存した設定は仮想画面の次回起動時に適用されます。</string>
+    <string name="settings_virtual_display_dpi_save_failed">保存できませんでした。もう一度お試しください。</string>
 </resources>

@@ -1,6 +1,6 @@
-"""验证启动聚焦的参数保留、桥能力协商、失败降级及导入钩子组合。
+"""验证原生分辨率准备、启动聚焦、桥能力协商、失败处理及导入钩子组合。
 
-Verifies launch-focus arguments, capability negotiation, failure fallback, and import-hook composition.
+Verifies native-resolution preparation, launch focus, negotiation, failure handling, and import hooks.
 """
 
 import importlib.util
@@ -18,6 +18,10 @@ spec.loader.exec_module(adapter)
 GAME = 'com.bilibili.azurlane'
 
 
+class HumanTakeover(Exception):
+    """模拟上游停止任务异常。 / Models the upstream task-stop exception."""
+
+
 class LaunchAdapterTest(unittest.TestCase):
     """钉住聚焦仅在启动成功后追加，并保留上游启动契约。
 
@@ -31,22 +35,27 @@ class LaunchAdapterTest(unittest.TestCase):
         class Backend:
             app_start_azurpilot_android = calls.launch
 
-        module = SimpleNamespace(AzurPilotAndroid=Backend, logger=Mock())
+        module = SimpleNamespace(AzurPilotAndroid=Backend, logger=Mock(),
+                                 RequestHumanTakeover=HumanTakeover)
         adapter.patch_ap_module(module)
         device = Backend()
         device.package = GAME
         device._azurpilot_android_call = calls.bridge
         calls.launch.return_value = 'upstream result'
-        calls.bridge.side_effect = [
-            {'ok': True, 'displayId': 7, 'capabilities': {'appFocus': True}}, {'ok': True},
-        ]
+        ping = {'ok': True, 'displayId': 7,
+                'capabilities': {'appFocus': True, 'nativeGameResolution': True}}
+        calls.bridge.side_effect = [ping, {'ok': True}, ping, {'ok': True}]
         return module, device, calls
 
     def test_explicit_launch_arguments_and_order_are_preserved(self):
         _, device, calls = self.fixture()
         self.assertEqual(device.app_start_azurpilot_android('com.other', '.Main', False),
                          'upstream result')
-        self.assertEqual([call[0] for call in calls.mock_calls], ['launch', 'bridge', 'bridge'])
+        self.assertEqual([call[0] for call in calls.mock_calls],
+                         ['bridge', 'bridge', 'launch', 'bridge', 'bridge'])
+        self.assertEqual(calls.bridge.call_args_list[1].args[0], {
+            'method': 'app_prepare', 'package': 'com.other', 'displayId': 7,
+        })
         calls.launch.assert_called_once_with(device, package='com.other', activity='.Main', wait=False)
         self.assertEqual(calls.bridge.call_args.args[0], {
             'method': 'app_focus', 'package': 'com.other', 'displayId': 7,
@@ -63,18 +72,21 @@ class LaunchAdapterTest(unittest.TestCase):
         calls.launch.side_effect = RuntimeError('launch failed')
         with self.assertRaisesRegex(RuntimeError, 'launch failed'):
             device.app_start_azurpilot_android()
-        calls.bridge.assert_not_called()
+        self.assertEqual([call.args[0]['method'] for call in calls.bridge.call_args_list],
+                         ['ping', 'app_prepare'])
 
     def test_old_bridge_keeps_original_launch_without_unknown_endpoint(self):
         module, device, calls = self.fixture()
-        calls.bridge.side_effect = [{'ok': True, 'displayId': 7}]
+        calls.bridge.side_effect = [{'ok': True, 'displayId': 7}] * 2
         self.assertEqual(device.app_start_azurpilot_android(), 'upstream result')
-        calls.bridge.assert_called_once_with({'method': 'ping'})
+        self.assertEqual([call.args[0] for call in calls.bridge.call_args_list],
+                         [{'method': 'ping'}] * 2)
         module.logger.warning.assert_called_once()
 
     def test_focus_rejection_keeps_launch_and_warns(self):
         module, device, calls = self.fixture()
         calls.bridge.side_effect = [
+            {'displayId': 7},
             {'displayId': 7, 'capabilities': {'appFocus': True}},
             {'ok': False, 'error': 'no ready target window'},
         ]
@@ -83,20 +95,70 @@ class LaunchAdapterTest(unittest.TestCase):
 
     def test_bridge_disconnect_keeps_launch_and_warns(self):
         module, device, calls = self.fixture()
-        calls.bridge.side_effect = OSError('disconnected')
+        calls.bridge.side_effect = [{'displayId': 7}, OSError('disconnected')]
         self.assertEqual(device.app_start_azurpilot_android(), 'upstream result')
         module.logger.warning.assert_called_once()
 
     def test_display_recreation_is_not_cached(self):
         _, device, calls = self.fixture()
         calls.bridge.side_effect = [
+            {'displayId': 7},
             {'displayId': 7, 'capabilities': {'appFocus': True}}, {'ok': True},
+            {'displayId': 9},
             {'displayId': 9, 'capabilities': {'appFocus': True}}, {'ok': True},
         ]
         device.app_start_azurpilot_android()
         device.app_start_azurpilot_android()
         requests = [call.args[0] for call in calls.bridge.call_args_list]
         self.assertEqual([r['displayId'] for r in requests if r['method'] == 'app_focus'], [7, 9])
+
+    def test_prepare_denial_stops_task_without_launch_or_focus(self):
+        _, device, calls = self.fixture()
+        calls.bridge.side_effect = [
+            {'displayId': 7, 'capabilities': {'nativeGameResolution': True}},
+            {'ok': False, 'error': 'APS refused native resolution (status=-3)'},
+        ]
+        with self.assertRaisesRegex(HumanTakeover, 'status=-3'):
+            device.app_start_azurpilot_android()
+        calls.launch.assert_not_called()
+        self.assertEqual(calls.bridge.call_count, 2)
+
+    def test_prepare_disconnect_stops_task_without_launch(self):
+        _, device, calls = self.fixture()
+        calls.bridge.side_effect = [
+            {'displayId': 7, 'capabilities': {'nativeGameResolution': True}},
+            OSError('disconnected'),
+        ]
+        with self.assertRaisesRegex(HumanTakeover, 'disconnected'):
+            device.app_start_azurpilot_android()
+        calls.launch.assert_not_called()
+
+    def test_prepare_missing_display_id_stops_task_without_launch(self):
+        _, device, calls = self.fixture()
+        calls.bridge.side_effect = [{'capabilities': {'nativeGameResolution': True}}]
+        with self.assertRaises(HumanTakeover):
+            device.app_start_azurpilot_android()
+        calls.launch.assert_not_called()
+
+    def test_focus_only_bridge_still_launches_without_prepare(self):
+        _, device, calls = self.fixture()
+        ping = {'displayId': 7, 'capabilities': {'appFocus': True}}
+        calls.bridge.side_effect = [ping, ping, {'ok': True}]
+        device.app_start_azurpilot_android()
+        self.assertEqual([call.args[0]['method'] for call in calls.bridge.call_args_list],
+                         ['ping', 'ping', 'app_focus'])
+
+    def test_each_restart_prepares_resolution_again(self):
+        _, device, calls = self.fixture()
+        pings = [{'displayId': display_id, 'capabilities': {'nativeGameResolution': True,
+                                                          'appFocus': True}}
+                 for display_id in (7, 9)]
+        calls.bridge.side_effect = [pings[0], {'ok': True}, pings[0], {'ok': True},
+                                   pings[1], {'ok': True}, pings[1], {'ok': True}]
+        device.app_start_azurpilot_android()
+        device.app_start_azurpilot_android()
+        self.assertEqual([call.args[0]['displayId'] for call in calls.bridge.call_args_list
+                          if call.args[0]['method'] == 'app_prepare'], [7, 9])
 
     def test_install_is_idempotent_for_loaded_modules(self):
         module, device, calls = self.fixture()

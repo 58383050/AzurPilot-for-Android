@@ -836,4 +836,12 @@
     <string name="home_reconnect">重新连接</string>
     <string name="ap_deploy_save_failed">保存失败，请检查 Runtime 连接后重试</string>
     <string name="ap_deploy_host_help">127.0.0.1 仅本机；0.0.0.0 允许局域网访问。IPv6 可用 ::1 或 ::。</string>
+    <string name="settings_virtual_display_resolution">分辨率</string>
+    <string name="settings_virtual_display_device_dpi">设备当前 DPI</string>
+    <string name="settings_virtual_display_dpi">虚拟屏 DPI</string>
+    <string name="settings_virtual_display_dpi_value">%d DPI</string>
+    <string name="settings_virtual_display_dpi_auto">跟随设备</string>
+    <string name="settings_virtual_display_dpi_invalid">输入 0 跟随设备，或输入 72–960。</string>
+    <string name="settings_virtual_display_dpi_hint">默认跟随设备 DPI，分辨率固定为 1280×720。保存后，下次启动虚拟屏生效。</string>
+    <string name="settings_virtual_display_dpi_save_failed">保存失败，请重试</string>
 </resources>

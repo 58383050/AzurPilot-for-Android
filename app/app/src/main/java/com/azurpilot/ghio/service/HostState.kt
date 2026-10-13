@@ -188,6 +188,10 @@ class HostState(
     }
 
     private fun startDisplay(service: RemoteService): Int = runCatching {
+        service.setVirtualDisplayResolution(
+            DefaultDisplayConfig.WIDTH, DefaultDisplayConfig.HEIGHT,
+            appSettings.virtualDisplayDpi.value,
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             service.setVirtualDisplayRefreshRate(appSettings.virtualDisplayRefreshRate.value)
         }
