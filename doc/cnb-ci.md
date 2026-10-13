@@ -30,7 +30,7 @@ App 版本沿用 GitHub 的 `1.3.*` 版本规则，见[发布通道](release-cha
 `.github/workflows/rootfs.yml` 的 `publish` 作业在正式 GitHub Release 发布后，
 调用 `tools/cnb_release.py publish` 分发当前作业的产物：
 
-- 更新用轻量 APK，以及 ARM64、x86_64 完整 APK。
+- ARM64、x86_64 轻量更新 APK 与完整 APK，以及兼容旧版的通用轻量更新 APK。
 - `rootfs-arm64-v8a.tar.xz`、`rootfs-x86_64.tar.xz` 及各自的 `BUILD_MANIFEST`。
 - 构建产物中存在的前端归档与对应校验文件。
 - 指向 CNB 附件的 `latest.json`，以及重新生成的 `SHA256SUMS`。
@@ -120,7 +120,7 @@ rebuild or re-sign artifacts. App versions follow GitHub's `1.3.*` rules; see
 After publishing the signed GitHub Release, the `publish` job in
 `.github/workflows/rootfs.yml` calls `tools/cnb_release.py publish` with this job's artifacts:
 
-- The slim update APK and both ARM64 and x86_64 full APKs.
+- ARM64 and x86_64 slim updates and full APKs, plus the universal slim update for older apps.
 - `rootfs-arm64-v8a.tar.xz`, `rootfs-x86_64.tar.xz`, and their `BUILD_MANIFEST` files.
 - Frontend archives and checksum files present in the build outputs.
 - `latest.json` pointing to CNB assets and a regenerated `SHA256SUMS`.

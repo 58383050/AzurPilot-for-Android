@@ -6,6 +6,7 @@ import androidx.core.content.FileProvider
 import com.azurpilot.ghio.BuildConfig
 import com.azurpilot.ghio.AppDispatchers
 import com.azurpilot.ghio.settings.AppSettingsManager
+import com.azurpilot.ghio.provision.RuntimeArch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +39,29 @@ data class AppUpdateInfo(
     val apkSha256: String,
     val apkSize: Long,
 )
+
+/**
+ * 按设备架构选择更新包；旧清单在 x86_64 上优先使用专用完整包，避免模拟器切到 ARM 转译。
+ *
+ * Selects an update by device ABI. Legacy manifests prefer an x86_64 full APK on x86_64 devices
+ * so emulator installers cannot switch the app to ARM translation.
+ */
+internal fun parseAppUpdateInfo(json: JSONObject, abi: String?): AppUpdateInfo? {
+    val artifact = json.optJSONObject("updateApks")?.optJSONObject(abi.orEmpty())
+        ?: if (abi == RuntimeArch.X86_64) json.optJSONObject("fullApks")?.optJSONObject(abi) else null
+    if (artifact == null && !json.has("apkUrl")) return null
+    return AppUpdateInfo(
+        versionCode = json.getInt("versionCode"),
+        versionName = json.getString("versionName"),
+        apkUrl = artifact?.getString("url") ?: json.getString("apkUrl"),
+        apkSha256 = artifact?.getString("sha256") ?: json.getString("apkSha256"),
+        apkSize = artifact?.getLong("size") ?: json.getLong("apkSize"),
+    ).also {
+        require(ReleaseUrls.isReleaseUrl(it.apkUrl))
+        require(it.apkSha256.matches(Regex("[0-9a-f]{64}")))
+        require(it.apkSize > 0)
+    }
+}
 
 /**
  * 更新流程的 UI 快照 / UI snapshot of the update flow.
@@ -114,19 +138,7 @@ class AppUpdateManager(
                 val indexUrl = ReleaseUrls.selected(ReleaseUrls.INDEX, downloadSource())
                 val body = requestText("$indexUrl?t=${System.currentTimeMillis()}")
                 val json = JSONObject(body)
-                // Latest 可先只发布 rootfs；正式签名尚未配置时没有可安装的 APK。
-                if (!json.has("apkUrl")) return@runCatching null
-                AppUpdateInfo(
-                    versionCode = json.getInt("versionCode"),
-                    versionName = json.getString("versionName"),
-                    apkUrl = json.getString("apkUrl"),
-                    apkSha256 = json.getString("apkSha256"),
-                    apkSize = json.getLong("apkSize"),
-                ).also {
-                    require(ReleaseUrls.isReleaseUrl(it.apkUrl))
-                    require(it.apkSha256.matches(Regex("[0-9a-f]{64}")))
-                    require(it.apkSize > 0)
-                }
+                parseAppUpdateInfo(json, RuntimeArch.deviceAbi())
             }.onSuccess { info ->
                 _state.update {
                     it.copy(checking = false, available = info?.takeIf { candidate ->

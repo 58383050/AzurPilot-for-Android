@@ -184,6 +184,42 @@ class CnbReleaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Missing"):
             self.prepare()
 
+    def add_update_apks(self):
+        """准备按架构的更新包夹具。 / Prepares per-ABI update APK fixtures."""
+        self.manifest["updateApks"] = {}
+        for abi in cnb.ABIS:
+            filename = f"AzurPilot-Android-1.3.0-{abi}-update.apk"
+            data = f"native update {abi}".encode()
+            (self.source / filename).write_bytes(data)
+            self.manifest["updateApks"][abi] = {"url": self.base + filename,
+                "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+        self.write_manifest()
+
+    def test_per_abi_updates_are_verified_and_mirrored(self):
+        self.add_update_apks()
+        mirror = self.prepare()
+        for abi in cnb.ABIS:
+            filename = f"AzurPilot-Android-1.3.0-{abi}-update.apk"
+            self.assertEqual(mirror["updateApks"][abi]["url"],
+                             f"https://cnb.cool/{cnb.CNB_REPOSITORY}/-/releases/download/{self.tag}/{filename}")
+            self.assertEqual((self.output / filename).read_bytes(), (self.source / filename).read_bytes())
+        api = FakeApi()
+        cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(self.output, mirror, self.tag)
+        for abi in cnb.ABIS:
+            self.assertIn(f"AzurPilot-Android-1.3.0-{abi}-update.apk", api.confirmed)
+
+    def test_missing_or_corrupt_per_abi_update_fails_before_upload(self):
+        self.add_update_apks()
+        path = self.source / "AzurPilot-Android-1.3.0-x86_64-update.apk"
+        path.write_bytes(b"x" * path.stat().st_size)
+        with self.assertRaisesRegex(ValueError, "checksum mismatch"):
+            self.prepare()
+        self.assertFalse(self.output.exists())
+        del self.manifest["updateApks"]["x86_64"]
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError, "per-ABI update APK metadata"):
+            self.prepare()
+
     def test_wrong_source_url_or_build_commit_is_rejected(self):
         self.manifest["apkUrl"] = "https://example.com/credentials.txt"
         self.write_manifest()

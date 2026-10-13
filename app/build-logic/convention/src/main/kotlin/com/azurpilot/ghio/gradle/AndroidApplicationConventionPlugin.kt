@@ -188,8 +188,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             }
 
             val debugAbis = listSetting("build.debugAbi").ifEmpty { SHIPPED_ABIS }
-            // Release 默认带全部 SHIPPED_ABIS；CI 的 per-arch full APK 用 -Pazurpilot.releaseAbi
-            // 收窄到单 ABI（配套打包该架构的 rootfs），增量包/通用包不传即全量
+            // 完整包与轻量更新包共用架构参数；无签名 CI 的 debug 包也必须按同一规则收窄。
             val releaseAbi = providers.gradleProperty("azurpilot.releaseAbi").orNull?.trim().orEmpty()
             require(releaseAbi.isEmpty() || releaseAbi in SHIPPED_ABIS) {
                 "azurpilot.releaseAbi must be one of $SHIPPED_ABIS, got \"$releaseAbi\""
@@ -198,7 +197,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             android.buildTypes {
                 getByName("debug") {
                     ndk {
-                        abiFilters += debugAbis
+                        abiFilters += if (releaseAbi.isEmpty()) debugAbis else releaseAbis
                     }
                 }
                 getByName("release") {

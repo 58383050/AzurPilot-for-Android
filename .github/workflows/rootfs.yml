@@ -361,9 +361,23 @@ jobs:
           # 把 Kotlin/KSP/CMake 全部重编一遍纯属白烧
           ./gradlew "$build_variant" -Pazurpilot.slimApk=true "${gradle_args[@]}"
           cp "app/build/outputs/apk/$variant/"*.apk ../dist/azurpilot-update.apk
+          # ③ 按架构轻量包：模拟器安装通用包时可能优先选择 ARM 转译。
+          for abi in arm64-v8a x86_64; do
+            ./gradlew "$build_variant" -Pazurpilot.slimApk=true -Pazurpilot.releaseAbi="$abi" "${gradle_args[@]}"
+            cp "app/build/outputs/apk/$variant/"*.apk "../dist/azurpilot-update-$abi.apk"
+          done
           # 模型和厂商运行库增大轻量包；直接检查 tarball 条目，防止误发布完整 rootfs。
           python3 scripts/verify_ocr_assets.py ../dist/*.apk
-          python3 -c 'import zipfile; z=zipfile.ZipFile("../dist/azurpilot-update.apk"); assert "assets/rootfs/rootfs.tar.xz" not in z.namelist()'
+          python3 - <<'PY'
+          import pathlib, zipfile
+          for path in pathlib.Path('../dist').glob('azurpilot-update*.apk'):
+              with zipfile.ZipFile(path) as archive:
+                  names = archive.namelist()
+                  assert 'assets/rootfs/rootfs.tar.xz' not in names, path
+                  for abi in ('arm64-v8a', 'x86_64'):
+                      if path.name == f'azurpilot-update-{abi}.apk':
+                          assert {name.split('/')[1] for name in names if name.startswith('lib/')} == {abi}, path
+          PY
           python3 scripts/verify_device_report_assets.py --credentials-dir ../.tmp/report-credentials ../dist/*.apk
       - name: Clear temporary device reporting credentials
         if: always()
@@ -394,7 +408,7 @@ jobs:
         run: |
           set -euo pipefail
           signer="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
-          for apk in dist/azurpilot-full-arm64-v8a.apk dist/azurpilot-full-x86_64.apk dist/azurpilot-update.apk; do
+          for apk in dist/*.apk; do
             # 签名工具按给定 Android API 范围报告适用的签名方案。
             # APK 的最低支持 API 为 28，默认校验只会显示 v3。
             for entry in 'v1 23 23' 'v2 24 27' 'v3 28 36'; do
@@ -454,6 +468,7 @@ jobs:
           set -euo pipefail
           export RUNTIME_JSON_ARM64_V8A='' RUNTIME_JSON_X86_64=''
           export FULL_JSON_ARM64_V8A='' FULL_JSON_X86_64=''
+          export UPDATE_JSON_ARM64_V8A='' UPDATE_JSON_X86_64=''
           if [[ "$SIGNING_READY" == true && "$APK_BUILT" == true ]]; then
             apk="dist/azurpilot-update.apk"
             test -s "$apk"
@@ -489,6 +504,15 @@ jobs:
               furl="https://github.com/${GITHUB_REPOSITORY}/releases/download/azurpilot-android-latest/$full_asset"
               fjson="$(jq -n --arg url "$furl" --arg sha256 "$fsha" --argjson size "$fsize" '{url:$url,sha256:$sha256,size:$size}')"
               export "FULL_JSON_$key=$fjson"
+              update="dist/azurpilot-update-$abi.apk"
+              test -s "$update"
+              update_asset="AzurPilot-Android-${VERSION_NAME}-${abi}-update.apk"
+              cp "$update" "$update_asset"
+              usha="$(sha256sum "$update_asset" | awk '{print $1}')"
+              usize="$(stat -c %s "$update_asset")"
+              uurl="https://github.com/${GITHUB_REPOSITORY}/releases/download/azurpilot-android-latest/$update_asset"
+              ujson="$(jq -n --arg url "$uurl" --arg sha256 "$usha" --argjson size "$usize" '{url:$url,sha256:$sha256,size:$size}')"
+              export "UPDATE_JSON_$key=$ujson"
             fi
           done
           if ! gh release download azurpilot-android-latest --repo "$GITHUB_REPOSITORY" \
@@ -537,6 +561,13 @@ jobs:
                   full_apks[abi] = entry
           if full_apks:
               manifest['fullApks'] = full_apks
+          update_apks = {}
+          for abi, key in (('arm64-v8a', 'ARM64_V8A'), ('x86_64', 'X86_64')):
+              entry = env_json(f'UPDATE_JSON_{key}')
+              if entry is not None:
+                  update_apks[abi] = entry
+          if update_apks:
+              manifest['updateApks'] = update_apks
 
           with open('latest.json', 'w', encoding='utf-8') as f:
               json.dump(manifest, f, ensure_ascii=False, indent=2)
@@ -560,6 +591,7 @@ jobs:
           fi
           if [[ "$SIGNING_READY" == true && "$APK_BUILT" == true ]]; then
             assets+=("$asset" "AzurPilot-Android-${VERSION_NAME}-arm64-v8a-full.apk" "AzurPilot-Android-${VERSION_NAME}-x86_64-full.apk")
+            assets+=("AzurPilot-Android-${VERSION_NAME}-arm64-v8a-update.apk" "AzurPilot-Android-${VERSION_NAME}-x86_64-update.apk")
           fi
           sha256sum "${assets[@]}" > SHA256SUMS
           assets+=(SHA256SUMS)

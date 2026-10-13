@@ -22,14 +22,16 @@ proot 不做指令翻译，rootfs 架构与设备 ABI 必须一一对应。
 
 - CI `build` job 按 `strategy.matrix` 并行构建两份 rootfs，产物名
   `rootfs-<abi>`；`BUILD_MANIFEST` 写入 `rootfs_arch`。
-- `apk` job 构建三种包：
+- `apk` job 构建五个包：
   1. per-arch 完整 APK：`-Pazurpilot.releaseAbi=<abi>` 收窄 ABI，
      Gradle 的 `verifyBundledAzurPilotRuntime` 校验内置 rootfs 的
      `rootfs_arch` 与之一致；
-  2. 通用轻量包：双 ABI 的 proot 库、不内置 rootfs，用于应用内更新；
-  3. 产物命名 `AzurPilot-Android-<ver>-<abi>-full.apk` 与 `...-update.apk`。
+  2. 按架构轻量包：同样收窄 ABI，不内置 rootfs，供新版 App 更新；
+  3. 通用轻量包：双 ABI 的 proot 库，保留旧版更新兼容；
+  4. 产物命名 `AzurPilot-Android-<ver>-<abi>-full.apk`、`...-<abi>-update.apk` 与 `...-update.apk`。
 - App 侧 `RuntimeArch.deviceAbi()` 取 `Build.SUPPORTED_ABIS` 中第一个受支持
   ABI；内置包架构不符时自动改走 Release 下载对应架构。
+  MuMu 可能将通用 APK 优先安装为 ARM 转译；x86_64 设备应安装专用包，更新时也按架构选择。
 
 ### 32 位架构为何不可行
 
@@ -71,17 +73,19 @@ match the device ABI exactly. The `SUPPORTED` list in
 - The CI `build` job builds two rootfs images in parallel through
   `strategy.matrix`, with artifacts named `rootfs-<abi>`; `BUILD_MANIFEST`
   records `rootfs_arch`.
-- The `apk` job builds three packages:
+- The `apk` job builds five packages:
   1. Per-arch full APKs: `-Pazurpilot.releaseAbi=<abi>` narrows the ABI, and
      the Gradle `verifyBundledAzurPilotRuntime` task checks that the bundled
      rootfs `rootfs_arch` matches;
-  2. A universal slim APK: proot libraries for both ABIs, no bundled rootfs,
-     used by the in-app update channel;
-  3. Output names: `AzurPilot-Android-<ver>-<abi>-full.apk` and
+  2. Per-arch slim APKs: the same ABI filter, no rootfs, used by newer app updaters;
+  3. A universal slim APK: proot libraries for both ABIs, retained for older updaters;
+  4. Output names: `AzurPilot-Android-<ver>-<abi>-full.apk`, `...-<abi>-update.apk`, and
      `...-update.apk`.
 - On the app side, `RuntimeArch.deviceAbi()` picks the first supported entry
   in `Build.SUPPORTED_ABIS`; when a bundled rootfs has a different arch, the
   app falls back to the release download for the matching ABI.
+  MuMu may install a universal APK in ARM translation mode. x86_64 devices should use dedicated
+  APKs, including architecture-specific updates.
 
 ### Why 32-bit ABIs are not feasible
 

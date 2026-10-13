@@ -15,11 +15,14 @@
 | `azurpilotCommit` | sha | Runtime 所用上游 AzurPilot 提交 |
 | `androidHostCommit` | sha | 构建该 Runtime 时的本仓提交 |
 | `apkUrl` / `apkSha256` / `apkSize` | — | 轻量更新包（双 ABI、无 rootfs） |
+| `updateApks.<abi>.url/sha256/size` | object | 优先使用的按架构轻量更新包（无 rootfs） |
 | `runtimes.<abi>.version/url/sha256/size` | object | 按架构的 Runtime 包；`abi ∈ {arm64-v8a, x86_64}` |
 | `fullApks.<abi>.url/sha256/size` | object | 按架构的完整版 APK（内置对应 rootfs） |
 | `rootfsVersion` / `rootfsUrl` / `rootfsSha256` / `rootfsSize` | — | 旧版兼容字段，恒指向 arm64 包 |
 
 兼容规则：旧版 App 只读扁平 `rootfs*` 字段，因此它们必须始终有效——发布脚本将其固定指向 arm64 条目。
+新版 App 按设备 ABI 选择 `updateApks`，防止 MuMu 把通用包切成 ARM 转译。
+旧清单缺少该字段时，x86_64 优先使用专用完整 APK，ARM64 沿用通用更新包。
 
 ### 版本号规则（CI `resolve` 步）
 
@@ -84,12 +87,16 @@ App、双架构 Runtime 和前端归档共用下载源，大小与 SHA-256 与 G
 | `azurpilotCommit` | sha | Upstream AzurPilot commit inside the Runtime |
 | `androidHostCommit` | sha | Repository commit the Runtime was built from |
 | `apkUrl` / `apkSha256` / `apkSize` | — | Slim update APK (both ABIs, no rootfs) |
+| `updateApks.<abi>.url/sha256/size` | object | Preferred per-ABI slim update APK (no rootfs) |
 | `runtimes.<abi>.version/url/sha256/size` | object | Per-ABI Runtime package; `abi ∈ {arm64-v8a, x86_64}` |
 | `fullApks.<abi>.url/sha256/size` | object | Per-ABI full APK (bundles the matching rootfs) |
 | `rootfsVersion` / `rootfsUrl` / `rootfsSha256` / `rootfsSize` | — | Legacy fields, always pointing at the arm64 package |
 
 Compatibility rule: old app versions read only the flat `rootfs*` fields, so
 they must stay valid — the publish step pins them to the arm64 entry.
+New apps select `updateApks` by device ABI to prevent MuMu from switching universal APKs to ARM
+translation. With older manifests, x86_64 prefers the dedicated full APK and ARM64 uses the
+universal update APK.
 
 ### Version rules (CI `resolve` step)
 

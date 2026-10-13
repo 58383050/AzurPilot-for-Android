@@ -39,9 +39,10 @@ def digest(path: Path, algorithm: str = "sha256") -> str:
 
 
 def asset_entries(manifest: dict) -> list[tuple[dict, str]]:
-    """要求三种正式 APK 与双架构 Runtime 齐全。
+    """要求正式 APK 与双架构 Runtime 齐全，兼容尚未提供按架构更新包的旧发布。
 
-    Requires all three signed APK variants and both runtime architectures.
+    Requires signed APKs and both runtime architectures, supporting older releases without
+    per-ABI update APKs.
     """
     version = manifest["versionName"]
     if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version):
@@ -53,9 +54,14 @@ def asset_entries(manifest: dict) -> list[tuple[dict, str]]:
             raise ValueError(f"Invalid release provenance: {key}")
     entries = [({"url": manifest["apkUrl"], "sha256": manifest["apkSha256"],
                  "size": manifest["apkSize"]}, f"AzurPilot-Android-{version}-update.apk")]
+    if "updateApks" in manifest and (not isinstance(manifest["updateApks"], dict)
+                                     or any(abi not in manifest["updateApks"] for abi in ABIS)):
+        raise ValueError("Missing per-ABI update APK metadata")
     for abi in ABIS:
         entries.append((manifest["runtimes"][abi], f"rootfs-{abi}.tar.xz"))
         entries.append((manifest["fullApks"][abi], f"AzurPilot-Android-{version}-{abi}-full.apk"))
+        if "updateApks" in manifest:
+            entries.append((manifest["updateApks"][abi], f"AzurPilot-Android-{version}-{abi}-update.apk"))
     return entries
 
 
@@ -159,6 +165,8 @@ def prepare(source: Path, output: Path, github_repo: str, github_tag: str,
     for abi in ABIS:
         cnb["runtimes"][abi]["url"] = base + f"rootfs-{abi}.tar.xz"
         cnb["fullApks"][abi]["url"] = base + f"AzurPilot-Android-{cnb['versionName']}-{abi}-full.apk"
+        if "updateApks" in cnb:
+            cnb["updateApks"][abi]["url"] = base + f"AzurPilot-Android-{cnb['versionName']}-{abi}-update.apk"
     arm64 = cnb["runtimes"]["arm64-v8a"]
     cnb.update(rootfsVersion=arm64["version"], rootfsUrl=arm64["url"],
                rootfsSha256=arm64["sha256"], rootfsSize=arm64["size"])
