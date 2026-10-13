@@ -296,7 +296,9 @@
     <string name="provision_source_desc">可從內建鏡像中選擇，或在設定裡填自訂前綴；切換後會立即重新下載</string>
     <string name="app_update_title">AzurPilot Android 有新版本</string>
     <string name="app_update_message">App 版本 %1$s 已就緒，安裝後會保留 App 資料與已安裝的 Runtime。</string>
-    <string name="app_update_downloading">正在下載並驗證安裝套件…</string>
+    <string name="app_update_downloading">正在下載安裝套件…</string>
+    <string name="app_update_verifying">正在驗證安裝套件…</string>
+    <string name="app_update_progress">%1$d%% · %2$s / %3$s</string>
     <string name="app_update_error">更新失敗：%1$s</string>
     <string name="app_update_install">下載並安裝</string>
     <string name="app_update_later">稍後</string>

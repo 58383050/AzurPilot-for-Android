@@ -303,7 +303,9 @@
     <string name="provision_source_desc">Pick a built-in mirror or set a custom prefix in Settings; switching restarts the download right away</string>
     <string name="app_update_title">AzurPilot Android update</string>
     <string name="app_update_message">App version %1$s is ready. Your app data and installed Runtime will be preserved.</string>
-    <string name="app_update_downloading">Downloading and verifying the APK…</string>
+    <string name="app_update_downloading">Downloading the APK…</string>
+    <string name="app_update_verifying">Verifying the APK…</string>
+    <string name="app_update_progress">%1$d%% · %2$s / %3$s</string>
     <string name="app_update_error">Update failed: %1$s</string>
     <string name="app_update_install">Download and install</string>
     <string name="app_update_later">Later</string>

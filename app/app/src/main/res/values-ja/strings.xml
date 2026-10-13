@@ -296,7 +296,9 @@
     <string name="provision_source_desc">内蔵ミラーから選ぶか、設定でカスタム prefix を入力できます。切り替えるとすぐにダウンロードをやり直します</string>
     <string name="app_update_title">AzurPilot Android の新しいバージョン</string>
     <string name="app_update_message">アプリのバージョン %1$s を利用できます。インストールしてもアプリのデータとインストール済み Runtime は保持されます。</string>
-    <string name="app_update_downloading">インストールパッケージをダウンロードして検証中…</string>
+    <string name="app_update_downloading">インストールパッケージをダウンロード中…</string>
+    <string name="app_update_verifying">インストールパッケージを検証中…</string>
+    <string name="app_update_progress">%1$d%% · %2$s / %3$s</string>
     <string name="app_update_error">更新に失敗：%1$s</string>
     <string name="app_update_install">ダウンロードしてインストール</string>
     <string name="app_update_later">後で</string>

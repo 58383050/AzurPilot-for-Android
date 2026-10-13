@@ -1,5 +1,6 @@
 package com.azurpilot.ghio.ui
 
+import android.text.format.Formatter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +67,7 @@ import com.azurpilot.ghio.ui.components.ShizukuReadinessDialog
 import com.azurpilot.ghio.ui.hangar.HangarScreen
 import com.azurpilot.ghio.ui.ksu.AppCheckbox as Checkbox
 import com.azurpilot.ghio.ui.ksu.AppDialog as AlertDialog
+import com.azurpilot.ghio.ui.ksu.AppLinearProgressIndicator as LinearProgressIndicator
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
 import com.azurpilot.ghio.ui.logs.AppLogDetailScreen
@@ -341,23 +343,53 @@ fun AppRoot(
                     }
                     ?.let { update ->
                         AlertDialog(
-                            onDismissRequest = appUpdateManager::dismiss,
+                            onDismissRequest = {
+                                if (!appUpdateState.downloading) appUpdateManager.dismiss()
+                            },
                             title = { Text(stringResource(R.string.app_update_title)) },
                             text = {
-                                Text(
-                                    if (appUpdateState.downloading)
-                                        stringResource(R.string.app_update_downloading)
-                                    else if (appUpdateState.error != null)
-                                        stringResource(
-                                            R.string.app_update_error,
-                                            appUpdateState.error!!,
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(
+                                        when {
+                                            appUpdateState.verifying ->
+                                                stringResource(R.string.app_update_verifying)
+                                            appUpdateState.downloading ->
+                                                stringResource(R.string.app_update_downloading)
+                                            appUpdateState.error != null ->
+                                                stringResource(
+                                                    R.string.app_update_error,
+                                                    appUpdateState.error!!,
+                                                )
+                                            else -> stringResource(
+                                                R.string.app_update_message,
+                                                update.versionName,
+                                            )
+                                        }
+                                    )
+                                    if (appUpdateState.downloading) {
+                                        val progress = if (appUpdateState.totalBytes > 0) {
+                                            (appUpdateState.downloadedBytes.toDouble() /
+                                                appUpdateState.totalBytes).coerceIn(0.0, 1.0).toFloat()
+                                        } else 0f
+                                        if (appUpdateState.verifying || appUpdateState.totalBytes <= 0) {
+                                            LinearProgressIndicator(Modifier.fillMaxWidth())
+                                        } else {
+                                            LinearProgressIndicator(
+                                                progress = { progress },
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
+                                        Text(
+                                            stringResource(
+                                                R.string.app_update_progress,
+                                                (progress * 100).toInt(),
+                                                Formatter.formatFileSize(context, appUpdateState.downloadedBytes),
+                                                Formatter.formatFileSize(context, appUpdateState.totalBytes),
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
                                         )
-                                    else
-                                        stringResource(
-                                            R.string.app_update_message,
-                                            update.versionName,
-                                        )
-                                )
+                                    }
+                                }
                             },
                             confirmButton = {
                                 TextButton(

@@ -45,6 +45,10 @@ data class AppUpdateInfo(
  * @property checking 清单检查进行中 / a manifest check is running
  * @property downloading 下载与校验进行中 / download and verification are
  *   running
+ * @property downloadedBytes 当前下载已写入的字节数，重试时归零 / bytes written in the
+ *   current download, reset on retry
+ * @property totalBytes 清单里的安装包大小 / APK size from the release manifest
+ * @property verifying 正在校验已下载或缓存的安装包 / verifying a downloaded or cached APK
  * @property available 有比当前包新的更新；null 表示无需更新 / a newer update
  *   exists; null means up to date
  * @property error 最近一次失败的文案，成功路径上清空 / copy of the latest
@@ -55,6 +59,9 @@ data class AppUpdateState(
     val downloading: Boolean = false,
     val available: AppUpdateInfo? = null,
     val error: String? = null,
+    val downloadedBytes: Long = 0L,
+    val totalBytes: Long = 0L,
+    val verifying: Boolean = false,
 )
 
 /**
@@ -154,19 +161,38 @@ class AppUpdateManager(
         val current = _state.value
         val info = current.available ?: return
         if (current.checking || current.downloading) return
-        if (!_state.compareAndSet(current, current.copy(downloading = true, error = null))) return
+        if (!_state.compareAndSet(current, current.copy(
+                downloading = true,
+                error = null,
+                downloadedBytes = 0L,
+                totalBytes = info.apkSize,
+                verifying = false,
+            ))) return
         scope.launch(AppDispatchers.IO) {
             runCatching {
                 val dir = File(context.cacheDir, "updates").apply { check(mkdirs() || isDirectory) }
                 // 安装器可能在 startActivity 返回后才读取文件。按 SHA 命名并保持内容不变，
                 // 避免再次点击更新时覆盖它，导致安装阶段的 APK v2 内容摘要不匹配。
                 val target = File(dir, "${info.apkSha256}.apk")
-                if (target.length() != info.apkSize || sha256Hex(target) != info.apkSha256) {
+                val cachedApkValid = if (target.length() == info.apkSize) {
+                    _state.update { it.copy(downloadedBytes = info.apkSize, verifying = true) }
+                    sha256Hex(target) == info.apkSha256
+                } else false
+                if (!cachedApkValid) {
+                    _state.update { it.copy(downloadedBytes = 0L, verifying = false) }
                     val partial = File(dir, "${info.apkSha256}.apk.part")
                     partial.delete()
                     try {
                         val downloadUrl = ReleaseUrls.selected(info.apkUrl, mirrorPrefix())
-                        ReleaseDownloader.download(downloadUrl, partial)
+                        ReleaseDownloader.download(
+                            downloadUrl,
+                            partial,
+                            totalBytes = info.apkSize,
+                            onProgress = { done, total ->
+                                _state.update { it.copy(downloadedBytes = done, totalBytes = total) }
+                            },
+                        )
+                        _state.update { it.copy(verifying = true) }
                         require(partial.length() == info.apkSize) { "APK 大小校验失败" }
                         require(sha256Hex(partial) == info.apkSha256) { "APK 校验失败" }
                         require(partial.renameTo(target)) { "无法保存更新安装包" }
@@ -176,10 +202,13 @@ class AppUpdateManager(
                 }
                 launchInstaller(target)
             }.onSuccess {
-                _state.update { it.copy(downloading = false) }
+                _state.update { it.copy(downloading = false, verifying = false) }
             }.onFailure { error ->
                 Timber.w(error, "App update download failed")
-                _state.update { it.copy(downloading = false, error = error.message ?: "下载更新失败") }
+                _state.update {
+                    it.copy(downloading = false, verifying = false,
+                        error = error.message ?: "下载更新失败")
+                }
             }
         }
     }

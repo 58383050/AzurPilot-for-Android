@@ -37,6 +37,12 @@
 
 > 本地构建的 `versionCode` 取 HEAD 时间戳，可能与 CI 的已发布版本号交错。adb 安装 CI 包遇 `INSTALL_FAILED_VERSION_DOWNGRADE` 时加 `-d`。
 
+### App 更新进度
+
+App 更新弹窗显示下载百分比、已下载大小和清单中的总大小。下载完成后切换为校验提示和
+不定进度条；缓存安装包也重新校验。下载失败后可重试，进度从零重新开始。
+下载和校验期间，返回键或点击弹窗外侧不会隐藏进度。
+
 ### 镜像源
 
 `update/ReleaseUrls.kt`：`BASE` 为固定 Release 地址，镜像为 ghproxy 形态
@@ -96,6 +102,13 @@ they must stay valid — the publish step pins them to the arm64 entry.
 Whether a build runs is a separate decision. CI compares `app`, `rootfs`, and `.github/workflows/rootfs.yml` against `androidHostCommit`, as well as the upstream AzurPilot commit. Do not interpret an unchanged app version as proof that no Runtime or APK rebuild is needed.
 
 > Local builds derive `versionCode` from the HEAD timestamp, which can interleave with CI-published version codes. Add `-d` to `adb install` when you hit `INSTALL_FAILED_VERSION_DOWNGRADE`.
+
+### App update progress
+
+The app-update dialog shows download percentage, downloaded size, and the manifest's total size.
+After download it switches to a verification message and an indeterminate progress bar; cached
+APKs are also reverified. Retrying a failed download starts progress from zero. Back presses and
+outside taps do not hide the dialog during download or verification.
 
 ### Mirrors
 
