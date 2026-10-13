@@ -22,8 +22,8 @@
 ### 防烧屏与布局
 
 - 时钟独立刷新，在分钟边界更新，并遵循系统的 12/24 小时设置。
-- 时间、任务卡和解锁条作为整体，无交互 30 秒后移动 1 个物理像素，之后每 30 秒继续一步。
-- 漂移范围由内容和可用区域的实际尺寸决定，各方向最多 24 个物理像素，避开屏幕缺口。
+- 时间、任务卡和解锁条作为整体，无交互 30 秒后开始上下移动防烧屏，之后每 10 秒移动一步（16dp），到达边界折返。
+- 漂移范围由内容和可用纵向空间的实际尺寸决定，最大 96dp，避开屏幕缺口与安全区。
 - 触摸或回弹期间暂停；结束后重新等待完整 30 秒，避免滑块在手指下移动。
 - 任务卡、图标底座、解锁轨道与滑块均为黑底细边框，减少大面积常亮色块。
 - 矮屏与大字体允许内容滚动，保留解锁入口。
@@ -34,7 +34,7 @@
 `ScreenSaverOverlayManager` 管理悬浮窗口、运行状态观察与最低亮度。
 `ScreenSaverActivity` 提供沉浸式全屏宿主，遮罩退出时一并关闭。
 `ScreenSaverView` 处理时钟、电池广播、任务展示、空闲计时与拖动。
-`ScreenSaverDrift` 将每次漂移限制为一个轴上的一个物理像素。
+`ScreenSaverDrift` 处理纵轴上下逐级漂移与边界折返。
 `ScreenSaverControls` 提供主页入口与显示设置开关。任务展示复用
 `AzurPilotRepository` 的热流，不增加 WebSocket 订阅或改变当前浏览实例。
 
@@ -43,7 +43,7 @@
 执行 `compileDebugKotlin -x verifyBundledAzurPilotRuntime` 与 i18n 检查。
 APK 构建还需要通过 `app/scripts/fetch_ocr_runtime.py` 准备 OCR 打包库。
 在 Android 设备上检查三键与手势导航的系统栏隐藏、边缘手势临时显示、完整拖动解锁、
-短划回弹及退出后的亮度恢复。无交互 30 秒应移动一个物理像素；触摸与回弹后重新计时。
+短划回弹及退出后的亮度恢复。无交互 30 秒应开始纵向位移，之后每 10 秒移动一步；触摸与回弹后重新计时。
 检查漂移边界、矮屏、大字体和全屏宿主离开前台时的清理。
 任务自动进入应在调度器或工具启动时触发，准备环境本身不触发。
 
@@ -75,10 +75,9 @@ that a task has stopped.
 ### Burn-in mitigation and layout
 
 - The clock refreshes independently at minute boundaries and respects the system's 12/24-hour format.
-- The clock, task card, and unlock bar move together by one physical pixel after 30 idle seconds,
-  then take another step every 30 seconds.
-- Drift uses measured content and available space, capped at 24 physical pixels per direction and
-  avoiding display cutouts.
+- The clock, task card, and unlock bar move together vertically after 30 idle seconds to mitigate burn-in,
+  then take a 16dp step every 10 seconds, reversing at boundaries.
+- Drift uses measured content and available vertical space, capped at 96dp and avoiding display cutouts.
 - Touches and settling pause movement; completion restarts the full 30-second idle delay.
 - The task card, icon container, unlock track, and thumb use thin outlines on black to reduce large
   illuminated fills.
@@ -91,7 +90,7 @@ that a task has stopped.
 `ScreenSaverOverlayManager` manages the overlay window, run-state observation, and minimum brightness.
 `ScreenSaverActivity` supplies the immersive host and closes with the overlay.
 `ScreenSaverView` handles the clock, battery broadcast, task presentation, idle timer, and dragging.
-`ScreenSaverDrift` limits each step to one physical pixel on one axis.
+`ScreenSaverDrift` handles vertical stepwise drift and boundary reversal.
 `ScreenSaverControls` supplies the home entry and display setting. Task presentation reuses
 `AzurPilotRepository` flows without adding WebSocket subscriptions or changing the browsed instance.
 
@@ -100,7 +99,7 @@ that a task has stopped.
 Run `compileDebugKotlin -x verifyBundledAzurPilotRuntime` and the i18n check. APK builds also require
 the OCR libraries prepared by `app/scripts/fetch_ocr_runtime.py`. On an Android device, check hidden
 bars with three-button and gesture navigation, transient bars from edge gestures, full-drag dismissal,
-short-drag return, and restored brightness. After 30 idle seconds, content moves one physical pixel;
-touches and settling restart the timer. Check drift boundaries, short screens, large fonts, and
-cleanup when the immersive host leaves the foreground. Automatic entry follows scheduler or tool
-startup; preparing the environment alone does not trigger it.
+short-drag return, and restored brightness. After 30 idle seconds, content starts vertical movement and
+steps every 10 seconds; touches and settling restart the timer. Check drift boundaries, short screens,
+large fonts, and cleanup when the immersive host leaves the foreground. Automatic entry follows
+scheduler or tool startup; preparing the environment alone does not trigger it.

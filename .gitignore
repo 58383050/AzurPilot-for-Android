@@ -19,6 +19,7 @@ build/
 local.properties
 *.iml
 .idea/
+.zcode/
 
 # spike 本地实验产物不入库
 spike/

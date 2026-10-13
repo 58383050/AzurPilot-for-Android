@@ -8,6 +8,7 @@ import android.os.BatteryManager
 import android.text.format.DateFormat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -37,13 +38,13 @@ import androidx.compose.material.icons.outlined.BatteryStd
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.NightsStay
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.TaskAlt
-import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.azurpilot.ghio.ui.components.DefaultSequentialPulseSize
+import com.azurpilot.ghio.ui.components.RunningIconStatus
+import com.azurpilot.ghio.ui.components.RunningStatusIcon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -95,15 +96,16 @@ import kotlinx.coroutines.launch
 /**
  * 渲染最低亮度遮罩中的 MD3 时钟、任务状态和滑块；在主线程组合。
  *
- * 所有可见内容在无交互三十秒后整体平移一个物理像素，边界来自实际布局尺寸。 触摸与回弹期间暂停，结束后重新计时；容器仅描边，避免大面积常亮底色。
+ * 所有可见内容在无操作三十秒后开始防烧屏位移，之后每十秒沿纵轴上下移动一步并在边界折返。
+ * 触摸与回弹期间暂停，结束后重新计时；容器仅描边，避免大面积常亮底色。
  * 时间独立按分钟更新，任务仅取正在运行的实例，避免显示用户正在浏览的其他配置。
  *
  * Renders the MD3 clock, task status, and unlock slider inside the dim overlay on the main thread.
  *
- * All visible content moves one physical pixel after each thirty seconds without interaction,
- * within measured layout bounds. Touches and settling pause and restart the timer. Containers use
- * outlines to avoid large illuminated fills. The clock updates each minute, and task information
- * belongs to the running instance rather than another configuration the user is browsing.
+ * All visible content starts burn-in mitigation after thirty idle seconds, then takes a vertical
+ * step every ten seconds and reverses at bounds. Touches and settling pause and restart the timer.
+ * Containers use outlines to avoid large illuminated fills. The clock updates each minute, and task
+ * information belongs to the running instance rather than another configuration the user is browsing.
  */
 @Composable
 fun ScreenSaverView(
@@ -117,6 +119,9 @@ fun ScreenSaverView(
 ) {
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
+    val density = LocalDensity.current
+    val stepPx = remember(density) { with(density) { DRIFT_STEP_DP.roundToPx() } }
+    val maxDriftPx = remember(density) { with(density) { MAX_DRIFT_DP.roundToPx() } }
     val battery = rememberBatteryState()
     var now by remember { mutableStateOf(LocalDateTime.now()) }
     val timeFormatter =
@@ -137,6 +142,17 @@ fun ScreenSaverView(
     var touching by remember { mutableStateOf(false) }
     var touchSequence by remember { mutableIntStateOf(0) }
 
+    val animatedOffsetY by
+        animateFloatAsState(
+            targetValue = drift.y.toFloat(),
+            animationSpec =
+                tween(
+                    durationMillis = DRIFT_ANIMATION_DURATION_MS,
+                    easing = FastOutSlowInEasing,
+                ),
+            label = "screenSaverDrift",
+        )
+
     LaunchedEffect(Unit) {
         while (true) {
             now = LocalDateTime.now()
@@ -145,19 +161,15 @@ fun ScreenSaverView(
     }
     LaunchedEffect(touching, interacting, touchSequence) {
         if (touching || interacting) return@LaunchedEffect
+        // 无操作 30 秒后开始上下移动防止烧屏
+        delay(INITIAL_IDLE_DELAY_MS)
         while (true) {
+            val maxOffsetY =
+                ((bounds.height - contentSize.height).coerceAtLeast(0) / 2)
+                    .coerceAtMost(maxDriftPx)
+            drift = drift.step(stepPx = stepPx, maxOffsetY = maxOffsetY)
+            // 之后每 10 秒移动一点
             delay(DRIFT_INTERVAL_MS)
-            drift =
-                drift.step(
-                    maxX =
-                        ((bounds.width - contentSize.width).coerceAtLeast(0) / 2).coerceAtMost(
-                            MAX_DRIFT_PX
-                        ),
-                    maxY =
-                        ((bounds.height - contentSize.height).coerceAtLeast(0) / 2).coerceAtMost(
-                            MAX_DRIFT_PX
-                        ),
-                )
         }
     }
 
@@ -189,11 +201,12 @@ fun ScreenSaverView(
                 modifier =
                     Modifier.align(Alignment.Center)
                         .offset {
-                            val maxX = (bounds.width - contentSize.width).coerceAtLeast(0) / 2
-                            val maxY = (bounds.height - contentSize.height).coerceAtLeast(0) / 2
+                            val maxOffsetY =
+                                ((bounds.height - contentSize.height).coerceAtLeast(0) / 2)
+                                    .coerceAtMost(maxDriftPx)
                             IntOffset(
-                                drift.x.coerceIn(-maxX, maxX),
-                                drift.y.coerceIn(-maxY, maxY),
+                                x = 0,
+                                y = animatedOffsetY.roundToInt().coerceIn(-maxOffsetY, maxOffsetY),
                             )
                         }
                         .widthIn(max = 360.dp)
@@ -282,21 +295,27 @@ private fun ScreenSaverTask(
                     ?.firstOrNull { it.state == AzurPilotTaskState.Running }
                     ?.name
         } else null
-    val (icon, label) =
+    val isRunning = run.reachable && (task != null || run.runnerAlive || run.toolAlive)
+    val status =
         when {
-            !run.reachable ->
-                Icons.Outlined.CloudOff to stringResource(R.string.screensaver_connecting)
+            !run.reachable -> RunningIconStatus.FAILED
+            run.busy && isRunning -> RunningIconStatus.STOPPING
+            run.busy && !isRunning -> RunningIconStatus.STARTING
+            isRunning -> RunningIconStatus.RUNNING
+            else -> RunningIconStatus.IDLE
+        }
+    val label =
+        when {
+            !run.reachable -> stringResource(R.string.screensaver_connecting)
             run.toolAlive ->
-                Icons.Outlined.TouchApp to
-                    stringResource(
-                        if (run.toolName == AzurPilotRunState.TOOL_EVENT_STORY) {
-                            R.string.tool_event_story
-                        } else R.string.tool_semi_auto
-                    )
-            task != null -> Icons.Outlined.TaskAlt to (schema?.taskTitle(task) ?: task)
-            run.runnerAlive ->
-                Icons.Outlined.Schedule to stringResource(R.string.screensaver_running)
-            else -> Icons.Outlined.NightsStay to stringResource(R.string.screensaver_idle)
+                stringResource(
+                    if (run.toolName == AzurPilotRunState.TOOL_EVENT_STORY) {
+                        R.string.tool_event_story
+                    } else R.string.tool_semi_auto
+                )
+            task != null -> schema?.taskTitle(task) ?: task
+            run.runnerAlive -> stringResource(R.string.screensaver_running)
+            else -> stringResource(R.string.screensaver_idle)
         }
     Surface(
         shape = MaterialTheme.shapes.large,
@@ -314,26 +333,28 @@ private fun ScreenSaverTask(
                 color = Color.Black,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(AppTokens.Spacing.sm).size(AppTokens.IconSize.md),
-                )
+                Box(
+                    modifier = Modifier.padding(AppTokens.Spacing.sm),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    RunningStatusIcon(
+                        status = status,
+                        idleIcon = Icons.Outlined.NightsStay,
+                        failedIcon = Icons.Outlined.CloudOff,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(DefaultSequentialPulseSize),
+                    )
+                }
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+            ) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = run.runningConfig ?: stringResource(R.string.screensaver_title),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -510,14 +531,31 @@ private fun rememberBatteryState(): BatteryState {
 }
 
 /**
- * 每三十秒无交互时只移动一像素，避免大幅换位与持续动画。
+ * 无操作进入防烧屏漂移的等待时间（30 秒）。
  *
- * Moves one pixel after each idle thirty seconds without jumps or continuous animation.
+ * Idle delay before burn-in drift activates (30 seconds).
  */
-private const val DRIFT_INTERVAL_MS = 30_000L
+private const val INITIAL_IDLE_DELAY_MS = 30_000L
 
-/** 物理像素范围，不随屏幕密度放大。 / Physical pixel range, independent of display density. */
-private const val MAX_DRIFT_PX = 24
+/**
+ * 漂移激活后，每 10 秒移动一点。
+ *
+ * Moves a bit every 10 seconds while idle.
+ */
+private const val DRIFT_INTERVAL_MS = 10_000L
+
+/**
+ * 每次位移的平滑动画时长（600 毫秒）。
+ *
+ * Smooth animation duration for each step (600 ms).
+ */
+private const val DRIFT_ANIMATION_DURATION_MS = 600
+
+/** 单次垂直位移的逻辑像素步长（16dp）。 / Vertical step size in density-independent pixels (16dp). */
+private val DRIFT_STEP_DP = 16.dp
+
+/** 垂直位移的最大范围（96dp）。 / Maximum vertical drift range (96dp). */
+private val MAX_DRIFT_DP = 96.dp
 
 /**
  * 时钟只显示分钟，下一次刷新对齐分钟边界以免时间滞后。
