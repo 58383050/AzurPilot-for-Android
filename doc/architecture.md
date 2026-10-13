@@ -34,7 +34,7 @@
 - **OCR 工作进程**（`ocr/`）：私有绑定服务在 `:ocr` 进程托管推理库，
   AP 和 App 测试通过带口令的 `127.0.0.1:22302` 张量 API 调用。
   原生退出后主进程重新绑定并禁用失败模型的 NPU，见 [ocr-acceleration.md](ocr-acceleration.md)。
-- **特权服务**（`privileged/`、`remote/`）：经 Shizuku 或 root 以 `app_process`
+- **特权服务**（`privileged/`、`remote/`）：经内置 ADB、外部 Shizuku 或 root 以 `app_process`
   拉起独立进程，承载虚拟屏管理、桥接截屏与注入（`bridge/` 下的 native 代码）；
   游戏运行期间由 `SdkTaskRepatriator` 把厂商/渠道 SDK 弹在主屏的登录、实名、
   支付页搬回虚拟屏（部分定制 ROM 会把这类 Activity 重定向回默认显示器）。
@@ -73,6 +73,8 @@ Runtime 在 `127.0.0.1:25548` 同时暴露三类接口：
 - **Runtime 更新**：按设备 ABI 从 `runtimes` 选择 `rootfs-<abi>.tar.xz`，
   由 RootfsProvisioner 下载解压，见 [runtime-provisioning.md](runtime-provisioning.md)。
 
+内置 ADB 的配对、离线连接及 Binder 回传细节见 [内置启动](embedded-shizuku.md)。
+
 ## English
 
 ### Layer overview
@@ -107,7 +109,7 @@ Runtime 在 `127.0.0.1:25548` 同时暴露三类接口：
   After a native exit, the main process rebinds and gates the failed model's NPU.
   See [ocr-acceleration.md](ocr-acceleration.md).
 - **Privileged service** (`privileged/`, `remote/`): a separate process started
-  through Shizuku or root via `app_process`. It owns virtual display
+  through embedded ADB, external Shizuku, or root via `app_process`. It owns virtual display
   management and the bridge capture/input native code (`bridge/`). While the
   game is running, `SdkTaskRepatriator` moves vendor/channel-SDK login,
   real-name, and payment pages popped onto the primary display back onto the
@@ -152,3 +154,6 @@ require a Runtime restart.
 - **Runtime update**: `rootfs-<abi>.tar.xz` selected from `runtimes` by
   device ABI, downloaded and extracted by RootfsProvisioner. See
   [runtime-provisioning.md](runtime-provisioning.md).
+
+For embedded ADB pairing, offline reconnection, and Binder handoff, see
+[embedded activation](embedded-shizuku.md).

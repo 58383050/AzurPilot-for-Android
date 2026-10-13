@@ -53,6 +53,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "AzurPilotApp"
 include(":app")
+include(":adb-runtime")
 include(":hidden-api")
 include(":navigation-runtime")
 // Preferences DataStore 的 schema 代码生成（@PrefSchema / @PrefKey）

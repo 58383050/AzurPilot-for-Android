@@ -11,7 +11,7 @@ import rikka.shizuku.Shizuku
 import timber.log.Timber
 
 /**
- * Shizuku 后端的连接器：把 [RemoteServiceImpl] 托管为 Shizuku user service
+ * Shizuku 后端的连接器：内置 ADB 已激活时直连，否则托管为 Shizuku user service。
  *
  * 走 `Shizuku.bindUserService`（进程 `:service`，非守护进程，生命周期跟随绑定）。
  * 这条路没有内建超时，连接兜底靠 [RemoteServiceManager] 的 20s 计时；bind 抛出
@@ -19,8 +19,8 @@ import timber.log.Timber
  *
  * 回调按 connection 身份比对，被新 connect 顶替的旧连接事件一律丢弃。
  *
- * The Shizuku-backend connector; hosts [RemoteServiceImpl] as a Shizuku user
- * service.
+ * The Shizuku-backend connector; connects directly when embedded ADB is activated, otherwise
+ * hosts [RemoteServiceImpl] as a Shizuku user service.
  *
  * Goes through `Shizuku.bindUserService` (process `:service`, not a daemon,
  * lifecycle follows the binding). This path has no built-in timeout; the
@@ -41,6 +41,8 @@ object ShizukuRemoteServiceConnector : RemoteServiceConnectorBackend {
     @Volatile
     private var activeBinding: ActiveBinding? = null
 
+    private var usingEmbedded = false
+
     /**
      * 发起一次 Shizuku user service 绑定
      *
@@ -54,6 +56,11 @@ object ShizukuRemoteServiceConnector : RemoteServiceConnectorBackend {
      * [RemoteServiceConnectorBackend.Callbacks.onError].
      */
     override fun connect(callbacks: RemoteServiceConnectorBackend.Callbacks) {
+        usingEmbedded = EmbeddedAdbManager.isReady
+        if (usingEmbedded) {
+            EmbeddedAdbServiceConnector.connect(callbacks)
+            return
+        }
         val args = createServiceArgs()
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -108,6 +115,11 @@ object ShizukuRemoteServiceConnector : RemoteServiceConnectorBackend {
      * service process goes away with it (not a daemon).
      */
     override fun disconnect(currentBinder: IBinder?) {
+        if (usingEmbedded) {
+            usingEmbedded = false
+            EmbeddedAdbServiceConnector.disconnect(currentBinder)
+            return
+        }
         val binding = activeBinding ?: return
         activeBinding = null
         runCatching {

@@ -231,6 +231,8 @@ object RemoteServiceManager : PrivilegedServicePort {
         backendProvider: () -> RemoteBackend,
     ) {
         ServiceBootLogger.init()
+        EmbeddedAdbServiceConnector.initialize(context)
+        EmbeddedAdbManager.initialize(context, backendProvider() == RemoteBackend.SHIZUKU)
         ShizukuManager.initSui(context.packageName)
         RemoteAccessCoordinator.initialize(backendProvider)
         RootRemoteServiceConnector.initialize(context)

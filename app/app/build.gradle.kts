@@ -297,6 +297,7 @@ dependencies {
     // MIUI 上系统权限页的跳转差异大，自己拼 Intent 覆盖不全
     implementation(libs.xx.permissions)
 
+    implementation(project(":adb-runtime"))
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
     implementation(libs.libsu)

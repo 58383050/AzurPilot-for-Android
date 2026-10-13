@@ -67,7 +67,6 @@ import com.azurpilot.ghio.theme.ksu.LocalUiMode
 import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.privileged.PermissionManager
 import com.azurpilot.ghio.privileged.RemoteAccessState
-import com.azurpilot.ghio.privileged.ShizukuReadinessStage
 import com.azurpilot.ghio.proot.AzurPilotOverview
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotRunController
@@ -118,7 +117,6 @@ fun HangarScreen(
     val connected by repository.connected.collectAsStateWithLifecycle()
     val overview by repository.overview.collectAsStateWithLifecycle()
     val access by permissionManager.state.collectAsStateWithLifecycle()
-    val shizuku by permissionManager.readiness.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -132,7 +130,7 @@ fun HangarScreen(
         }
     }
 
-    val mode = homeMode(run, proot, host, access, shizuku.stage)
+    val mode = homeMode(run, proot, host, access)
     // 网关可能残留上次浏览的实例，不能将其他实例的任务误显示在主页。
     val currentConfig = if (run.runnerAlive) run.runningConfig ?: run.selectedConfig
         else run.selectedConfig
@@ -188,7 +186,6 @@ fun HangarScreen(
                 onResolve = {
                     when (mode) {
                         HomeMode.NEEDS_SHIZUKU -> permissionManager.openShizuku(context)
-                        HomeMode.NEEDS_INSTALL_SHIZUKU -> permissionManager.openShizukuDownload(context)
                         HomeMode.NEEDS_AUTH -> scope.launch {
                             permissionManager.requestRemoteAccess()
                             permissionManager.bindService()
@@ -218,7 +215,7 @@ fun HangarScreen(
 /** 将来源状态收敛成用户可理解的结果，失联时不沿用旧的运行判定。 / Map verified status to user-facing states; never treat stale status as verified. */
 private enum class HomeMode {
     READY, RUNNING, RUNNING_INTERRUPTED, STARTING, STOPPING, PREPARING, PREPARING_DEVICE,
-    UPDATING, FAILED, CONNECTING, NEEDS_SHIZUKU, NEEDS_INSTALL_SHIZUKU,
+    UPDATING, FAILED, CONNECTING, NEEDS_SHIZUKU,
     NEEDS_AUTH, NEEDS_CONNECTION, NEEDS_ACTION, TOOL_ACTIVE
 }
 
@@ -228,7 +225,6 @@ private fun homeMode(
     proot: ProotSnapshot,
     host: HostSnapshot,
     access: RemoteAccessState,
-    shizukuStage: ShizukuReadinessStage,
 ): HomeMode = when {
     run.busy -> when {
         run.runnerAlive -> HomeMode.STOPPING
@@ -252,11 +248,7 @@ private fun homeMode(
 
     // 原来的 ready 只验证了本机 HTTP 接口，Shizuku 没启动也会误显示就绪。
     access.configuredBackend == RemoteBackend.SHIZUKU && !access.shizukuAvailable ->
-        when (shizukuStage) {
-            ShizukuReadinessStage.NotInstalled -> HomeMode.NEEDS_INSTALL_SHIZUKU
-            ShizukuReadinessStage.OfficialConflict -> HomeMode.NEEDS_ACTION
-            else -> HomeMode.NEEDS_SHIZUKU
-        }
+        HomeMode.NEEDS_SHIZUKU
     !access.isAvailable(access.configuredBackend) -> HomeMode.NEEDS_ACTION
     !access.isGranted(access.configuredBackend) -> HomeMode.NEEDS_AUTH
     !host.privilegedConnected -> HomeMode.NEEDS_CONNECTION
@@ -290,7 +282,6 @@ private fun HomeRunCard(
         HomeMode.FAILED -> R.string.home_failed_title
         HomeMode.CONNECTING -> R.string.home_connecting_title
         HomeMode.NEEDS_SHIZUKU -> R.string.home_needs_shizuku_title
-        HomeMode.NEEDS_INSTALL_SHIZUKU -> R.string.home_needs_install_title
         HomeMode.NEEDS_AUTH -> R.string.home_needs_auth_title
         HomeMode.NEEDS_CONNECTION -> R.string.home_needs_connection_title
         HomeMode.NEEDS_ACTION -> R.string.home_attention_title
@@ -307,7 +298,6 @@ private fun HomeRunCard(
         HomeMode.FAILED -> R.string.home_failed_description
         HomeMode.CONNECTING -> R.string.home_connecting_description
         HomeMode.NEEDS_SHIZUKU -> R.string.home_needs_shizuku_description
-        HomeMode.NEEDS_INSTALL_SHIZUKU -> R.string.home_needs_install_description
         HomeMode.NEEDS_AUTH -> R.string.home_needs_auth_description
         HomeMode.NEEDS_CONNECTION -> R.string.home_needs_connection_description
         HomeMode.NEEDS_ACTION -> R.string.home_attention_description
@@ -315,14 +305,14 @@ private fun HomeRunCard(
     }
     val isActive = mode == HomeMode.RUNNING || mode == HomeMode.RUNNING_INTERRUPTED
     val canResolve = mode == HomeMode.NEEDS_SHIZUKU ||
-        mode == HomeMode.NEEDS_INSTALL_SHIZUKU || mode == HomeMode.NEEDS_AUTH ||
+        mode == HomeMode.NEEDS_AUTH ||
         mode == HomeMode.NEEDS_CONNECTION || mode == HomeMode.NEEDS_ACTION
     val canStart = mode == HomeMode.READY
     val canRetry = mode == HomeMode.FAILED
     val primaryColor: Color = when (mode) {
         HomeMode.RUNNING -> AzurPilotTheme.palette.success
         HomeMode.RUNNING_INTERRUPTED, HomeMode.NEEDS_SHIZUKU,
-        HomeMode.NEEDS_INSTALL_SHIZUKU, HomeMode.NEEDS_AUTH,
+        HomeMode.NEEDS_AUTH,
         HomeMode.NEEDS_CONNECTION -> MaterialTheme.colorScheme.error
         HomeMode.READY -> MaterialTheme.colorScheme.primary
         HomeMode.FAILED, HomeMode.NEEDS_ACTION -> MaterialTheme.colorScheme.error
@@ -432,7 +422,6 @@ private fun HomeRunCard(
                             mode == HomeMode.UPDATING -> R.string.home_updating_title
                             mode == HomeMode.CONNECTING -> R.string.home_connecting_title
                             mode == HomeMode.NEEDS_SHIZUKU -> R.string.home_open_shizuku
-                            mode == HomeMode.NEEDS_INSTALL_SHIZUKU -> R.string.home_install_shizuku
                             mode == HomeMode.NEEDS_AUTH -> R.string.home_grant_access
                             mode == HomeMode.NEEDS_CONNECTION -> R.string.home_reconnect
                             mode == HomeMode.NEEDS_ACTION -> R.string.home_attention_settings

@@ -18,6 +18,8 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
     <!--
       前台模式的控制层：屏幕让给了目标应用，没有悬浮球或音量键就没法停任务
@@ -59,6 +61,12 @@
         android:theme="@style/Theme.AzurPilotApp"
         android:localeConfig="@xml/locales_config"
         tools:targetApi="33">
+
+        <activity android:name=".privileged.AdbActivationActivity" android:exported="false" />
+        <service
+            android:name=".privileged.AdbPairingService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <!-- LiteRT 已声明新款 RPC 和 NeuroPilot 库；旧款 DSP 的可选 RPC 库还需补充声明。 -->
         <uses-native-library android:name="libadsprpc.so" android:required="false" />

@@ -14,24 +14,21 @@ import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Shizuku 提权后端：经 rikka 的 Shizuku binder API 探活与授权
+ * Shizuku 提权后端：优先使用内置 ADB 认证，否则经 rikka 的 Binder API 探活与授权。
  *
- * 可用性 = `pingBinder()` 打得通（未装 / 服务没跑都算不可用）；授权 =
- * `checkSelfPermission()`。失败模式：未安装 shizuku-m、服务未启动、用户在
- * 授权弹窗拒绝。Sui（Magisk 模块）能顶同一 API，[initSui] 在启动时探测一次，
- * 结论存 [isSui]。
+ * 内置路径以本机 ADB 认证结果为授权依据；外部路径用 `pingBinder()` 和
+ * `checkSelfPermission()`。Sui（Magisk 模块）能提供同一 API，[initSui] 在启动时
+ * 探测一次，结论存 [isSui]。
  *
  * binder 生死经 sticky 监听常驻观察，首次 addStateListener 或 requestPermission
  * 时装配；状态变化经 [RemoteAccessStateListener] 广播给协调器。
  *
- * The Shizuku privilege backend; probes and grants through rikka's Shizuku
- * binder API.
+ * The Shizuku privilege backend; prefers embedded ADB authentication and otherwise probes and
+ * grants through rikka's Shizuku Binder API.
  *
- * Available means `pingBinder()` succeeds (not installed / service not running
- * both read unavailable); granted means `checkSelfPermission()`. Failure
- * modes: shizuku-m not installed, service not started, user denying the grant
- * dialog. Sui (a Magisk module) can serve the same API — [initSui] probes it
- * once at startup and caches the verdict in [isSui].
+ * The embedded path grants access from local ADB authentication; the external path uses
+ * `pingBinder()` and `checkSelfPermission()`. Sui (a Magisk module) can serve the same API;
+ * [initSui] probes it once at startup and caches the verdict in [isSui].
  *
  * Binder life and death are watched permanently via sticky listeners, wired on
  * the first addStateListener or requestPermission; state changes fan out to
@@ -73,12 +70,13 @@ object ShizukuManager : RemoteAccessPermissionBackend {
     fun isShizukuAvailable(): Boolean = isAvailable()
 
     /**
-     * Shizuku binder 是否可达；未装、未启动或异常都算不可用
+     * 内置 ADB 已认证或外部 Shizuku Binder 可达时可用；不进行网络 IO。
      *
-     * Whether the Shizuku binder is reachable; not installed, not running, or
-     * any error all count as unavailable.
+     * Available when embedded ADB is authenticated or the external Shizuku Binder is reachable;
+     * performs no network IO.
      */
     override fun isAvailable(): Boolean {
+        if (EmbeddedAdbManager.isReady) return true
         return try {
             Shizuku.pingBinder()
         } catch (e: Exception) {
@@ -88,12 +86,13 @@ object ShizukuManager : RemoteAccessPermissionBackend {
     }
 
     /**
-     * 用户是否已把 Shizuku 授权给本 app；服务不可用时恒为 false
+     * 内置认证直接授权本 App，外部服务仍查询原授权；不可用时为 false。
      *
-     * Whether the user has granted Shizuku access to this app; always false
-     * while the service is unavailable.
+     * Embedded authentication grants this app directly; external services retain the original
+     * permission check. False when neither is available.
      */
     override fun isGranted(): Boolean {
+        if (EmbeddedAdbManager.isReady) return true
         if (!isAvailable()) {
             return false
         }
@@ -181,6 +180,13 @@ object ShizukuManager : RemoteAccessPermissionBackend {
     override fun removeStateListener(listener: RemoteAccessStateListener) {
         listeners -= listener
     }
+
+    /**
+     * 内置 ADB 认证变化后广播状态；调用线程可以是 IO 线程。
+     *
+     * Broadcasts embedded ADB authentication changes, including calls from IO threads.
+     */
+    fun refreshEmbeddedState() = notifyStateChanged()
 
     /**
      * 一次性装配 Shizuku binder 的到达与死亡监听；两者都触发状态广播

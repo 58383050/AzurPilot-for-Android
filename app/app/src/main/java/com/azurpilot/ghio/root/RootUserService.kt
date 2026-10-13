@@ -56,7 +56,7 @@ object RootUserService {
             setAppName(appName, userId)
 
             val packageContext = createPackageContextAsUser(systemContext, parsed.packageName, userId)
-            val application = try {
+            val application = if (parsed.contextOnly) null else try {
                 makeApplication(activityThread, packageContext)
             } catch (tr: Throwable) {
                 // 部分 OEM（如 MIUI）修改了 LoadedApk.makeApplication；shell 身份缺少主题或
@@ -237,6 +237,7 @@ object RootUserService {
         val className: String,
         val uid: Int,
         val debugName: String?,
+        val contextOnly: Boolean,
     ) {
         companion object {
             /**
@@ -254,6 +255,7 @@ object RootUserService {
                 var className: String? = null
                 var debugName: String? = null
                 var uid = -1
+                var contextOnly = false
 
                 for (arg in args) {
                     if (arg.startsWith("--token=")) {
@@ -266,6 +268,8 @@ object RootUserService {
                         uid = arg.substring(6).toInt()
                     } else if (arg.startsWith("--debug-name=")) {
                         debugName = arg.substring(13)
+                    } else if (arg == "--context-only") {
+                        contextOnly = true
                     }
                 }
 
@@ -273,7 +277,7 @@ object RootUserService {
                     Ln.e(TAG + ": missing required args")
                     return null
                 }
-                return ParsedArgs(token, packageName, className, uid, debugName)
+                return ParsedArgs(token, packageName, className, uid, debugName, contextOnly)
             }
         }
     }

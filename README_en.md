@@ -91,7 +91,7 @@ This repository is forked from [ALAS-AOS](https://github.com/Shinarin/ALAS-AOS),
     <tr>
       <td width="25%"><b>Repository Size</b><br><img src="https://img.shields.io/github/repo-size/wess09/AzurPilot-for-Android?style=flat-square&color=586069" alt="Repo Size"></td>
       <td width="25%"><b>Languages</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20Shell-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
-      <td width="25%"><b>Privilege Backend</b><br><img src="https://img.shields.io/badge/Backend-Shizuku--m%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
+      <td width="25%"><b>Privilege Backend</b><br><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
       <td width="25%"><b>Target System</b><br><img src="https://img.shields.io/badge/Android-API%2028%2B%20(ARM64%20%2F%20x86__64)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android Target"></td>
     </tr>
     <tr>
@@ -309,7 +309,7 @@ graph TD
         UI["Compose UI Matrix\n(Home / Task Board / Schedule / Settings)"]
         Overlay["FloatingX Systemwide Floating Controller"]
         Lifecycle["Process Supervisor & Runtime Lifecycle Manager"]
-        Bridge["Shizuku-m / Root su Privilege Relay"]
+        Bridge["Embedded ADB / Shizuku / Root su Privilege Relay"]
     end
 
     subgraph Container ["PRoot Sandbox Layer (Ubuntu 24.04 · arm64 / x86_64)"]
@@ -413,7 +413,7 @@ Signed GitHub build artifacts are mirrored to [CNB downloads](https://cnb.cool/a
         <img src="https://img.shields.io/badge/Step-03-purple?style=flat-square" alt="Step 3"><br>
         <h4>Grant Permissions</h4>
       </div>
-      Authorize via <a href="https://github.com/wess09/shizuku-m/releases/tag/v13.6.0-m2.r1093.bcb2b62a">Shizuku-m</a> according to the prompt, or switch to the Root backend in Settings.
+      Activate embedded Shizuku as prompted. Pair system wireless debugging once, then reconnect offline for this boot without a separate manager or extra app grant. Root is also available in Settings.
     </td>
     <td width="25%" valign="top">
       <div align="center">
@@ -426,10 +426,10 @@ Signed GitHub build artifacts are mirrored to [CNB downloads](https://cnb.cool/a
 </table>
 
 > [!TIP]
-> **[Shizuku-m](https://github.com/wess09/shizuku-m)** — the patched build maintained by this project — is highly recommended: it operates without wireless debugging, works reliably without external Wi-Fi networks, and fixes the user-service startup failure on MediaTek devices. See the note below.
+> Local ADB pairing and offline reconnection from [Shizuku-m](https://github.com/wess09/shizuku-m) are built in. Initial system pairing and USB debugging approval are still required; reactivate after rebooting the phone. See [embedded activation](doc/embedded-shizuku.md).
 
-> [!WARNING]
-> **On MediaTek devices use the [patched Shizuku-m build](https://github.com/wess09/shizuku-m/releases/tag/v13.6.0-m2.r1093.bcb2b62a), not the official 13.6.x.** Since 13.6, Shizuku initializes the privileged user-service process with an `Application`, which hits MediaTek's resource-preload hook injected into `LoadedApk.makeApplication` (`procName` is null → NPE) and the process immediately calls `System.exit(1)`. The symptom is that Shizuku is authorized and its binder is reachable, yet the privileged service always times out, and `service_boot_debug.log` is never written under `debug/`. Acknowledged by the official project but still unfixed ([#1198](https://github.com/RikkaApps/Shizuku/issues/1198) / [#1171](https://github.com/RikkaApps/Shizuku/issues/1171)); the patched build falls back to the pre-13.6 Context-only path.
+> [!NOTE]
+> The embedded path starts the privileged service with Context-only initialization to avoid MediaTek Application hooks. If using an external manager on MediaTek, the [patched Shizuku-m build](https://github.com/wess09/shizuku-m) remains available.
 
 > [!IMPORTANT]
 > The **Full APK** bundles Runtime and unpacks it locally on first launch, with no network needed; the **Incremental APK** carries no Runtime and downloads the ~1GB Runtime for your device architecture from GitHub on first launch (Wi-Fi recommended; multi-mirror and multi-threaded segmented download supported, configurable in Settings). For later host-only updates, install the incremental APK over the existing app to reuse the Runtime already on disk.

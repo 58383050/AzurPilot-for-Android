@@ -91,7 +91,7 @@
     <tr>
       <td width="25%"><b>程式碼庫容量</b><br><img src="https://img.shields.io/github/repo-size/wess09/AzurPilot-for-Android?style=flat-square&color=586069" alt="Repo Size"></td>
       <td width="25%"><b>主要語言</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20Shell-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
-      <td width="25%"><b>提權執行方式</b><br><img src="https://img.shields.io/badge/Backend-Shizuku--m%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
+      <td width="25%"><b>提權執行方式</b><br><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
       <td width="25%"><b>目標系統</b><br><img src="https://img.shields.io/badge/Android-API%2028%2B%20(ARM64%20%2F%20x86__64)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android Target"></td>
     </tr>
     <tr>
@@ -309,7 +309,7 @@ graph TD
         UI["Compose UI 介面矩陣\n(首頁 / 任務排程 / 定時管理 / 全域設定)"]
         Overlay["FloatingX 全域懸浮控制面板"]
         Lifecycle["處理程序守護與 Runtime 生命週期管理器"]
-        Bridge["Shizuku-m / Root su 權限接入中繼"]
+        Bridge["Embedded ADB / Shizuku / Root su 權限接入中繼"]
     end
 
     subgraph Container ["PRoot 容器隔離層 (Ubuntu 24.04 · arm64 / x86_64)"]
@@ -413,7 +413,7 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
         <img src="https://img.shields.io/badge/步驟-03-purple?style=flat-square" alt="Step 3"><br>
         <h4>接入提權服務</h4>
       </div>
-      依照介面指示連接 <a href="https://github.com/wess09/shizuku-m/releases/tag/v13.6.0-m2.r1093.bcb2b62a">Shizuku-m</a> 授權，或在設定頁面直接切換為 Root 執行後端。
+      依照介面指示啟用內建 Shizuku：首次完成系統無線偵錯配對，之後本次開機內可離線重連，無須另裝管理器或再次授權。也可在設定中選擇 Root。
     </td>
     <td width="25%" valign="top">
       <div align="center">
@@ -426,10 +426,10 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
 </table>
 
 > [!TIP]
-> 推薦使用 **[Shizuku-m](https://github.com/wess09/shizuku-m)**（本專案維護的修正版），該分支支援免開啟無線偵錯模式、無外部 WLAN 網路環境下亦能正常啟動，並已修正聯發科裝置上的使用者服務啟動失敗，詳見下方說明。
+> 已內建 [Shizuku-m](https://github.com/wess09/shizuku-m) 的本機 ADB 配對及離線重連功能。首次仍需系統配對及 USB 偵錯確認，重新啟動手機後需再次啟用。參見 [內建啟動說明](doc/embedded-shizuku.md)。
 
-> [!WARNING]
-> **聯發科（MediaTek）裝置請使用本專案維護的[修正版 Shizuku-m](https://github.com/wess09/shizuku-m/releases/tag/v13.6.0-m2.r1093.bcb2b62a)，不要使用官方 13.6.x。** 官方 13.6 起改用 `Application` 初始化特權服務處理程序，會踩到聯發科注入在 `LoadedApk.makeApplication` 的資源預載程式碼（`procName` 為空 → NPE），處理程序隨即 `System.exit(1)`；表現為 Shizuku 已授權、binder 可達，但特權服務始終連線逾時，且 `debug/` 下不會產生 `service_boot_debug.log`。該問題官方已確認但至今未修正（[#1198](https://github.com/RikkaApps/Shizuku/issues/1198) / [#1171](https://github.com/RikkaApps/Shizuku/issues/1171)），修正版在此基礎上回退到 13.6 之前的 Context-only 路徑。
+> [!NOTE]
+> 內建路徑以 Context-only 方式啟動特權服務，避開聯發科 Application 初始化問題。繼續使用外部 Shizuku 時，聯發科裝置可選擇 [Shizuku-m 修正版](https://github.com/wess09/shizuku-m)。
 
 > [!IMPORTANT]
 > **完整版 APK** 內建 Runtime，首次啟動直接在本機解壓縮，無需連網；**輕量增量 APK** 不含 Runtime，首次啟動會自動從 GitHub 下載與裝置架構對應的約 1GB Runtime（建議在 Wi-Fi 環境下進行；下載支援多鏡像與多執行緒分段，可於設定中選擇下載來源）。後續若僅有 Android 宿主程式碼更新，下載輕量增量 APK 直接覆蓋安裝即可，無需重新解壓 Runtime。

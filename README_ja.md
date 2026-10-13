@@ -91,7 +91,7 @@
     <tr>
       <td width="25%"><b>リポジトリ容量</b><br><img src="https://img.shields.io/github/repo-size/wess09/AzurPilot-for-Android?style=flat-square&color=586069" alt="Repo Size"></td>
       <td width="25%"><b>主要開発言語</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20Shell-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
-      <td width="25%"><b>権限昇格バックエンド</b><br><img src="https://img.shields.io/badge/Backend-Shizuku--m%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
+      <td width="25%"><b>権限昇格バックエンド</b><br><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
       <td width="25%"><b>対象プラットフォーム</b><br><img src="https://img.shields.io/badge/Android-API%2028%2B%20(ARM64%20%2F%20x86__64)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android Target"></td>
     </tr>
     <tr>
@@ -309,7 +309,7 @@ graph TD
         UI["Compose UI 画面マトリクス\n(ホーム / タスク / スケジュール / 設定)"]
         Overlay["FloatingX 全画面フローティングパネル"]
         Lifecycle["プロセス監視・Runtime ライフサイクル管理"]
-        Bridge["Shizuku-m / Root su 権限中継"]
+        Bridge["Embedded ADB / Shizuku / Root su 権限中継"]
     end
 
     subgraph Container ["PRoot コンテナ分離層 (Ubuntu 24.04 · arm64 / x86_64)"]
@@ -413,7 +413,7 @@ GitHub でビルドした正式な成果物は [CNB ダウンロード](https://
         <img src="https://img.shields.io/badge/ステップ-03-purple?style=flat-square" alt="Step 3"><br>
         <h4>権限の付与</h4>
       </div>
-      案内に従って <a href="https://github.com/wess09/shizuku-m/releases/tag/v13.6.0-m2.r1093.bcb2b62a">Shizuku-m</a> で権限を許可するか、設定画面で Root バックエンドに切り替えます。
+      画面の案内で内蔵 Shizuku を有効化します。初回にシステムのワイヤレスデバッグをペア設定すると、再起動まではオフラインで再接続できます。別アプリや追加許可は不要です。設定で Root も選べます。
     </td>
     <td width="25%" valign="top">
       <div align="center">
@@ -426,10 +426,10 @@ GitHub でビルドした正式な成果物は [CNB ダウンロード](https://
 </table>
 
 > [!TIP]
-> **[Shizuku-m](https://github.com/wess09/shizuku-m)**（本プロジェクトが保守する修正版）の利用を強く推奨します。ワイヤレスデバッグの有効化が不要で、外部 Wi-Fi ネットワークがない環境でも正常に起動でき、MediaTek 端末におけるユーザーサービスの起動失敗も修正済みです。詳細は下記の注意を参照してください。
+> [Shizuku-m](https://github.com/wess09/shizuku-m) の端末内 ADB ペア設定とオフライン再接続を内蔵しています。初回はシステムのペア設定と USB デバッグ確認が必要です。端末の再起動後は再度有効化してください。[詳細](doc/embedded-shizuku.md)。
 
-> [!WARNING]
-> **MediaTek 搭載端末では[修正版 Shizuku-m](https://github.com/wess09/shizuku-m/releases/tag/v13.6.0-m2.r1093.bcb2b62a) を使用し、公式の 13.6.x は使わないでください。** 13.6 以降 Shizuku は特権サービスプロセスを `Application` で初期化するようになり、MediaTek が `LoadedApk.makeApplication` に注入したリソース先読みコード（`procName` が null → NPE）を踏み、プロセスが即座に `System.exit(1)` します。症状は「Shizuku は認可済みで binder も到達可能なのに、特権サービスが必ずタイムアウトし、`debug/` 配下に `service_boot_debug.log` が生成されない」というものです。公式で確認済みですが未修正のままです（[#1198](https://github.com/RikkaApps/Shizuku/issues/1198) / [#1171](https://github.com/RikkaApps/Shizuku/issues/1171)）。修正版は 13.6 以前の Context-only 経路へフォールバックします。
+> [!NOTE]
+> 内蔵経路は Context-only で特権サービスを起動し、MediaTek の Application 初期化問題を回避します。MediaTek で外部管理アプリを使う場合は [修正版 Shizuku-m](https://github.com/wess09/shizuku-m) も利用できます。
 
 > [!IMPORTANT]
 > **完全版 APK** は Runtime を内蔵しており、初回起動時にローカルで展開するためネットワークは不要です。**軽量差分 APK** は Runtime を含まず、初回起動時に GitHub からデバイスのアーキテクチャに対応した約 1GB の Runtime を自動ダウンロードします（Wi-Fi 環境を推奨。マルチミラー・マルチスレッド分割ダウンロードに対応し、設定でダウンロード元を選択できます）。その後の Android アプリ本体のみの更新では、軽量差分 APK を上書きインストールするだけで、既存の Runtime を再利用できます。
