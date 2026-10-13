@@ -16,8 +16,11 @@ android {
 
     sourceSets {
         named("androidTest") {
-            // 导航回归可独立编译，避免旧运行时测试引用已删除的 PiPackage。
-            if (providers.gradleProperty("navigationTestsOnly").orNull == "true") {
+            // 独立设备测试避开引用旧运行时类型的历史测试集。
+            if (providers.gradleProperty("embeddedAdbTestsOnly").orNull == "true") {
+                kotlin.directories.clear()
+                kotlin.directories.add("src/embeddedAdbTest/java")
+            } else if (providers.gradleProperty("navigationTestsOnly").orNull == "true") {
                 kotlin.directories.clear()
                 kotlin.directories.add("src/navigationTest/java")
             } else {

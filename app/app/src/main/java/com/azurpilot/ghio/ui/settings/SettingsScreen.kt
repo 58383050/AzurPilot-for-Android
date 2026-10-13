@@ -835,6 +835,7 @@ fun AdvancedSettingsPage(
     appLockManager: AppLockManager = koinInject(),
 ) {
     val context = LocalContext.current
+    val permissionManager: com.azurpilot.ghio.privileged.PermissionManager = koinInject()
     val activity = context as? FragmentActivity
     val canAuthenticate = appLockManager.canAuthenticate(context)
 
@@ -851,6 +852,11 @@ fun AdvancedSettingsPage(
                 selected = state.remoteAccess.configuredBackend,
                 onSelect = { onIntent(SettingsIntent.SetBackend(it)) },
             )
+            if (state.remoteAccess.configuredBackend == RemoteBackend.SHIZUKU) {
+                TextButton(onClick = { permissionManager.openShizuku(context) }) {
+                    Text(stringResource(R.string.adb_title))
+                }
+            }
         }
         AppCard {
             AppLabeledControlRow(

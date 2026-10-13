@@ -1,15 +1,17 @@
-// 以 root 启动 app_process 特权服务的最小 C 启动器。
+// 以 root 或 shell 启动 app_process 特权服务的最小 C 启动器。
 //
-// RootServiceStarter.kt 经 RootServiceStarter 传入的参数由本程序解析。本程序先以 root
-// 打开诊断日志，再按默认安全模型降级为 shell UID/GID 组并 exec app_process；仅显式
-// --keep-root 请求保留 root。它输出为 liblauncher.so，以便 Android 的 nativeLibraryDir
-// 成为 targetSdk 约束下可 execve 的位置。
+// 连接器传入的 app_process 参数由本程序解析。日志以启动者身份打开，子进程默认设置为
+// shell UID/GID 组并 exec app_process；仅显式
+// --keep-root 请求保留 root。--daemonize 用于 ADB 启动：子进程脱离会话并关闭调试连接的
+// 标准流后，父进程才返回。输出为 liblauncher.so，以便 nativeLibraryDir 在 targetSdk
+// 约束下仍可 execve。
 //
-// Minimal C launcher for the app_process privileged service started as root.
-// This program parses arguments supplied for RootServiceStarter.kt. It opens the diagnostic
-// log as root, then follows the default safety model by dropping to the shell UID/GID groups
-// before exec'ing app_process; only an explicit --keep-root request retains root. It is output
-// as liblauncher.so so Android's nativeLibraryDir is executable under targetSdk restrictions.
+// Minimal C launcher for the app_process privileged service started as root or shell.
+// This program parses app_process arguments supplied by the connectors. The log is opened with
+// the launch identity, and the child defaults to shell UID/GID before exec'ing app_process.
+// Only an explicit --keep-root request retains root. For ADB,
+// --daemonize waits until the child detaches and redirects the debugging connection's stdio.
+// It is output as liblauncher.so so nativeLibraryDir is executable under targetSdk restrictions.
 
 #include <android/log.h>
 #include <errno.h>
@@ -75,11 +77,12 @@ static const gid_t kRequiredShellGids[] = {
 // 描述 RootServiceStarter 所需的 app_process 启动参数。
 //
 // 所有字符串均借用 argv 存储并只在本进程存活期间使用；keep_root 仅能由 root 后端显式
-// 请求，默认 false。
+// 请求，默认 false。daemonize 仅用于 ADB，需要让服务与启动会话独立存活。
 //
 // Describes app_process launch arguments required by RootServiceStarter.
 // All strings borrow argv storage and are used only during this process lifetime. keep_root can
-// be requested only explicitly by the root backend and defaults to false.
+// be requested only explicitly by the root backend and defaults to false. daemonize is for ADB
+// and keeps the service independent of its launch session.
 typedef struct {
     const char *apk_path;
     const char *process_name;
@@ -91,6 +94,7 @@ typedef struct {
     const char *log_file;
     int uid;
     bool keep_root;
+    bool daemonize;
 } LauncherArgs;
 
 // 诊断文件日志。root 身份打开的 fd 在 UID 降级后保持有效，因此 Java stderr 与 launcher
@@ -173,6 +177,7 @@ static bool parse_args(int argc, char **argv, LauncherArgs *out) {
             }
         }
         else if (strcmp(argv[i], "--keep-root") == 0) out->keep_root = true;
+        else if (strcmp(argv[i], "--daemonize") == 0) out->daemonize = true;
     }
 
     return out->apk_path != NULL
@@ -260,11 +265,13 @@ static void exec_app_process(const LauncherArgs *args) {
 // 解析参数、准备日志、按默认策略降权，并监督 app_process 子进程。
 //
 // --keep-root 只跳过 UID/GID 降级，不改变 Binder 回传或退出监督。父进程等待子进程，让启动
-// 调用方能获得明确的成功或失败状态。
+// 调用方能获得明确的成功或失败状态。--daemonize 则只等待会话分离，服务就绪由 Binder
+// 回传确认。
 //
 // Parses arguments, prepares logging, applies default privilege demotion, and supervises the
 // app_process child. --keep-root skips only UID/GID demotion; it does not change Binder return or
 // exit supervision. The parent waits so the starter receives an explicit success or failure state.
+// --daemonize waits only for detachment; Binder handoff confirms service readiness.
 int main(int argc, char **argv) {
     LauncherArgs args = {0};
 
@@ -286,13 +293,38 @@ int main(int argc, char **argv) {
 
     LOGFI("launcher start: apk=%s uid=%d", args.apk_path, args.uid);
 
+    // ADB 连接结束会清理原 shell 会话；父进程必须等子进程脱离会话后才能返回。
+    int ready_pipe[2] = {-1, -1};
+    if (args.daemonize && pipe(ready_pipe) != 0) {
+        LOGFE("daemon readiness pipe failed: %s", strerror(errno));
+        return 1;
+    }
     pid_t child = fork();
     if (child < 0) {
         LOGFE("fork failed: %s", strerror(errno));
+        if (args.daemonize) { close(ready_pipe[0]); close(ready_pipe[1]); }
         return 1;
     }
 
     if (child == 0) {
+        if (args.daemonize) {
+            close(ready_pipe[0]);
+            if (setsid() < 0) {
+                LOGFE("setsid failed: %s", strerror(errno));
+                _exit(1);
+            }
+            int null_fd = open("/dev/null", O_RDWR);
+            if (null_fd < 0 || dup2(null_fd, STDIN_FILENO) < 0
+                    || dup2(g_log_fd >= 0 ? g_log_fd : null_fd, STDOUT_FILENO) < 0
+                    || dup2(g_log_fd >= 0 ? g_log_fd : null_fd, STDERR_FILENO) < 0) {
+                LOGFE("daemon stdio redirect failed: %s", strerror(errno));
+                _exit(1);
+            }
+            if (null_fd > STDERR_FILENO) close(null_fd);
+            char ready = '1';
+            if (write(ready_pipe[1], &ready, 1) != 1) _exit(1);
+            close(ready_pipe[1]);
+        }
         if (!args.keep_root) {
             static const size_t kGidCount =
                     sizeof(kRequiredShellGids) / sizeof(kRequiredShellGids[0]);
@@ -319,6 +351,20 @@ int main(int argc, char **argv) {
 
         exec_app_process(&args);
         _exit(1);
+    }
+
+    if (args.daemonize) {
+        close(ready_pipe[1]);
+        char ready = 0;
+        ssize_t count;
+        do { count = read(ready_pipe[0], &ready, 1); } while (count < 0 && errno == EINTR);
+        close(ready_pipe[0]);
+        if (count != 1 || ready != '1') {
+            LOGFE("daemon child failed before session detachment");
+            waitpid(child, NULL, 0);
+            return 1;
+        }
+        return 0;
     }
 
     int status = 0;

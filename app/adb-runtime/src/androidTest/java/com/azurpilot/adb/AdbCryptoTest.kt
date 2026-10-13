@@ -10,6 +10,9 @@ import org.lsposed.hiddenapibypass.HiddenApiBypass
 import java.net.InetAddress
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import java.security.KeyStore
+import javax.net.ssl.KeyManagerFactory
+import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLServerSocket
 import javax.net.ssl.SSLSocket
 
@@ -30,7 +33,7 @@ class AdbCryptoTest {
             val restored = AdbKey(PreferenceAdbKeyStore(preferences), "test")
             assertArrayEquals(key.adbPublicKey, restored.adbPublicKey)
             assertEquals(256, restored.sign(ByteArray(20)).size)
-            val server = key.sslContext.serverSocketFactory.createServerSocket(
+            val server = serverContext(key).serverSocketFactory.createServerSocket(
                 0, 1, InetAddress.getByName("127.0.0.1"),
             ) as SSLServerSocket
             server.use {
@@ -78,6 +81,22 @@ class AdbCryptoTest {
         Class.forName("com.android.org.conscrypt.Conscrypt"), null,
         "exportKeyingMaterial", socket, "adb-label\u0000", null, 64,
     ) as ByteArray
+
+    private fun serverContext(key: AdbKey): SSLContext {
+        // 生产身份只选择客户端证书，测试服务器需单独装配服务端 KeyManager。
+        val privateKey = AdbKey::class.java.getDeclaredField("privateKey")
+            .apply { isAccessible = true }.get(key) as java.security.PrivateKey
+        val certificate = AdbKey::class.java.getDeclaredField("certificate")
+            .apply { isAccessible = true }.get(key) as java.security.cert.X509Certificate
+        val store = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+            load(null)
+            setKeyEntry("test_server", privateKey, charArrayOf(), arrayOf(certificate))
+        }
+        val manager = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()).apply {
+            init(store, charArrayOf())
+        }
+        return SSLContext.getInstance("TLSv1.3").apply { init(manager.keyManagers, null, null) }
+    }
 
     private class NativePair(client: Boolean, code: String) : AutoCloseable {
         private val clazz = Class.forName("com.azurpilot.adb.PairingContext")

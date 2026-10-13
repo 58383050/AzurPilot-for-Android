@@ -5,6 +5,7 @@ import android.os.IBinder
 import android.os.Process
 import com.azurpilot.ghio.AppDispatchers
 import com.azurpilot.ghio.RemoteService
+import com.azurpilot.ghio.constant.AppPaths
 import com.azurpilot.ghio.domain.RemoteBackend
 import com.azurpilot.ghio.remote.RemoteServiceImpl
 import com.azurpilot.ghio.root.RootServiceBootstrapRegistry
@@ -61,7 +62,14 @@ object EmbeddedAdbServiceConnector : RemoteServiceConnectorBackend {
             val job = scope.launch(start = CoroutineStart.LAZY) {
                 try {
                     EmbeddedAdbManager.openClient().use { client ->
-                        client.shellCommand(startCommand(token), null)
+                        val output = StringBuilder()
+                        client.shellCommand(startCommand(token)) { bytes ->
+                            check(output.length + bytes.size <= 4_096) { "Unexpected launcher output" }
+                            output.append(bytes.toString(Charsets.UTF_8))
+                        }
+                        check(output.toString().trim() == "AZURPILOT_STARTED") {
+                            "Embedded launcher failed: ${output.toString().take(1_024)}"
+                        }
                     }
                     val binder = withTimeout(15_000) { pending.await() }
                     withContext(Dispatchers.Main) {
@@ -126,6 +134,7 @@ object EmbeddedAdbServiceConnector : RemoteServiceConnectorBackend {
     private fun startCommand(token: String): String {
         val launcher = File(context.applicationInfo.nativeLibraryDir, "liblauncher.so")
         check(launcher.exists()) { "Shell launcher missing" }
+        val log = File(AppPaths.DEBUG_DIR.apply { mkdirs() }, "embedded_adb_launch.log")
         val args = listOf(
             launcher.absolutePath,
             "--apk=${context.applicationInfo.sourceDir}",
@@ -135,9 +144,11 @@ object EmbeddedAdbServiceConnector : RemoteServiceConnectorBackend {
             "--package=${context.packageName}",
             "--class=${RemoteServiceImpl::class.java.name}",
             "--uid=${Process.myUid()}",
+            "--log-file=${log.absolutePath}",
+            "--daemonize",
         )
         return args.joinToString(" ") { "'${it.replace("'", "'\"'\"'")}'" } +
-            " </dev/null >/dev/null 2>&1 &"
+            " && printf 'AZURPILOT_STARTED'"
     }
 
     private data class Launch(val token: String, val job: Job, val pending: CompletableDeferred<IBinder>)

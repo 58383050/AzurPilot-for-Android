@@ -9,6 +9,9 @@
 通知不可用时可用分屏手动填写配对端口和配对码。Android 9–10 需要先通过电脑执行
 `adb tcpip 5555`。
 
+已有外部 Shizuku 授权的用户，可从「设置 → 运行与安全 → 内置 Shizuku 启动」进入
+配对或重连页面。
+
 首次启动仍需用户开启无线调试、完成系统配对，并在出现 USB 调试确认时选择始终允许。
 激活使用 adbd 的 `tcpip:5555` 服务固定端口，并以同一 RSA 身份完成回环认证。
 此后本次开机内可在断网或飞行模式下重新连接。手机重启、撤销调试授权、关闭调试，
@@ -29,6 +32,8 @@ adbd 仍要求系统认可的 RSA 密钥。不要允许陌生调试设备；不�
   `LoadedApk.makeApplication` 的注入。Root 原有初始化路径保持独立。
 - Binder 通过现有 bootstrap provider 回传，校验 shell/root UID 和一次性 token；
   超时、取消和解绑会撤销 token。App 进程死亡仍会销毁特权子进程。
+- ADB 启动器在子进程完成 `setsid` 和标准流分离后返回，避免 ADB 命令结束时清理服务。
+  启动失败或 Binder 超时可查看 `debug/embedded_adb_launch.log`。
 - RSA 私钥由 Android Keystore 的 AES-GCM 密钥加密保存在 App 私有偏好中，排除云备份
   和设备迁移。配对码只用于当前操作，不持久保存，也不写入日志。
 - `SHIZUKU` 后端优先使用已经激活的内置连接；没有内置认证时，外部 Shizuku/Sui
@@ -41,6 +46,7 @@ cd app
 ./gradlew.bat compileDebugKotlin -x verifyBundledAzurPilotRuntime
 ./gradlew.bat :adb-runtime:testDebugUnitTest
 ./gradlew.bat :adb-runtime:connectedDebugAndroidTest
+./gradlew.bat :app:connectedDebugAndroidTest -PembeddedAdbTestsOnly=true
 ./gradlew.bat :app:assembleDebug
 cd ..
 uv run app/scripts/check_i18n_strings.py
@@ -49,6 +55,15 @@ uv run app/scripts/check_i18n_strings.py
 设备测试验证加密密钥持久化、系统 TLS exporter、SPAKE2 正确配对及错误码拒绝，
 不访问或授权真实 adbd。完整启动的人工验收需在设备上完成系统配对、USB 调试确认，
 然后检查特权服务、虚拟屏、断网重连、杀进程重连及手机重启后的重新激活。
+
+内置端到端测试检查 shell UID、原生桥、虚拟屏、解绑后重连及服务死亡后的重绑，并恢复
+后端设置。真实配对用例只在提供当前系统配对端口和配对码时运行，否则跳过。
+
+2026-10-13 在 Redmi Note 10 Pro（M2104K10AC，Android 11/API 30）验证通过：
+两项密钥/TLS/原生配对测试、真实系统配对码交换、虚拟屏创建、服务销毁和死亡后的重连。
+启动页的标题、就绪状态及启动按钮已通过系统界面树验证。
+在飞行模式开启、Wi-Fi 与无线调试关闭时，同一端到端用例通过；结束后恢复网络设置。
+手机整机重启后的重新激活仍需要人工验收。
 
 ## English
 
@@ -59,6 +74,9 @@ The app embeds the ADB connection, wireless pairing, and offline reconnection fe
 required. Android 11 and later can accept the system pairing code through a notification;
 split-screen port/code entry is available when notifications cannot be used. Android 9–10
 first require `adb tcpip 5555` from a computer.
+
+Users with an existing external Shizuku grant can open pairing or reconnection from
+Settings → Runtime & security → Embedded Shizuku activation.
 
 First activation still requires enabling wireless debugging, system pairing, and selecting
 always allow if the system USB debugging confirmation appears. Activation uses adbd's
@@ -86,6 +104,9 @@ connection.
 - The existing bootstrap provider returns the Binder after checking shell/root UID and a
   one-time token. Timeout, cancellation, and unbinding revoke pending tokens. App-process
   death still destroys the privileged child.
+- The ADB launcher returns after the child completes `setsid` and redirects stdio, preventing
+  ADB-command cleanup from killing the service. Startup failures and Binder timeouts can be
+  investigated with `debug/embedded_adb_launch.log`.
 - Android Keystore AES-GCM encrypts the RSA private key in app-private preferences, excluded
   from cloud backup and device transfer. Pairing codes are transient and are never logged.
 - The `SHIZUKU` backend prefers an activated embedded connection. Without embedded
@@ -99,3 +120,16 @@ the platform TLS exporter, successful SPAKE2 exchange, and wrong-code rejection 
 accessing or authorizing a real adbd. Full manual acceptance requires system pairing and
 USB debugging approval, followed by privileged-service and virtual-display checks, offline
 reconnection, process-death recovery, and reactivation after a phone reboot.
+
+The embedded end-to-end suite checks shell UID, the native bridge, virtual display, reconnect
+after unbinding, and recovery after service death, restoring the backend afterward. The real
+pairing case runs only when supplied with a current system pairing port and code; otherwise
+it is skipped.
+
+Verified on 2026-10-13 with a Redmi Note 10 Pro (M2104K10AC, Android 11/API 30): both
+key/TLS/native-pairing tests, live system pairing-code exchange, virtual-display creation,
+and reconnect after service destruction and death. The same end-to-end case passed with
+airplane mode on and both Wi-Fi and wireless debugging off. Network settings were restored
+afterward. The activation title, ready status, and activation button also passed platform
+accessibility-tree verification. Reactivation after a full phone reboot still requires manual
+acceptance.
