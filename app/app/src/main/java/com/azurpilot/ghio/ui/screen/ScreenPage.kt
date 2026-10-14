@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -178,6 +180,7 @@ fun ScreenPage(
             if (active) {
                 // contain：画面按虚拟屏比例居中缩放，两侧/上下的留白由外层舞台色兜住。
                 // 圆角与离屏画面同形——这是块"屏幕"，M3 的媒体容器就是这个形状
+                val screenPreviewDesc = stringResource(R.string.screen_preview_desc)
                 Box(
                     modifier =
                         Modifier.padding(AppTokens.Spacing.md)
@@ -185,6 +188,7 @@ fun ScreenPage(
                             .clip(MaterialTheme.shapes.medium)
                             // 屏幕自身是黑的：首帧到达前那一层不该透出舞台色
                             .background(Color.Black)
+                            .semantics { contentDescription = screenPreviewDesc }
                             .previewTouchInput { x, y, action ->
                                 when (action) {
                                     PreviewTouchAction.Down -> hostState.touchDown(x, y)

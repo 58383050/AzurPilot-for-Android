@@ -888,4 +888,13 @@
     <string name="adb_connect">连接并启动</string>
     <string name="adb_expanded">已展开</string>
     <string name="adb_collapsed">已收起</string>
+    <string name="common_clear">清除</string>
+    <string name="settings_license_copy_action">复制许可证全文</string>
+    <string name="overlay_ball_action_expand">展开控制面板</string>
+    <string name="tool_stop_named">停止%1$s</string>
+    <string name="log_preview_close_action">关闭预览</string>
+    <string name="screen_preview_desc">游戏画面实时预览</string>
+    <string name="status_starting">启动中</string>
+    <string name="status_running">运行中</string>
+    <string name="status_stopping">停止中</string>
 </resources>

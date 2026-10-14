@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -137,7 +138,7 @@ fun OpenSourceLicensesPage(
                     IconButton(onClick = { searchQuery = "" }) {
                         Icon(
                             imageVector = Icons.Default.Clear,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.common_clear),
                         )
                     }
                 }
@@ -218,7 +219,12 @@ private fun OpenSourceComponentCardRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AppCard(modifier = modifier.clickable(onClick = onClick)) {
+    AppCard(
+        modifier =
+            modifier
+                .semantics(mergeDescendants = true) {}
+                .clickable(onClick = onClick)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -410,7 +416,7 @@ fun LicenseDetailPage(
                                 Icon(
                                     imageVector = Icons.Default.ContentCopy,
                                     contentDescription =
-                                        stringResource(R.string.settings_license_text_title),
+                                        stringResource(R.string.settings_license_copy_action),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }

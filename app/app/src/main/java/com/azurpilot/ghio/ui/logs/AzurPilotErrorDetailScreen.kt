@@ -30,6 +30,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -146,9 +150,19 @@ private fun AzurPilotErrorFullscreen(image: File, onDismiss: () -> Unit) {
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         val bitmap by rememberDecodedBitmap(image, maxDimension = FULLSCREEN_MAX_PX)
+        val closeAction = stringResource(R.string.log_preview_close_action)
         Box(
             modifier =
-                Modifier.fillMaxSize().background(Color.Black).clickable(onClick = onDismiss),
+                Modifier.fillMaxSize()
+                    .background(Color.Black)
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = closeAction
+                    }
+                    .clickable(
+                        onClickLabel = closeAction,
+                        onClick = onDismiss,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             if (bitmap != null) {

@@ -889,4 +889,13 @@
     <string name="adb_connect">Connect and start</string>
     <string name="adb_expanded">Expanded</string>
     <string name="adb_collapsed">Collapsed</string>
+    <string name="common_clear">Clear</string>
+    <string name="settings_license_copy_action">Copy full license text</string>
+    <string name="overlay_ball_action_expand">Open control panel</string>
+    <string name="tool_stop_named">Stop %1$s</string>
+    <string name="log_preview_close_action">Close preview</string>
+    <string name="screen_preview_desc">Live game screen preview</string>
+    <string name="status_starting">Starting</string>
+    <string name="status_running">Running</string>
+    <string name="status_stopping">Stopping</string>
 </resources>

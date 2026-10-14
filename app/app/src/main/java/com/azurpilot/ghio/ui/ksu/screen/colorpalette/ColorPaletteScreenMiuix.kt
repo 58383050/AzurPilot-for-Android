@@ -131,7 +131,7 @@ fun ColorPaletteScreenMiuix(
                                     if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
                                 },
                                 imageVector = MiuixIcons.Back,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.common_back),
                                 tint = colorScheme.onBackground
                             )
                         }

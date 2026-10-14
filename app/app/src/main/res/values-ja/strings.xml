@@ -877,4 +877,13 @@
     <string name="adb_connect">接続して起動</string>
     <string name="adb_expanded">展開済み</string>
     <string name="adb_collapsed">折りたたみ済み</string>
+    <string name="common_clear">クリア</string>
+    <string name="settings_license_copy_action">ライセンス全文をコピー</string>
+    <string name="overlay_ball_action_expand">コントロールパネルを展開</string>
+    <string name="tool_stop_named">%1$sを停止</string>
+    <string name="log_preview_close_action">プレビューを閉じる</string>
+    <string name="screen_preview_desc">ゲーム画面のリアルタイムプレビュー</string>
+    <string name="status_starting">起動中</string>
+    <string name="status_running">実行中</string>
+    <string name="status_stopping">停止中</string>
 </resources>

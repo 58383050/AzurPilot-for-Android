@@ -302,21 +302,35 @@ fun SegmentedListItem(
     leadingContent: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
-    SegmentedListItem(
-        onClick = onClick ?: {},
-        onLongClick = onLongClick,
-        enabled = enabled,
-        colors = colors,
-        interactionSource = interactionSource,
-        shapes = LocalListItemShapes.current ?: ListItemDefaults.segmentedShapes(0, 1),
-        modifier = modifier,
-        leadingContent = leadingContent,
-        trailingContent = trailingContent,
-        overlineContent = overlineContent,
-        supportingContent = supportingContent,
-        verticalAlignment = Alignment.CenterVertically,
-        content = headlineContent
-    )
+    if (onClick != null) {
+        SegmentedListItem(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            enabled = enabled,
+            colors = colors,
+            interactionSource = interactionSource,
+            shapes = LocalListItemShapes.current ?: ListItemDefaults.segmentedShapes(0, 1),
+            modifier = modifier,
+            leadingContent = leadingContent,
+            trailingContent = trailingContent,
+            overlineContent = overlineContent,
+            supportingContent = supportingContent,
+            verticalAlignment = Alignment.CenterVertically,
+            content = headlineContent
+        )
+    } else {
+        SegmentedListItem(
+            shapes = LocalListItemShapes.current ?: ListItemDefaults.segmentedShapes(0, 1),
+            modifier = modifier,
+            colors = colors,
+            leadingContent = leadingContent,
+            trailingContent = trailingContent,
+            overlineContent = overlineContent,
+            supportingContent = supportingContent,
+            verticalAlignment = Alignment.CenterVertically,
+            content = headlineContent
+        )
+    }
 }
 
 @Composable

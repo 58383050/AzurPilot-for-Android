@@ -33,11 +33,17 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.azurpilot.ghio.R
 
 /** 默认图标容器尺寸（24dp × 24dp）。 / Default icon container dimensions (24dp × 24dp). */
 val DefaultSequentialPulseSize: Dp = 24.dp
@@ -247,10 +253,19 @@ fun RunningStatusIcon(
             RunningIconStatus.STARTING,
             RunningIconStatus.RUNNING,
             RunningIconStatus.STOPPING -> {
+                val resolvedDescription = contentDescription ?: when (targetStatus) {
+                    RunningIconStatus.STARTING -> stringResource(R.string.status_starting)
+                    RunningIconStatus.STOPPING -> stringResource(R.string.status_stopping)
+                    else -> stringResource(R.string.status_running)
+                }
                 SequentialPulseRunningIcon(
                     running = targetStatus == RunningIconStatus.RUNNING ||
                         targetStatus == RunningIconStatus.STARTING,
                     color = color,
+                    modifier = Modifier.semantics {
+                        this.contentDescription = resolvedDescription
+                        this.role = Role.Image
+                    },
                 )
             }
         }

@@ -27,6 +27,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.theme.ksu.LocalUiMode
@@ -146,21 +151,22 @@ fun AppCardSurface(modifier: Modifier = Modifier, content: @Composable () -> Uni
 /** KSU 设置分组标题。 / KSU settings group heading. */
 @Composable
 fun AppFieldLabel(text: String, modifier: Modifier = Modifier) {
+    val headingModifier = modifier.semantics { heading() }
     if (LocalUiMode.current == UiMode.Miuix)
         if (LocalInsideAppCard.current)
             top.yukonga.miuix.kmp.basic.Text(
                 text = text,
-                modifier = modifier,
+                modifier = headingModifier,
                 style = top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.body2,
                 color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
-        else top.yukonga.miuix.kmp.basic.SmallTitle(text = text, modifier = modifier)
+        else top.yukonga.miuix.kmp.basic.SmallTitle(text = text, modifier = headingModifier)
     else
         Text(
             text,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = modifier,
+            modifier = headingModifier,
         )
 }
 
@@ -194,7 +200,9 @@ fun AppSwitchPreference(
         )
     } else {
         SegmentedListItem(
-            modifier = modifier,
+            modifier = modifier.semantics(mergeDescendants = true) {
+                role = Role.Switch
+            },
             onClick = { if (enabled) onCheckedChange(!checked) },
             headlineContent = { Text(title) },
             leadingContent = icon?.let { { AppPreferenceIcon(it, active = checked) } },
@@ -202,8 +210,9 @@ fun AppSwitchPreference(
             trailingContent = {
                 AppSwitch(
                     checked = checked,
-                    onCheckedChange = onCheckedChange,
+                    onCheckedChange = null,
                     enabled = enabled,
+                    modifier = Modifier.clearAndSetSemantics {},
                 )
             },
         )
@@ -353,6 +362,7 @@ fun AppEditablePreference(
 fun AppInfoRow(label: String, value: String, icon: Any? = null) {
     if (LocalUiMode.current == UiMode.Miuix)
         top.yukonga.miuix.kmp.basic.BasicComponent(
+            modifier = Modifier.semantics(mergeDescendants = true) {},
             title = label,
             summary = value,
             startAction = icon?.let { { AppPreferenceIcon(it) } },
@@ -361,6 +371,7 @@ fun AppInfoRow(label: String, value: String, icon: Any? = null) {
                 else top.yukonga.miuix.kmp.basic.BasicComponentDefaults.InsideMargin,
         )
     else SegmentedListItem(
+        modifier = Modifier.semantics(mergeDescendants = true) {},
         headlineContent = { Text(label) },
         supportingContent = { Text(value) },
         leadingContent = icon?.let { { AppPreferenceIcon(it) } },

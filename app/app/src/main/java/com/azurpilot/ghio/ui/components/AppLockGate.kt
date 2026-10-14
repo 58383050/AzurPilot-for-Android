@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.R
@@ -52,7 +54,16 @@ fun AppLockGate(
     content: @Composable () -> Unit,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        content()
+        Box(
+            modifier = if (!isUnlocked) {
+                // 锁定态下对无障碍服务彻底隐藏底层真实内容，防止 TalkBack 读屏手势穿透遮罩遍历与触发底层控件
+                Modifier.semantics { hideFromAccessibility() }
+            } else {
+                Modifier
+            }
+        ) {
+            content()
+        }
 
         if (!isUnlocked) {
             LaunchedEffect(autoRequestUnlock) {

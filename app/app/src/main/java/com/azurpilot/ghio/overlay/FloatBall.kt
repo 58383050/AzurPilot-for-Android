@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.R
@@ -61,8 +62,10 @@ fun FloatBall(
     val onTarget = if (running) palette.onSuccess else MaterialTheme.colorScheme.onPrimary
     val color by animateColorAsState(target.copy(alpha = 0.85f), tween(300))
 
-    val description =
+    val stateText =
         stringResource(if (running) R.string.overlay_ball_running else R.string.overlay_ball_idle)
+    val description = "AzurPilot · $stateText"
+    val expandActionLabel = stringResource(R.string.overlay_ball_action_expand)
 
     Surface(
         onClick = onClick,
@@ -78,7 +81,10 @@ fun FloatBall(
                 // 悬浮窗常驻桌面，不能靠每帧修改 alpha 来提示运行状态。
                 // 颜色变更已有 300ms 补间，稳定运行后无需持续刷新图层。
                 .then(if (running) Modifier.alpha(0.85f) else Modifier)
-                .semantics { contentDescription = description },
+                .semantics {
+                    contentDescription = description
+                    onClick(label = expandActionLabel, action = { onClick(); true })
+                },
         shape = CircleShape,
         color = color,
         // 球盖在其他应用上需要体量感；不跟 Semi 卡片的 0 elevation

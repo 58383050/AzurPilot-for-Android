@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -33,6 +34,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
@@ -532,12 +534,16 @@ fun AppRoot(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier =
                                     Modifier.fillMaxWidth()
-                                        .clickable { dontAskAgain = !dontAskAgain }
+                                        .toggleable(
+                                            value = dontAskAgain,
+                                            role = Role.Checkbox,
+                                            onValueChange = { dontAskAgain = it },
+                                        )
                                         .padding(vertical = 4.dp),
                             ) {
                                 Checkbox(
                                     checked = dontAskAgain,
-                                    onCheckedChange = { dontAskAgain = it },
+                                    onCheckedChange = null,
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(

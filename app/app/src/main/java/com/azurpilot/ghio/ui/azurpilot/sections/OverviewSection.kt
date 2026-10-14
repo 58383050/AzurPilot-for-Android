@@ -354,7 +354,7 @@ private fun TaskPlan(tasks: List<AzurPilotTask>, onRunNow: (String) -> Unit) {
                 IconButton(onClick = { onRunNow(task.name) }) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = stringResource(R.string.ap_run_now),
+                        contentDescription = "${stringResource(R.string.ap_run_now)} ${task.name}",
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }

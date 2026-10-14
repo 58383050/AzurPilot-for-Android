@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -143,7 +144,7 @@ fun AboutScreenMiuix(
                                     if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
                                 },
                                 imageVector = MiuixIcons.Back,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.common_back),
                                 tint = colorScheme.onBackground
                             )
                         }

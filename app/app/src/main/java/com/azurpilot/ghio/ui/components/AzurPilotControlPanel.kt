@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -574,6 +576,8 @@ fun ToolSlotButton(
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val toolName = stringResource(labelRes)
+    val actionDesc = if (running) stringResource(R.string.tool_stop_named, toolName) else toolName
     FilledTonalButton(
         onClick = if (running) onStop else onStart,
         enabled = enabled,
@@ -583,7 +587,10 @@ fun ToolSlotButton(
                 horizontal = AppTokens.Spacing.md,
                 vertical = AppTokens.Spacing.xs,
             ),
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = actionDesc },
     ) {
         // 交叉淡入而非硬切：槽位在「半自动点击 / 停止」之间换的不只是字，是这一槽的归属
         AnimatedContent(
