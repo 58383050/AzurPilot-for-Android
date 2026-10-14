@@ -413,7 +413,7 @@ private fun AboutContent(
                         state.links.forEach {
                             ArrowPreference(
                                 title = it.fullText,
-                                startAction = { AppPreferenceIcon(AppSymbol.Link) },
+                                startAction = it.icon?.let { icon -> { AppPreferenceIcon(icon) } },
                                 onClick = {
                                     actions.onOpenLink(it.url)
                                 }

@@ -12,7 +12,8 @@ import androidx.compose.runtime.Immutable
 @Immutable
 data class LinkInfo(
     val fullText: String,
-    val url: String
+    val url: String,
+    val icon: Any? = null,
 )
 
 fun extractLinks(html: String): List<LinkInfo> {

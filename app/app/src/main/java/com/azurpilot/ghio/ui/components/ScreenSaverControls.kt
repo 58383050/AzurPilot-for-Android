@@ -107,7 +107,7 @@ fun ScreenSaverSettingsCard(settings: AppSettingsManager = koinInject()) {
     AppCard(title = stringResource(R.string.screensaver_title)) {
         AppLabeledControlRow(
             label = stringResource(R.string.screensaver_auto),
-            icon = AppSymbol.Night,
+            icon = Icons.Outlined.NightsStay,
             iconActive = enabled,
         ) {
             Switch(

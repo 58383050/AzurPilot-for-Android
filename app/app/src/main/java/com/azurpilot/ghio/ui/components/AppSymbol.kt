@@ -103,11 +103,13 @@ enum class AppSymbol(@param:RawRes val animationRes: Int, val fallback: ImageVec
     /** 语言与公网。 / Language and public networks. */
     Globe(R.raw.icon_globe, Icons.Outlined.Language),
     /** 下载资源。 / Download resources. */
-    Download(R.raw.icon_download, Icons.Outlined.Download),
+    Download(R.raw.transfer_download, Icons.Outlined.Download),
     /** 导出与发送。 / Export and send. */
     Upload(R.raw.icon_upload, Icons.Outlined.Upload),
     /** 刷新、更新与重启。 / Refresh, update and restart. */
-    Refresh(R.raw.icon_refresh, Icons.Outlined.Refresh),
+    Refresh(R.raw.transfer_apply, Icons.Outlined.Refresh),
+    /** 应用软件更新。 / Apply a software update. */
+    Update(R.raw.transfer_apply, Icons.Outlined.SystemUpdateAlt),
     /** 应用锁与口令。 / App lock and credentials. */
     Lock(R.raw.icon_lock, Icons.Outlined.Lock),
     /** 定时与耗时。 / Scheduling and timing. */
@@ -224,13 +226,20 @@ fun AppSymbolIcon(
 }
 
 /**
- * 为设置行提供 MD3 的 24 dp 前导图标，启用态采用主色，其余继承主题次要前景色。
+ * 为设置行提供 24 dp 前导图标，支持动态 AppSymbol 与静态 ImageVector。
+ * 启用态采用主色，其余继承主题次要前景色。
  *
- * Supplies a 24 dp MD3 leading icon, using primary for enabled states and the theme's secondary
- * foreground color otherwise.
+ * Supplies a 24 dp leading icon for preference rows, supporting dynamic AppSymbol and static
+ * ImageVector. Uses primary for enabled states and the theme's secondary foreground color otherwise.
  */
 @Composable
-fun AppPreferenceIcon(symbol: AppSymbol, animationKey: Any? = null, active: Boolean? = null) {
+fun AppPreferenceIcon(
+    icon: Any?,
+    modifier: Modifier = Modifier,
+    animationKey: Any? = null,
+    active: Boolean? = null,
+) {
+    if (icon == null) return
     val color = if (LocalUiMode.current == UiMode.Miuix) {
         val colors = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
         if (active == true) colors.primary else colors.onSurfaceVariantSummary
@@ -238,8 +247,36 @@ fun AppPreferenceIcon(symbol: AppSymbol, animationKey: Any? = null, active: Bool
         if (active == true) MaterialTheme.colorScheme.primary
         else MaterialTheme.colorScheme.onSurfaceVariant
     }
-    AppSymbolIcon(symbol, tint = color, animationKey = animationKey, active = active)
+    when (icon) {
+        is AppSymbol -> AppSymbolIcon(
+            symbol = icon,
+            modifier = modifier,
+            tint = color,
+            animationKey = animationKey,
+            active = active,
+        )
+        is ImageVector -> AppIcon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = modifier.size(24.dp),
+            tint = color,
+        )
+    }
 }
+
+/**
+ * 兼容旧版仅传 AppSymbol 的调用。 / Compatibility overload for AppSymbol callers.
+ */
+@Composable
+fun AppPreferenceIcon(
+    symbol: AppSymbol,
+    animationKey: Any? = null,
+    active: Boolean? = null,
+) = AppPreferenceIcon(
+    icon = symbol,
+    animationKey = animationKey,
+    active = active,
+)
 
 /**
  * 将操作图标与按钮文案保持统一间距，颜色继承宿主按钮。

@@ -143,7 +143,7 @@ fun LogExportController(
 
 @Composable
 private fun ExportAction(label: String, icon: ImageVector, onClick: () -> Unit) {
-    com.azurpilot.ghio.ui.components.AppNavigationRow(label = label, onClick = onClick)
+    com.azurpilot.ghio.ui.components.AppNavigationRow(label = label, icon = icon, onClick = onClick)
 }
 
 private const val MIME_ZIP = "application/zip"

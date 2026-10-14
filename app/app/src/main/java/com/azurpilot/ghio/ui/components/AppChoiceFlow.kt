@@ -25,7 +25,7 @@ fun <T> AppSingleChoiceFlow(
     title: String = "",
     enabled: Boolean = true,
     arrangement: Alignment.Horizontal = Alignment.Start,
-    icon: AppSymbol = AppSymbol.Options,
+    icon: Any? = null,
 ) {
     com.azurpilot.ghio.ui.ksu.AppDropdownPreference(
         title = title,

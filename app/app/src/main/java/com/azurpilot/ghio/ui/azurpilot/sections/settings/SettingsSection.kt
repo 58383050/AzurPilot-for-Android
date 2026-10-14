@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -12,7 +14,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azurpilot.ghio.R
-import com.azurpilot.ghio.ui.components.AppSymbol
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.ui.components.AppNavigationRow
 import com.azurpilot.ghio.ui.ksu.AppSettingsGroup
@@ -43,7 +44,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_instances_import),
-                    icon = AppSymbol.Download,
+                    icon = Icons.Outlined.FileUpload,
                     description = stringResource(R.string.ap_import_default_hint),
                     onClick = onOpenInstances,
                 )
@@ -51,7 +52,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_title_deploy),
-                    icon = AppSymbol.Terminal,
+                    icon = Icons.Outlined.Tune,
                     description = deploy?.let {
                         stringResource(R.string.ap_settings_deploy_count, it.groups.size)
                     } ?: stringResource(R.string.ap_waiting_data),
@@ -65,7 +66,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_title_updater),
-                    icon = AppSymbol.Refresh,
+                    icon = Icons.Outlined.SystemUpdate,
                     description = updater?.let {
                         if (it.managedByAndroid) stringResource(R.string.ap_updater_managed)
                         else if (it.behind > 0) stringResource(R.string.ap_updater_behind, it.behind)
@@ -77,7 +78,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_title_announcement),
-                    icon = AppSymbol.Info,
+                    icon = Icons.Outlined.Campaign,
                     description = announcement?.title,
                     onClick = onOpenAnnouncement,
                 )
@@ -85,7 +86,7 @@ fun SettingsSection(
             item {
                 AppNavigationRow(
                     label = stringResource(R.string.ap_title_meowfficer),
-                    icon = AppSymbol.Tools,
+                    icon = Icons.Outlined.Pets,
                     onClick = onOpenMeowfficer,
                 )
             }

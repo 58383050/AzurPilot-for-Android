@@ -201,12 +201,21 @@ fun ApFieldRow(
         .takeUnless { it.isEmpty() || it == "help" || it == argument }
         ?.replace(HELP_TAG, "")
     val shortHelp = help?.let { if (it.length > 150) it.take(150) + "…" else it }
-    val simpleEdit = field.type == "input" && field.option.isNullOrEmpty() &&
-        !field.booleanish && field.mode != "yaml" && field.mode != "restricted_lua" &&
+    val isMultiline = field.mode == "yaml" ||
+        field.mode == "restricted_lua" ||
+        field.type == "task_priority" ||
+        (value is String && value.contains('\n')) ||
+        (field.value is String && field.value.contains('\n'))
+    val isPureReadOnly = readOnly && !field.clearableStorage
+    // textarea 保留紧凑的设置行，弹窗仍允许换行；代码编辑模式继续使用专用控件。
+    val simpleEdit = (field.type == "input" || field.type == "datetime" ||
+        field.type == "textarea") && !isMultiline &&
+        field.option.isNullOrEmpty() &&
+        !field.booleanish &&
         !readOnly
-    val inlinePreference = field.booleanish ||
+    val inlinePreference = isPureReadOnly || field.booleanish ||
         (field.type != "multiselect" && !field.option.isNullOrEmpty()) ||
-        simpleEdit || field.type in setOf("stored", "state", "lock")
+        simpleEdit
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -216,7 +225,7 @@ fun ApFieldRow(
         // 不再叠加自定义标题或分隔用的输入框卡片。
         if (!inlinePreference) {
             Row(
-                modifier = Modifier.padding(horizontal = AppTokens.Spacing.sm),
+                modifier = Modifier.padding(horizontal = AppTokens.Spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -240,7 +249,7 @@ fun ApFieldRow(
                     maxLines = if (helpExpanded) Int.MAX_VALUE else 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .padding(horizontal = AppTokens.Spacing.sm)
+                        .padding(horizontal = AppTokens.Spacing.md)
                         .then(
                             if (help.length > 80) Modifier.clickable {
                                 helpExpanded = !helpExpanded
@@ -250,12 +259,12 @@ fun ApFieldRow(
             }
         }
         when {
-            field.type == "storage" ->
+            field.clearableStorage ->
                 StorageControl(value, enabled = !readOnly && field.clearableStorage) {
                     onChange(emptyMap<String, ApValue>())
                 }
 
-            field.type == "stored" || field.type == "state" || field.type == "lock" ->
+            isPureReadOnly ->
                 com.azurpilot.ghio.ui.components.AppInfoRow(
                     label = label,
                     value = fieldTextOf(value).ifEmpty { "—" }.take(180),
@@ -302,12 +311,18 @@ fun ApFieldRow(
                             true
                         }
                     },
-                    keyboardType =
-                        if (field.numeric) KeyboardType.Decimal else KeyboardType.Text,
+                    keyboardType = when {
+                        field.numeric -> KeyboardType.Decimal
+                        field.type == "datetime" -> KeyboardType.Text
+                        else -> KeyboardType.Text
+                    },
+                    singleLine = field.type != "textarea",
+                    onRunNow = onRunNow,
                 )
 
             else ->
                 TextControl(
+                    label = label,
                     field = field,
                     value = value,
                     enabled = !readOnly,
@@ -533,6 +548,7 @@ private fun MultiSelect(
  */
 @Composable
 private fun TextControl(
+    label: String,
     field: AzurPilotField,
     value: ApValue,
     enabled: Boolean,
@@ -542,9 +558,11 @@ private fun TextControl(
 ) {
     val multiline =
         field.type == "textarea" ||
-            field.type == "task_priority" ||
             field.mode == "yaml" ||
-            field.mode == "restricted_lua"
+            field.mode == "restricted_lua" ||
+            field.type == "task_priority" ||
+            (value is String && value.contains('\n')) ||
+            (field.value is String && field.value.contains('\n'))
     var text by rememberSaveable(field) { mutableStateOf(fieldTextOf(value)) }
     var touched by rememberSaveable(field) { mutableStateOf(false) }
     var invalid by rememberSaveable(field) { mutableStateOf(false) }
@@ -583,6 +601,14 @@ private fun TextControl(
         touched = false
     }
 
+    val placeholder = when {
+        field.type == "datetime" -> "YYYY-MM-DD HH:MM:SS"
+        field.mode == "yaml" -> stringResource(R.string.ap_field_yaml_hint)
+        field.mode == "restricted_lua" -> stringResource(R.string.ap_field_script_hint)
+        field.value != null && fieldTextOf(field.value).isNotEmpty() -> fieldTextOf(field.value)
+        else -> ""
+    }
+
     OutlinedTextField(
         value = text,
         onValueChange = {
@@ -591,9 +617,13 @@ private fun TextControl(
             scriptChecked = false
             text = it
         },
+        labelText = label,
+        placeholderText = placeholder,
         enabled = enabled,
         isError = invalid || scriptError != null,
         singleLine = !multiline,
+        minLines = if (multiline) 3 else 1,
+        maxLines = if (multiline) 12 else 1,
         keyboardOptions =
             KeyboardOptions(
                 keyboardType =
@@ -643,7 +673,8 @@ private fun TextControl(
         },
         modifier =
             Modifier.fillMaxWidth()
-                .then(if (multiline) Modifier.heightIn(min = 140.dp) else Modifier),
+                .padding(horizontal = AppTokens.Spacing.md)
+                .then(if (multiline) Modifier.heightIn(min = 100.dp) else Modifier),
     )
 
     // 受限脚本可以在提交前先求一次诊断，拿到行列号；不点也能靠保存失败发现
@@ -658,6 +689,7 @@ private fun TextControl(
                     checking = false
                 }
             },
+            modifier = Modifier.padding(start = AppTokens.Spacing.md),
         ) {
             Text(
                 text =

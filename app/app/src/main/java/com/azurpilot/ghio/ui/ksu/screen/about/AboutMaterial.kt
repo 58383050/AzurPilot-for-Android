@@ -101,7 +101,7 @@ fun AboutScreenMaterial(
                         {
                             SegmentedListItem(
                                 onClick = { actions.onOpenLink(linkInfo.url) },
-                                leadingContent = { AppPreferenceIcon(AppSymbol.Link) },
+                                leadingContent = linkInfo.icon?.let { icon -> { AppPreferenceIcon(icon) } },
                                 headlineContent = { Text(linkInfo.fullText) }
                             )
                         }

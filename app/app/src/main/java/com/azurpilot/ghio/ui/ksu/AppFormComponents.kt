@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.theme.ksu.LocalUiMode
 import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.components.AppSymbol
@@ -130,7 +131,7 @@ fun AppTextField(
     labelText: String = "",
     placeholder: (@Composable () -> Unit)? = null,
     placeholderText: String = "",
-    leadingIcon: (@Composable () -> Unit)? = { AppSymbolIcon(AppSymbol.Edit) },
+    leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     prefix: (@Composable () -> Unit)? = null,
     suffix: (@Composable () -> Unit)? = null,
@@ -147,15 +148,38 @@ fun AppTextField(
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
     if (LocalUiMode.current == UiMode.Miuix) {
+        val hasLabelText = labelText.isNotEmpty()
+        val hasPlaceholderText = placeholderText.isNotEmpty()
+        val miuixColors =
+            if (isError) {
+                top.yukonga.miuix.kmp.basic.TextFieldDefaults.textFieldColors(
+                    borderColor = MaterialTheme.colorScheme.error,
+                    labelColor = MaterialTheme.colorScheme.error,
+                )
+            } else {
+                top.yukonga.miuix.kmp.basic.TextFieldDefaults.textFieldColors()
+            }
         Column(modifier) {
-            if (labelText.isEmpty()) label?.invoke()
-            else if (placeholderText.isNotEmpty()) top.yukonga.miuix.kmp.basic.SmallTitle(labelText)
+            if (hasLabelText && hasPlaceholderText) {
+                top.yukonga.miuix.kmp.basic.SmallTitle(labelText)
+            } else if (label != null) {
+                label()
+            }
+            val effectiveLabel =
+                when {
+                    hasPlaceholderText -> placeholderText
+                    hasLabelText -> labelText
+                    else -> ""
+                }
+            val useAsPlaceholder = hasPlaceholderText
+
             top.yukonga.miuix.kmp.basic.TextField(
                 value = value,
                 onValueChange = onValueChange,
-                label = placeholderText.ifEmpty { labelText },
-                useLabelAsPlaceholder = true,
+                label = effectiveLabel,
+                useLabelAsPlaceholder = useAsPlaceholder,
                 modifier = Modifier.fillMaxWidth(),
+                colors = miuixColors,
                 enabled = enabled,
                 readOnly = readOnly,
                 textStyle = textStyle,
@@ -169,8 +193,11 @@ fun AppTextField(
                 visualTransformation = visualTransformation,
                 interactionSource = interactionSource,
             )
-            if (value.isEmpty() && placeholderText.isEmpty()) placeholder?.invoke()
-            supportingText?.invoke()
+            supportingText?.let {
+                Box(modifier = Modifier.padding(start = 16.dp, top = 4.dp)) {
+                    it()
+                }
+            }
         }
     } else
         OutlinedTextField(

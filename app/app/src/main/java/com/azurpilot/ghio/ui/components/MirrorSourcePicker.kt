@@ -1,5 +1,7 @@
 package com.azurpilot.ghio.ui.components
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +28,7 @@ fun MirrorSourcePicker(
     arrangement: Alignment.Horizontal = Alignment.Start,
 ) {
     AppSingleChoiceFlow(
-        icon = AppSymbol.Download,
+        icon = Icons.Outlined.CloudDownload,
         options = buildList {
             add(ReleaseUrls.CNB to stringResource(R.string.provision_source_cnb))
             add(ReleaseUrls.DIRECT to stringResource(R.string.provision_source_direct))
