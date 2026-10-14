@@ -33,8 +33,9 @@
 <p align="center">
   <a href="https://kotlinlang.org/"><img src="https://img.shields.io/badge/Host-Kotlin%20%7C%20Compose%20M3-7F52FF.svg?style=flat-square&logo=kotlin&logoColor=white" alt="Host: Kotlin / Jetpack Compose"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/WebUI-React%20%7C%20Vite-61DAFB.svg?style=flat-square&logo=react&logoColor=black" alt="WebUI: React + Vite"></a>
-  <a href="https://github.com/wess09/shizuku-m"><img src="https://img.shields.io/badge/Backend-Shizuku%20%2F%20Root-brightgreen.svg?style=flat-square" alt="Backend: Shizuku / Root"></a>
-  <a href="https://opencv.org/"><img src="https://img.shields.io/badge/Vision-OpenCV%20%7C%20RapidOCR-5C3EE8.svg?style=flat-square&logo=opencv&logoColor=white" alt="Vision: OpenCV + RapidOCR"></a>
+  <a href="doc/embedded-shizuku.md"><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen.svg?style=flat-square" alt="Backend: Embedded ADB / Root"></a>
+  <a href="doc/ocr-acceleration.md"><img src="https://img.shields.io/badge/Vision-LiteRT%20NPU%20%7C%20MNN%20%7C%20OpenCV-5C3EE8.svg?style=flat-square&logo=opencv&logoColor=white" alt="Vision: LiteRT NPU / MNN / OpenCV"></a>
+  <a href="doc/shared-memory-capture.md"><img src="https://img.shields.io/badge/Capture-SharedMemory-FF6F00.svg?style=flat-square" alt="Capture: SharedMemory"></a>
   <a href="https://proot-me.github.io/"><img src="https://img.shields.io/badge/Isolation-PRoot-lightgrey.svg?style=flat-square" alt="Isolation: PRoot"></a>
   <a href="https://deepwiki.com/wess09/AzurPilot-for-Android"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
@@ -90,7 +91,7 @@
     </tr>
     <tr>
       <td width="25%"><b>リポジトリ容量</b><br><img src="https://img.shields.io/github/repo-size/wess09/AzurPilot-for-Android?style=flat-square&color=586069" alt="Repo Size"></td>
-      <td width="25%"><b>主要開発言語</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20Shell-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
+      <td width="25%"><b>主要開発言語</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20C%2B%2B-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
       <td width="25%"><b>権限昇格バックエンド</b><br><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
       <td width="25%"><b>対象プラットフォーム</b><br><img src="https://img.shields.io/badge/Android-API%2028%2B%20(ARM64%20%2F%20x86__64)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android Target"></td>
     </tr>
@@ -98,6 +99,7 @@
       <td colspan="4">
         <b>クイックリンク：</b>
         <a href="https://github.com/wess09/AzurPilot-for-Android/releases/latest"><img src="https://img.shields.io/badge/Release-最新APKをダウンロード-0052cc?style=flat-square&logo=android&logoColor=white" alt="Download"></a>
+        <a href="https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases"><img src="https://img.shields.io/badge/CNB-高速ミラーダウンロード-DE5FE9?style=flat-square&logo=git&logoColor=white" alt="CNB Download"></a>
         <a href="https://deepwiki.com/wess09/AzurPilot-for-Android"><img src="https://img.shields.io/badge/Wiki-Ask%20DeepWiki-6366F1?style=flat-square" alt="Ask DeepWiki"></a>
         <a href="https://github.com/wess09/AzurPilot-for-Android/issues/new/choose"><img src="https://img.shields.io/badge/Issue-不具合報告・要望提出-d73a49?style=flat-square&logo=githubissues&logoColor=white" alt="New Issue"></a>
         <a href="https://github.com/wess09/AzurPilot-for-Android/pulls"><img src="https://img.shields.io/badge/PR-コード貢献・プルリクエスト-28a745?style=flat-square&logo=git&logoColor=white" alt="Pull Request"></a>
@@ -163,7 +165,7 @@
 
 **AzurPilot for Android** は、デスクトップ環境で成熟した『アズールレーン』自動化アシスタントを、Android モバイル端末上で完全ネイティブ動作させることを目的としたプロジェクトです。
 
-APK パッケージ内に完全な Linux 実行環境（Ubuntu 24.04、arm64-v8a / x86_64 の 2 種類の Runtime をデバイス構成別に提供）を内蔵し、軽量な PRoot コンテナ分離技術と組み合わせることで、**完全 Root 不要**の条件下で CPython、ビルド済み OCR モデル、およびローカル Web コンソールサービスを安定稼働させます。バックグラウンドの仮想ディスプレイとアクセシビリティを活用することで、スマートフォンのメイン画面でチャットやゲーム、日常操作を行いながら、バックグラウンドで何ら干渉されることなく自動出撃・巡航タスクを完了できます。
+APK パッケージ内に完全な Linux 実行環境（Ubuntu 24.04、arm64-v8a / x86_64 の 2 種類の Runtime をデバイス構成別に提供）を内蔵し、軽量な PRoot コンテナ分離技術と組み合わせることで、**完全 Root 不要**の条件下で CPython、ハードウェアアクセラレーション対応 OCR モデル、およびローカル Web コンソールサービスを安定稼働させます。バックグラウンドの仮想ディスプレイ、匿名共有メモリフレーム転送、および補助対話サービスを活用することで、スマートフォンのメイン画面でチャットやゲーム、日常操作を行いながら、バックグラウンドで何ら干渉されることなく自動出撃・巡航タスクを完了できます。
 
 ---
 
@@ -243,11 +245,11 @@ APK パッケージ内に完全な Linux 実行環境（Ubuntu 24.04、arm64-v8a
     <td width="50%" valign="top">
       <img src="https://img.shields.io/badge/モジュール-動作モード-00875a?style=flat-square" alt="Tag"><br>
       <h3>バックグラウンド仮想ディスプレイによる干渉ゼロ自動周回</h3>
-      <p>Android の仮想ディスプレイ（Virtual Display）機能を活用し、ゲーム本体および画面認識処理を完全に独立した仮想画面レイヤーで実行。メイン画面の通常利用や日常操作と完全に分離され、画面占有や操作の誤爆といった問題を完全に解決します。</p>
+      <p>Android の仮想ディスプレイ（Virtual Display）機能を活用し、ゲーム本体および画面認識処理を完全に独立した仮想画面レイヤーで実行。チャンネル SDK のダイアログ逃逸を監視・自動回収する機構（SdkTaskRepatriator）を内蔵し、メイン画面の日常操作を一切妨げません。</p>
       <div>
         <img src="https://img.shields.io/badge/描画レイヤー-Virtual%20Display-blue?style=flat-square" alt="Virtual Display">
         <img src="https://img.shields.io/badge/メイン画面-自由に使用可能-green?style=flat-square" alt="Free Foreground">
-        <img src="https://img.shields.io/badge/干渉度-ゼロ-teal?style=flat-square" alt="Zero Interference">
+        <img src="https://img.shields.io/badge/SDKダイアログ-自動引き戻し-brightgreen?style=flat-square" alt="SdkTaskRepatriator">
       </div>
     </td>
   </tr>
@@ -286,12 +288,56 @@ APK パッケージ内に完全な Linux 実行環境（Ubuntu 24.04、arm64-v8a
     </td>
     <td width="50%" valign="top">
       <img src="https://img.shields.io/badge/モジュール-ライフサイクル-ff5630?style=flat-square" alt="Tag"><br>
-      <h3>デュアルトラック独立ホットアップデート機構</h3>
-      <p>ホスト App と基礎 Linux ランタイム（rootfs）を完全に疎結合化。基礎環境の更新時でもユーザー設定や履歴ログはそのまま維持され、アプリ本体の更新時は軽量な差分 APK を上書きするだけで済み、ランタイムの再展開は不要です。</p>
+      <h3>マルチトラック独立アップデート体系</h3>
+      <p>ホスト App、基礎 Linux Runtime、および上流自動化スクリプトを完全疎結合化。トランザクション型ホットパッチにより設定を保持したままスクリプトを無停止更新でき、4接続分割高速ダウンロードと国内 CNB ミラー配信に対応しています。</p>
       <div>
-        <img src="https://img.shields.io/badge/アーキテクチャ-2系統独立設計-purple?style=flat-square" alt="Dual Track">
-        <img src="https://img.shields.io/badge/完全性-SHA256検証-blue?style=flat-square" alt="SHA256">
-        <img src="https://img.shields.io/badge/データ安全-設定完全保持-brightgreen?style=flat-square" alt="Safe">
+        <img src="https://img.shields.io/badge/アーキテクチャ-独立トラック設計-purple?style=flat-square" alt="Dual Track">
+        <img src="https://img.shields.io/badge/ホットアップデート-トランザクション更新-brightgreen?style=flat-square" alt="Hot Update">
+        <img src="https://img.shields.io/badge/ダウンロード-4接続高速分割-blue?style=flat-square" alt="Fast Download">
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/モジュール-権限昇格-7F52FF?style=flat-square" alt="Tag"><br>
+      <h3>外部管理アプリ不要の内蔵アクティベーション</h3>
+      <p>shizuku-m 由来の端末内 ADB 接続およびワイヤレスペア設定を標準内蔵。Android 11+ では外部アプリを介さずペアリングコード入力のみで有効化可能。同一起動中の切断後自動再接続や、MediaTek 向け Context-only クラッシュ防止機構を備えます。</p>
+      <div>
+        <img src="https://img.shields.io/badge/有効化-内蔵ワイヤレスペア-brightgreen?style=flat-square" alt="Wireless Pairing">
+        <img src="https://img.shields.io/badge/再接続-オフライン自動再接続-blue?style=flat-square" alt="Offline Reconnect">
+        <img src="https://img.shields.io/badge/MediaTek-起動保護機構-orange?style=flat-square" alt="MTK Safe">
+      </div>
+    </td>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/モジュール-画像転送-FF6F00?style=flat-square" alt="Tag"><br>
+      <h3>匿名共有メモリによる超高速キャプチャ</h3>
+      <p>Unix 抽象ドメインソケットと匿名 SharedMemory（ashmem/memfd）に基づくフレームチャネルを採用し、SCM_RIGHTS でハンドルを直接共有。平均遅延は TCP の 47.2ms から 15.6ms へ大幅短縮。全データが RAM 上のみで完結し、物理フラッシュの消耗を防ぎます。</p>
+      <div>
+        <img src="https://img.shields.io/badge/低遅延-15.6ms%20高速レスポンス-brightgreen?style=flat-square" alt="15ms Latency">
+        <img src="https://img.shields.io/badge/ストレージ保護-ゼロFlash書き込み-teal?style=flat-square" alt="Zero Flash Write">
+        <img src="https://img.shields.io/badge/転送-Zero--Copy%20ashmem-blue?style=flat-square" alt="Zero-Copy">
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/モジュール-AI視覚認識-5C3EE8?style=flat-square" alt="Tag"><br>
+      <h3>独立プロセス・ハードウェアアクセラレーション OCR</h3>
+      <p>モデル推論を独立した :ocr ワーカープロセスでホストし、UI や権限サービスへのクラッシュ波及を防止。LiteRT および MNN に対応し、Snapdragon QNN HTP、Dimensity NeuroPilot APU、Kirin HiAI NPU をハードウェア駆動。異常時は自動でマルチスレッド CPU へ安全フォールバックします。</p>
+      <div>
+        <img src="https://img.shields.io/badge/NPU加速-Snapdragon%20%7C%20Dimensity%20%7C%20Kirin-blueviolet?style=flat-square" alt="NPU Support">
+        <img src="https://img.shields.io/badge/プロセス分離-:ocr%20独立プロセス-purple?style=flat-square" alt="Process Isolation">
+        <img src="https://img.shields.io/badge/耐障害性-CPU自動フォールバック-green?style=flat-square" alt="CPU Fallback">
+      </div>
+    </td>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/モジュール-省電力保護-ff5630?style=flat-square" alt="Tag"><br>
+      <h3>OLED 焼き付き防止キネティックスクリーンセーバー</h3>
+      <p>バックグラウンドモードでは、黒い低輝度スクリーンセーバーを手動で表示するか、タスク開始時の自動表示を設定できます。画面は点灯したまま、スクリーンセーバー内で 30 秒操作しないと、10 秒ごとに内容が上下へ 16dp 移動して焼き付きリスクを軽減します。解除スライダーを右端までドラッグして指を離すと終了します。</p>
+      <div>
+        <img src="https://img.shields.io/badge/焼き付き防止-16dp%20スマート周期シフト-orange?style=flat-square" alt="Burn-in Drift">
+        <img src="https://img.shields.io/badge/状態アニメ-MD3E%20パルス表示-purple?style=flat-square" alt="MD3E Pulse">
+        <img src="https://img.shields.io/badge/終了-右へスライドして解除-brightgreen?style=flat-square" alt="Slide to Unlock">
       </div>
     </td>
   </tr>
@@ -310,6 +356,7 @@ graph TD
         Overlay["FloatingX 全画面フローティングパネル"]
         Lifecycle["プロセス監視・Runtime ライフサイクル管理"]
         Bridge["Embedded ADB / Shizuku / Root su 権限中継"]
+        OCRWorker["独立 OCR ワーカープロセス (:ocr)\n(LiteRT NPU / MNN HiAI / CPU 推理サービス)"]
     end
 
     subgraph Container ["PRoot コンテナ分離層 (Ubuntu 24.04 · arm64 / x86_64)"]
@@ -321,8 +368,10 @@ graph TD
 
     subgraph DeviceTarget ["システム機能および操作対象"]
         VDisplay["バックグラウンド仮想ディスプレイ (Virtual Display)"]
+        Repatriator["SdkTaskRepatriator (SDK ダイアログ回収)"]
         InputService["MaaTouch / DroidCast / ADB 制御ストリーム"]
-        GameApp["『アズールレーン』ゲーム本体"]
+        ShmChannel["SharedMemory 匿名共有メモリフレームチャネル"]
+        GameApp["『アズールレーン』ゲーム本体 (全サーバー対応)"]
     end
 
     UI --> Lifecycle
@@ -336,7 +385,11 @@ graph TD
     Bridge --> VDisplay
     InputService --> GameApp
     VDisplay --> GameApp
+    Repatriator -. "監視・引き戻し" .-> GameApp
     CORE --> InputService
+    VDisplay --> ShmChannel
+    ShmChannel -. "SCM_RIGHTS 高速取込" .-> CORE
+    CORE -. "127.0.0.1:22302 テンソル RPC" .-> OCRWorker
 ```
 
 ---
@@ -379,9 +432,14 @@ graph TD
     </tr>
     <tr>
       <td><b>権限バックエンド</b></td>
-      <td><img src="https://img.shields.io/badge/方式-Shizuku%20%2F%20Root-orange?style=flat-square" alt="Shizuku / Root"></td>
-      <td><img src="https://img.shields.io/badge/方式-Shizuku--m%20(デバッグ不要)-brightgreen?style=flat-square" alt="Shizuku-m"></td>
-      <td>タッチ入力シミュレーションおよび仮想画面プロジェクション権限に使用；MediaTek 端末は下記の修正版を使用してください</td>
+      <td><img src="https://img.shields.io/badge/方式-内蔵%20ADB%20ペア設定-brightgreen?style=flat-square" alt="Embedded ADB"></td>
+      <td><img src="https://img.shields.io/badge/方式-内蔵%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Root / ADB"></td>
+      <td>タッチ入力シミュレーションおよび仮想画面プロジェクション権限に使用；内蔵ワイヤレスデバッグペア設定およびオフライン再接続を標準搭載、外部 Shizuku や Root にも対応</td>
+    </tr>
+    <tr>
+      <td><b>対応サーバー</b></td>
+      <td colspan="2"><img src="https://img.shields.io/badge/対応サーバー-中国(公式%20%2F%20Bilibili)%20%7C%20日本%20%7C%20グローバル%20%7C%20台湾-blueviolet?style=flat-square" alt="All Servers"></td>
+      <td>全サーバー自動化に完全対応、アプリ内でターゲットサーバーインスタンスを直接切り替え可能</td>
     </tr>
   </tbody>
 </table>
@@ -516,39 +574,57 @@ GitHub でビルドした正式な成果物は [CNB ダウンロード](https://
       <td>小型カプセル、ドラッグ配置</td>
       <td><img src="https://img.shields.io/badge/状態-オーバーレイ-brightgreen?style=flat-square" alt="Overlay"></td>
     </tr>
+    <tr>
+      <td><b>OLED 動的スクリーンセーバー</b></td>
+      <td>バックグラウンドモードで低輝度スクリーンセーバーを手動表示、またはタスク開始時に自動表示。画面内で 30 秒操作しないと、10 秒ごとに上下へ 16dp 移動。右へスライドして解除・終了します。</td>
+      <td>焼き付き防止ドリフト、極小低消費電力</td>
+      <td><img src="https://img.shields.io/badge/状態-画面保護-ff5630?style=flat-square" alt="Screensaver"></td>
+    </tr>
   </tbody>
 </table>
 
 ---
 
-## デュアルトラック独立アップデート機構
+## マルチトラック独立アップデート体系
 
-環境の長期的な安定性と更新時の手軽さを両立させるため、ホスト層と実行環境を独立して更新できるデュアルトラック設計を採用しています：
+環境の長期的な安定性と更新時の手軽さを両立させるため、ホスト層、コンテナ実行環境、および上流自動化スクリプトを完全疎結合化したマルチトラック管理を採用しています：
 
 <table width="100%">
   <tr>
-    <td width="50%" valign="top">
+    <td width="33.3%" valign="top">
       <div align="center">
         <img src="https://img.shields.io/badge/トラック-ホスト%20App%20更新-7F52FF?style=flat-square&logo=android&logoColor=white" alt="App Track"><br>
         <h4>軽量ホストアプリの上書き更新</h4>
       </div>
       <ul>
         <li><b>トリガー</b>：Android 内部バージョン番号（<code>VersionCode</code>）を照合。</li>
-        <li><b>ペイロード</b>：Android ネイティブコードのみを含む軽量 APK。</li>
+        <li><b>ペイロード</b>：Android ネイティブコードのみを含む軽量 APK（約 25MB）、4接続分割高速ダウンロード。</li>
         <li><b>手順</b>：システム標準の <code>PackageInstaller</code> による通常のインプレース更新。</li>
         <li><b>データ安全性</b>：端末に展開済みの Linux Runtime、設定、ログを完全に維持。</li>
       </ul>
     </td>
-    <td width="50%" valign="top">
+    <td width="33.3%" valign="top">
       <div align="center">
-        <img src="https://img.shields.io/badge/トラック-Runtime%20環境更新-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Runtime Track"><br>
-        <h4>コンテナイメージのホットスワップ</h4>
+        <img src="https://img.shields.io/badge/トラック-コンテナ%20Runtime%20更新-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Runtime Track"><br>
+        <h4>独立イメージのホットスワップ</h4>
       </div>
       <ul>
-        <li><b>トリガー</b>：GitHub Releases の <code>latest.json</code> 署名を照合。</li>
+        <li><b>トリガー</b>：Releases の <code>latest.json</code> 署名とアーキテクチャハッシュを照合。</li>
         <li><b>整合性検証</b>：ダウンロード完了後に厳密な SHA-256 ハッシュとファイルサイズを検証。</li>
-        <li><b>ホット置換</b>：Python サービスを安全に停止後、ルートディレクトリを安全に入れ替え（<code>/config</code> 及びデータ領域は保持）。</li>
-        <li><b>フォールバック</b>：通信途絶や更新見送り時でも、現在の安定バージョンをそのまま継続利用。</li>
+        <li><b>ホット置換</b>：サービス停止後にコンテナルートディレクトリを安全に入れ替え（<code>/config</code> 及びデータ領域は保持）。</li>
+        <li><b>配信加速</b>：国内 CNB および GitHub ミラーに対応、4接続分割高速ダウンロード。</li>
+      </ul>
+    </td>
+    <td width="33.3%" valign="top">
+      <div align="center">
+        <img src="https://img.shields.io/badge/トラック-上流スクリプト熱更新-00875a?style=flat-square&logo=git&logoColor=white" alt="Hot Update Track"><br>
+        <h4>トランザクション型ソースコード熱更新</h4>
+      </div>
+      <ul>
+        <li><b>トリガー</b>：<code>/android/update</code> 経由で上流コミットを確認、国内 CNB からの優先取得に対応。</li>
+        <li><b>環境ガード</b>：候補と現在の <code>uv.lock</code> を照合；基礎依存変更時は自動でフルイメージ更新へ移行。</li>
+        <li><b>ローカルビルド</b>：内蔵 Node.js/npm でフロントエンド dist を端末内直接ビルド、大容量イメージの再取得が不要。</li>
+        <li><b>アトミックロールバック</b>：トランザクションログを記録し自動リロード；ビルドや切り替え失敗時は旧コードと設定へ自動巻き戻し。</li>
       </ul>
     </td>
   </tr>
@@ -638,7 +714,7 @@ GitHub でビルドした正式な成果物は [CNB ダウンロード](https://
 `-- tools/                    # ビルド支援ツールとローカルデバッグスクリプト
 ```
 
-- **開発ツール標準**：Android Gradle Plugin 8.x、Kotlin 2.x、Jetpack Compose Material 3。
+- **開発ツール標準**：Android Gradle Plugin 9.x、Kotlin 2.x、Jetpack Compose Material 3。
 - **自動ビルドフロー**：GitHub Actions のネイティブ Runner マトリクス（arm64 / x86_64）上で Ubuntu 24.04 イメージの最適化、uv による依存ライブラリ導入、フロントエンドビルド、高圧縮 xz アーカイブ化を実行し、構成ごとに成果物を出力・公開。
 - **署名セキュリティ**：本番 APK 署名は GitHub Actions Secrets で安全に管理され、改ざんを防止。
 
@@ -654,6 +730,9 @@ GitHub でビルドした正式な成果物は [CNB ダウンロード](https://
 | **PRoot** | <img src="https://img.shields.io/badge/License-GPL--2.0-blue?style=flat-square" alt="GPL-2.0"> | Root不要ユーザ空間システムコールエミュレーション |
 | **uv** | <img src="https://img.shields.io/badge/License-Apache--2.0%20%7C%20MIT-brightgreen?style=flat-square" alt="uv License"> | 高速なモダン Python パッケージマネージャー |
 | **CPython 3.14** | <img src="https://img.shields.io/badge/License-PSF--2.0-blue?style=flat-square" alt="PSF-2.0"> | コアインタープリタ実行環境 |
+| **shizuku-m** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 内蔵ローカル ADB ランタイム実装元。外部マネージャー不要のワイヤレスペア設定とオフライン再接続を提供 |
+| **LiteRT** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Google モバイル向けオンデバイス ML ランタイム。QNN HTP / APU NPU ハードウェアアクセラレーションと CPU 推理を提供 |
+| **MNN** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Alibaba 軽量ディープラーニングエンジン。HiSilicon HiAI NPU オフラインモデルアクセラレーションと GPU Softmax オフロードを駆動 |
 | **AzurPilot** | <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" alt="GPL-3.0"> | 自動化ロジック本体およびタスクエンジン |
 | **ALAS-AOS** | <img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0"> | 本プロジェクトのソースリポジトリ。本リポジトリはここからのフォークで、ホストアーキテクチャとコンテナ化路線を継承 |
 | **MaaFwApp** | <img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0"> | Android ホストアーキテクチャおよびアプリ設計テンプレート |
@@ -663,6 +742,8 @@ GitHub でビルドした正式な成果物は [CNB ダウンロード](https://
 | ライブラリ | ライセンス | 用途 |
 | :--- | :--- | :--- |
 | **AndroidX Suite** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Jetpack Compose、Lifecycle、DataStore 等の最新コンポーネント |
+| **Jetpack Glance** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 現代的な宣言型 Material 3 ウィジェット（AppWidget）体系 |
+| **Lottie Compose** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 動的 useAnimations アイコンおよび稼働状態アニメーション描画 |
 | **Koin** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 軽量で実用的な DI フレームワーク |
 | **OkHttp** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 高速かつ安定した HTTP クライアント |
 | **Shizuku API** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Root不要のプロセス間権限昇格・通信インターフェース |

@@ -33,8 +33,9 @@
 <p align="center">
   <a href="https://kotlinlang.org/"><img src="https://img.shields.io/badge/Host-Kotlin%20%7C%20Compose%20M3-7F52FF.svg?style=flat-square&logo=kotlin&logoColor=white" alt="Host: Kotlin / Jetpack Compose"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/WebUI-React%20%7C%20Vite-61DAFB.svg?style=flat-square&logo=react&logoColor=black" alt="WebUI: React + Vite"></a>
-  <a href="https://github.com/wess09/shizuku-m"><img src="https://img.shields.io/badge/Backend-Shizuku%20%2F%20Root-brightgreen.svg?style=flat-square" alt="Backend: Shizuku / Root"></a>
-  <a href="https://opencv.org/"><img src="https://img.shields.io/badge/Vision-OpenCV%20%7C%20RapidOCR-5C3EE8.svg?style=flat-square&logo=opencv&logoColor=white" alt="Vision: OpenCV + RapidOCR"></a>
+  <a href="doc/embedded-shizuku.md"><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen.svg?style=flat-square" alt="Backend: Embedded ADB / Root"></a>
+  <a href="doc/ocr-acceleration.md"><img src="https://img.shields.io/badge/Vision-LiteRT%20NPU%20%7C%20MNN%20%7C%20OpenCV-5C3EE8.svg?style=flat-square&logo=opencv&logoColor=white" alt="Vision: LiteRT NPU / MNN / OpenCV"></a>
+  <a href="doc/shared-memory-capture.md"><img src="https://img.shields.io/badge/Capture-SharedMemory-FF6F00.svg?style=flat-square" alt="Capture: SharedMemory"></a>
   <a href="https://proot-me.github.io/"><img src="https://img.shields.io/badge/Isolation-PRoot-lightgrey.svg?style=flat-square" alt="Isolation: PRoot"></a>
   <a href="https://deepwiki.com/wess09/AzurPilot-for-Android"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
@@ -90,7 +91,7 @@
     </tr>
     <tr>
       <td width="25%"><b>程式碼庫容量</b><br><img src="https://img.shields.io/github/repo-size/wess09/AzurPilot-for-Android?style=flat-square&color=586069" alt="Repo Size"></td>
-      <td width="25%"><b>主要語言</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20Shell-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
+      <td width="25%"><b>主要語言</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20C%2B%2B-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
       <td width="25%"><b>提權執行方式</b><br><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
       <td width="25%"><b>目標系統</b><br><img src="https://img.shields.io/badge/Android-API%2028%2B%20(ARM64%20%2F%20x86__64)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android Target"></td>
     </tr>
@@ -98,6 +99,7 @@
       <td colspan="4">
         <b>快速操作捷徑：</b>
         <a href="https://github.com/wess09/AzurPilot-for-Android/releases/latest"><img src="https://img.shields.io/badge/Release-下載最新安裝包-0052cc?style=flat-square&logo=android&logoColor=white" alt="Download"></a>
+        <a href="https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases"><img src="https://img.shields.io/badge/CNB-國內極速下載-DE5FE9?style=flat-square&logo=git&logoColor=white" alt="CNB Download"></a>
         <a href="https://deepwiki.com/wess09/AzurPilot-for-Android"><img src="https://img.shields.io/badge/Wiki-Ask%20DeepWiki-6366F1?style=flat-square" alt="Ask DeepWiki"></a>
         <a href="https://github.com/wess09/AzurPilot-for-Android/issues/new/choose"><img src="https://img.shields.io/badge/Issue-回報問題與提出需求-d73a49?style=flat-square&logo=githubissues&logoColor=white" alt="New Issue"></a>
         <a href="https://github.com/wess09/AzurPilot-for-Android/pulls"><img src="https://img.shields.io/badge/PR-合併請求程式碼貢獻-28a745?style=flat-square&logo=git&logoColor=white" alt="Pull Request"></a>
@@ -163,7 +165,7 @@
 
 **AzurPilot for Android** 致力於將桌面端功能成熟的《碧藍航線》自動化助手完整移植至 Android 行動端原生執行。
 
-透過在 APK 安裝包內預置完整的 Linux 執行階段容器（Ubuntu 24.04，依裝置架構提供 arm64-v8a 與 x86_64 兩種 Runtime），結合輕量級 PRoot 容器隔離技術，實現了在 **完全免 Root** 條件下穩定執行 CPython、預編譯 OCR 演算法模型及本地 Web 控制台服務。借助背景虛擬螢幕與無障礙互動服務，使用者可以在手機主螢幕正常聊天、遊戲或辦公的同時，無感完成各項自動化巡航與出擊任務。
+透過在 APK 安裝包內預置完整的 Linux 執行階段容器（Ubuntu 24.04，依裝置架構提供 arm64-v8a 與 x86_64 兩種 Runtime），結合輕量級 PRoot 容器隔離技術，實現了在 **完全免 Root** 條件下穩定執行 CPython、硬體加速 OCR 演算法模型及本地 Web 控制台服務。借助背景虛擬螢幕、匿名共享記憶體訊框通道與輔助互動服務，使用者可以在手機主螢幕正常聊天、遊戲或辦公的同時，無感完成各項自動化巡航與出擊任務。
 
 ---
 
@@ -243,11 +245,11 @@
     <td width="50%" valign="top">
       <img src="https://img.shields.io/badge/模組-運作模式-00875a?style=flat-square" alt="Tag"><br>
       <h3>背景虛擬螢幕無感掛機</h3>
-      <p>基於 Android 虛擬螢幕（Virtual Display）機制，遊戲執行個體與影像擷取完全在獨立的虛擬顯示層運作。主螢幕操作與日常應用互不干擾，徹底告別實體螢幕被佔用或操作被打斷的困擾。</p>
+      <p>基於 Android 虛擬螢幕（Virtual Display）機制，遊戲執行個體與影像擷取完全在獨立的虛擬顯示層運作。內建渠道 SDK 彈窗自動抓回機制（SdkTaskRepatriator），防範廠商彈窗逃逸；主螢幕操作與日常應用互不干擾。</p>
       <div>
         <img src="https://img.shields.io/badge/渲染層-Virtual%20Display-blue?style=flat-square" alt="Virtual Display">
         <img src="https://img.shields.io/badge/主螢幕體驗-前台全自由-green?style=flat-square" alt="Free Foreground">
-        <img src="https://img.shields.io/badge/干擾度-零遮蔽-teal?style=flat-square" alt="Zero Interference">
+        <img src="https://img.shields.io/badge/彈窗抓回-自動盯防-brightgreen?style=flat-square" alt="SdkTaskRepatriator">
       </div>
     </td>
   </tr>
@@ -286,12 +288,56 @@
     </td>
     <td width="50%" valign="top">
       <img src="https://img.shields.io/badge/模組-生命週期-ff5630?style=flat-square" alt="Tag"><br>
-      <h3>雙軌獨立熱更新體系</h3>
-      <p>宿主 App 與底層 Linux Runtime（rootfs）具備完全解耦的分發與升級機制。更新底層環境不破壞使用者配置與歷史日誌；更新應用程式本體僅需輕量增量包，重複使用既有 Runtime。</p>
+      <h3>多軌獨立熱升級體系</h3>
+      <p>宿主 App、底層 Linux Runtime 與上游排程腳本具備完全解耦的分發與升級機制。支援事務級熱更新無損替換腳本，更新應用程式本體僅需輕量增量包；內建四連線分段加速與國內 CNB 鏡像分發。</p>
       <div>
         <img src="https://img.shields.io/badge/架構-雙軌解耦-purple?style=flat-square" alt="Dual Track">
-        <img src="https://img.shields.io/badge/完整性-SHA256驗證-blue?style=flat-square" alt="SHA256">
-        <img src="https://img.shields.io/badge/資料安全-設定零損耗-brightgreen?style=flat-square" alt="Safe">
+        <img src="https://img.shields.io/badge/熱更-事務級無損升級-brightgreen?style=flat-square" alt="Hot Update">
+        <img src="https://img.shields.io/badge/加速-四連線分段-blue?style=flat-square" alt="Fast Download">
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/模組-特權接入-7F52FF?style=flat-square" alt="Tag"><br>
+      <h3>免外部管理器內建啟用</h3>
+      <p>內建移植自 shizuku-m 的本地 ADB 連線與無線配對能力。Android 11+ 使用者無需另裝 Shizuku 管理器，輸入配對碼即可啟用；支援開機內斷網重連，並針對聯發科設備進行 Context-only 防崩潰處理。</p>
+      <div>
+        <img src="https://img.shields.io/badge/啟用-內建無線配對-brightgreen?style=flat-square" alt="Wireless Pairing">
+        <img src="https://img.shields.io/badge/斷網-離線自動重連-blue?style=flat-square" alt="Offline Reconnect">
+        <img src="https://img.shields.io/badge/聯發科-啟動防崩潰-orange?style=flat-square" alt="MTK Safe">
+      </div>
+    </td>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/模組-圖像傳輸-FF6F00?style=flat-square" alt="Tag"><br>
+      <h3>匿名共享記憶體極速截圖</h3>
+      <p>基於 Unix 抽象域通訊端與匿名 SharedMemory（ashmem/memfd）的訊框通道，透過 SCM_RIGHTS 傳遞控制代碼。平均延遲從 TCP 的 47.2ms 驟降至 15.6ms；數據純 RAM 流轉，嚴禁 Flash 寫入，杜絕快閃記憶體磨損。</p>
+      <div>
+        <img src="https://img.shields.io/badge/延遲-15.6ms%20極速響應-brightgreen?style=flat-square" alt="15ms Latency">
+        <img src="https://img.shields.io/badge/快閃記憶體保護-零Flash落盤-teal?style=flat-square" alt="Zero Flash Write">
+        <img src="https://img.shields.io/badge/傳輸-Zero--Copy%20ashmem-blue?style=flat-square" alt="Zero-Copy">
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/模組-視覺智慧-5C3EE8?style=flat-square" alt="Tag"><br>
+      <h3>獨立處理程序硬體加速 OCR</h3>
+      <p>模型推理託管於獨立的 :ocr 工作處理程序，主介面與特權服務隔離崩潰風險。全面接入 LiteRT 與 MNN，支援高通 QNN HTP、聯發科 NeuroPilot APU 與海思 HiAI NPU 硬體加速，異常時自動回退 LiteRT CPU。</p>
+      <div>
+        <img src="https://img.shields.io/badge/NPU加速-高通%20%7C%20天璣%20%7C%20海思-blueviolet?style=flat-square" alt="NPU Support">
+        <img src="https://img.shields.io/badge/進程隔離-:ocr%20獨立工作流-purple?style=flat-square" alt="Process Isolation">
+        <img src="https://img.shields.io/badge/容災-多執行緒CPU自動回退-green?style=flat-square" alt="CPU Fallback">
+      </div>
+    </td>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/模組-節能防護-ff5630?style=flat-square" alt="Tag"><br>
+      <h3>OLED 息屏防烙印動效</h3>
+      <p>背景模式下可手動開啟黑色低亮度螢幕保護，也可設定在任務啟動時自動進入。螢幕保持點亮，螢幕保護內無操作 30 秒後開始每 10 秒上下移動 16dp，降低烙印風險；向右拖動解鎖條至末端並放開退出。</p>
+      <div>
+        <img src="https://img.shields.io/badge/防烙印-16dp%20智慧週期漂移-orange?style=flat-square" alt="Burn-in Drift">
+        <img src="https://img.shields.io/badge/狀態動效-MD3E%20脈衝呼吸-purple?style=flat-square" alt="MD3E Pulse">
+        <img src="https://img.shields.io/badge/退出-向右滑動解鎖-brightgreen?style=flat-square" alt="Slide to Unlock">
       </div>
     </td>
   </tr>
@@ -310,6 +356,7 @@ graph TD
         Overlay["FloatingX 全域懸浮控制面板"]
         Lifecycle["處理程序守護與 Runtime 生命週期管理器"]
         Bridge["Embedded ADB / Shizuku / Root su 權限接入中繼"]
+        OCRWorker["獨立 OCR 工作處理程序 (:ocr)\n(LiteRT NPU / MNN HiAI / CPU 推理服務)"]
     end
 
     subgraph Container ["PRoot 容器隔離層 (Ubuntu 24.04 · arm64 / x86_64)"]
@@ -321,8 +368,10 @@ graph TD
 
     subgraph DeviceTarget ["系統能力與受控目標"]
         VDisplay["背景虛擬顯示螢幕 (Virtual Display)"]
+        Repatriator["SdkTaskRepatriator (渠道 SDK 彈窗抓回)"]
         InputService["MaaTouch / DroidCast / ADB 控制串流"]
-        GameApp["《碧藍航線》遊戲實例"]
+        ShmChannel["SharedMemory 匿名共享記憶體訊框通道"]
+        GameApp["《碧藍航線》遊戲實例 (全區服支援)"]
     end
 
     UI --> Lifecycle
@@ -336,7 +385,11 @@ graph TD
     Bridge --> VDisplay
     InputService --> GameApp
     VDisplay --> GameApp
+    Repatriator -. "盯防抓回" .-> GameApp
     CORE --> InputService
+    VDisplay --> ShmChannel
+    ShmChannel -. "SCM_RIGHTS 極速取訊框" .-> CORE
+    CORE -. "127.0.0.1:22302 張量 RPC" .-> OCRWorker
 ```
 
 ---
@@ -379,9 +432,14 @@ graph TD
     </tr>
     <tr>
       <td><b>權限支援</b></td>
-      <td><img src="https://img.shields.io/badge/方案-Shizuku%20%2F%20Root-orange?style=flat-square" alt="Shizuku / Root"></td>
-      <td><img src="https://img.shields.io/badge/方案-Shizuku--m%20(免除錯模式)-brightgreen?style=flat-square" alt="Shizuku-m"></td>
-      <td>用於系統層級觸控模擬與虛擬螢幕投影授權；聯發科（MediaTek）裝置請使用下方指定的修正版</td>
+      <td><img src="https://img.shields.io/badge/方案-內建%20ADB%20配對-brightgreen?style=flat-square" alt="Embedded ADB"></td>
+      <td><img src="https://img.shields.io/badge/方案-內建%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Root / ADB"></td>
+      <td>用於系統層級觸控模擬與虛擬螢幕投影授權；已內建無線偵錯配對與離線重連，亦支援外部 Shizuku 與 Root</td>
+    </tr>
+    <tr>
+      <td><b>區服支援</b></td>
+      <td colspan="2"><img src="https://img.shields.io/badge/區服-國服(官服%20%2F%20B服)%20%7C%20日服%20%7C%20美服%20%7C%20台服-blueviolet?style=flat-square" alt="All Servers"></td>
+      <td>全區服自動化完整覆蓋，應用程式內可直接切換目標伺服器實例</td>
     </tr>
   </tbody>
 </table>
@@ -516,39 +574,57 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
       <td>最小化膠囊、拖曳自適應</td>
       <td><img src="https://img.shields.io/badge/狀態-全域浮窗-brightgreen?style=flat-square" alt="Overlay"></td>
     </tr>
+    <tr>
+      <td><b>OLED 動態螢幕保護</b></td>
+      <td>背景模式可手動開啟低亮度螢幕保護，或設定隨任務啟動進入；螢幕保護內無操作 30 秒後，每 10 秒上下移動 16dp，向右滑動解鎖退出。</td>
+      <td>防烙印漂移、極簡低功耗</td>
+      <td><img src="https://img.shields.io/badge/狀態-息屏護航-ff5630?style=flat-square" alt="Screensaver"></td>
+    </tr>
   </tbody>
 </table>
 
 ---
 
-## 雙軌獨立更新機制
+## 多軌解耦更新與熱更機制
 
-為確保環境的極致穩定與升級彈性，系統採用宿主層與執行階段解耦的雙軌管理策略：
+為確保環境的極致穩定與升級彈性，系統採用宿主層、容器執行階段與上游調度腳本完全解耦的多軌管理策略：
 
 <table width="100%">
   <tr>
-    <td width="50%" valign="top">
+    <td width="33.3%" valign="top">
       <div align="center">
         <img src="https://img.shields.io/badge/通道-宿主%20App%20升級-7F52FF?style=flat-square&logo=android&logoColor=white" alt="App Track"><br>
-        <h4>輕量級宿主覆蓋更新</h4>
+        <h4>輕量宿主覆蓋更新</h4>
       </div>
       <ul>
         <li><b>觸發依據</b>：比對 Android 內部版本號（<code>VersionCode</code>）。</li>
-        <li><b>升級酬載</b>：僅包含 Android 原生業務層的輕量 APK。</li>
+        <li><b>升級酬載</b>：僅包含原生業務層的輕量 APK（約 25MB），四連線分段加速下載。</li>
         <li><b>更新過程</b>：呼叫系統標準 <code>PackageInstaller</code> 進行覆蓋安裝。</li>
         <li><b>資料保障</b>：完全重複使用手機已解壓的 Linux Runtime 與全部既有設定檔。</li>
       </ul>
     </td>
-    <td width="50%" valign="top">
+    <td width="33.3%" valign="top">
       <div align="center">
-        <img src="https://img.shields.io/badge/通道-底層%20Runtime%20升級-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Runtime Track"><br>
-        <h4>解耦式容器映像檔熱替換</h4>
+        <img src="https://img.shields.io/badge/通道-容器%20Runtime%20升級-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Runtime Track"><br>
+        <h4>解耦式映像檔熱替換</h4>
       </div>
       <ul>
-        <li><b>觸發依據</b>：讀取 GitHub Latest release 中的 <code>latest.json</code> 簽名。</li>
+        <li><b>觸發依據</b>：讀取 release 中的 <code>latest.json</code> 簽名與架構雜湊。</li>
         <li><b>完整性驗證</b>：下載後執行嚴格的 SHA-256 雜湊對比與檔案大小校驗。</li>
-        <li><b>熱替換機制</b>：安全停止 Python 服務後替換容器根目錄，保留 <code>/config</code> 及資料磁碟區。</li>
-        <li><b>容錯回退</b>：網路異常或使用者選擇稍後時，無縫繼續沿用目前穩定版本。</li>
+        <li><b>熱替換機制</b>：安全停止服務後替換容器根目錄，保留 <code>/config</code> 及資料磁碟區。</li>
+        <li><b>分發加速</b>：支援國內 CNB 與 GitHub 鏡像源，四連線分段高速下載。</li>
+      </ul>
+    </td>
+    <td width="33.3%" valign="top">
+      <div align="center">
+        <img src="https://img.shields.io/badge/通道-上游腳本熱更新-00875a?style=flat-square&logo=git&logoColor=white" alt="Hot Update Track"><br>
+        <h4>事務級原始碼熱更</h4>
+      </div>
+      <ul>
+        <li><b>觸發依據</b>：透過 <code>/android/update</code> 查詢上游新提交，支援優先自國內 CNB 下載。</li>
+        <li><b>環境守衛</b>：候選與目前 <code>uv.lock</code> 比對；涉及底層依賴變更時自動轉為整包升級。</li>
+        <li><b>本機建置</b>：內建 Node.js/npm 於手機端建置前端 dist，無需重新下載數百兆容器映像檔。</li>
+        <li><b>原子回滾</b>：寫入事務記錄並自動重載；若建置或切換失敗自動回滾舊原始碼與設定。</li>
       </ul>
     </td>
   </tr>
@@ -638,7 +714,7 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
 `-- tools/                    # 建置輔助工具與本機除錯指令稿
 ```
 
-- **編譯環境規範**：Android Gradle Plugin 8.x、Kotlin 2.x、Jetpack Compose Material 3。
+- **編譯環境規範**：Android Gradle Plugin 9.x、Kotlin 2.x、Jetpack Compose Material 3。
 - **自動化建置串流**：基於 GitHub Actions 原生 Runner 矩陣（arm64 / x86_64）執行 Ubuntu 24.04 映像檔裁剪、uv 相依預先安裝、前端打包與 xz 高壓縮封存，並依架構分別出包與發布。
 - **發布簽名安全**：正式簽名金鑰妥善保管於 GitHub Actions Secrets 中，杜絕簽名外洩與未經授權之竄改。
 
@@ -654,6 +730,9 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
 | **PRoot** | <img src="https://img.shields.io/badge/License-GPL--2.0-blue?style=flat-square" alt="GPL-2.0"> | 免 Root 使用者空間系統呼叫仿真引擎 |
 | **uv** | <img src="https://img.shields.io/badge/License-Apache--2.0%20%7C%20MIT-brightgreen?style=flat-square" alt="uv License"> | 現代高效能 Python 套件管理工具 |
 | **CPython 3.14** | <img src="https://img.shields.io/badge/License-PSF--2.0-blue?style=flat-square" alt="PSF-2.0"> | 核心直譯器執行環境 |
+| **shizuku-m** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 內建本地 ADB 執行環境實作來源，提供免外部管理器的無線配對與離線重連機制 |
+| **LiteRT** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Google 行動端機器學習執行環境，提供 QNN HTP / APU NPU 硬體加速與 CPU 推理 |
+| **MNN** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 阿里輕量級深度學習引擎，驅動海思 HiAI NPU 離線模型加速與 GPU Softmax 卸載 |
 | **AzurPilot** | <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" alt="GPL-3.0"> | 核心自動化決策邏輯與任務排程引擎 |
 | **ALAS-AOS** | <img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0"> | 本專案的來源倉庫；本倉 fork 自此處，宿主架構與容器化路線直接繼承 |
 | **MaaFwApp** | <img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0"> | Android 宿主架構與工程框架模板 |
@@ -663,6 +742,8 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
 | 相依套件庫 | 授權識別標籤 | 用途說明 |
 | :--- | :--- | :--- |
 | **AndroidX Suite** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Jetpack Compose、Lifecycle、DataStore 等現代化組件 |
+| **Jetpack Glance** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 現代宣告式 Material 3 小部件（AppWidget）體系 |
+| **Lottie Compose** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 動態 useAnimations 圖示與執行狀態向量動畫渲染 |
 | **Koin** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 輕量實用的依賴注入 (DI) 框架 |
 | **OkHttp** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 穩定高效的 HTTP 網路通訊用戶端 |
 | **Shizuku API** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | 免 Root 行程間授權與通訊介面 |

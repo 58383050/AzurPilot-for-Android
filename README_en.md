@@ -33,8 +33,9 @@ This repository is forked from [ALAS-AOS](https://github.com/Shinarin/ALAS-AOS),
 <p align="center">
   <a href="https://kotlinlang.org/"><img src="https://img.shields.io/badge/Host-Kotlin%20%7C%20Compose%20M3-7F52FF.svg?style=flat-square&logo=kotlin&logoColor=white" alt="Host: Kotlin / Jetpack Compose"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/WebUI-React%20%7C%20Vite-61DAFB.svg?style=flat-square&logo=react&logoColor=black" alt="WebUI: React + Vite"></a>
-  <a href="https://github.com/wess09/shizuku-m"><img src="https://img.shields.io/badge/Backend-Shizuku%20%2F%20Root-brightgreen.svg?style=flat-square" alt="Backend: Shizuku / Root"></a>
-  <a href="https://opencv.org/"><img src="https://img.shields.io/badge/Vision-OpenCV%20%7C%20RapidOCR-5C3EE8.svg?style=flat-square&logo=opencv&logoColor=white" alt="Vision: OpenCV + RapidOCR"></a>
+  <a href="doc/embedded-shizuku.md"><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen.svg?style=flat-square" alt="Backend: Embedded ADB / Root"></a>
+  <a href="doc/ocr-acceleration.md"><img src="https://img.shields.io/badge/Vision-LiteRT%20NPU%20%7C%20MNN%20%7C%20OpenCV-5C3EE8.svg?style=flat-square&logo=opencv&logoColor=white" alt="Vision: LiteRT NPU / MNN / OpenCV"></a>
+  <a href="doc/shared-memory-capture.md"><img src="https://img.shields.io/badge/Capture-SharedMemory-FF6F00.svg?style=flat-square" alt="Capture: SharedMemory"></a>
   <a href="https://proot-me.github.io/"><img src="https://img.shields.io/badge/Isolation-PRoot-lightgrey.svg?style=flat-square" alt="Isolation: PRoot"></a>
   <a href="https://deepwiki.com/wess09/AzurPilot-for-Android"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
@@ -90,7 +91,7 @@ This repository is forked from [ALAS-AOS](https://github.com/Shinarin/ALAS-AOS),
     </tr>
     <tr>
       <td width="25%"><b>Repository Size</b><br><img src="https://img.shields.io/github/repo-size/wess09/AzurPilot-for-Android?style=flat-square&color=586069" alt="Repo Size"></td>
-      <td width="25%"><b>Languages</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20Shell-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
+      <td width="25%"><b>Languages</b><br><img src="https://img.shields.io/badge/Language-Kotlin%20%7C%20C%2B%2B-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Language"></td>
       <td width="25%"><b>Privilege Backend</b><br><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Backend"></td>
       <td width="25%"><b>Target System</b><br><img src="https://img.shields.io/badge/Android-API%2028%2B%20(ARM64%20%2F%20x86__64)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android Target"></td>
     </tr>
@@ -98,6 +99,7 @@ This repository is forked from [ALAS-AOS](https://github.com/Shinarin/ALAS-AOS),
       <td colspan="4">
         <b>Quick Links:</b>
         <a href="https://github.com/wess09/AzurPilot-for-Android/releases/latest"><img src="https://img.shields.io/badge/Release-Download%20APK-0052cc?style=flat-square&logo=android&logoColor=white" alt="Download"></a>
+        <a href="https://cnb.cool/azurpilot/AzurPilot-for-Android/-/releases"><img src="https://img.shields.io/badge/CNB-Fast%20Mirror%20Download-DE5FE9?style=flat-square&logo=git&logoColor=white" alt="CNB Download"></a>
         <a href="https://deepwiki.com/wess09/AzurPilot-for-Android"><img src="https://img.shields.io/badge/Wiki-Ask%20DeepWiki-6366F1?style=flat-square" alt="Ask DeepWiki"></a>
         <a href="https://github.com/wess09/AzurPilot-for-Android/issues/new/choose"><img src="https://img.shields.io/badge/Issue-Bug%20Report%20%26%20Request-d73a49?style=flat-square&logo=githubissues&logoColor=white" alt="New Issue"></a>
         <a href="https://github.com/wess09/AzurPilot-for-Android/pulls"><img src="https://img.shields.io/badge/PR-Contribute%20Code-28a745?style=flat-square&logo=git&logoColor=white" alt="Pull Request"></a>
@@ -163,7 +165,7 @@ This repository is forked from [ALAS-AOS](https://github.com/Shinarin/ALAS-AOS),
 
 **AzurPilot for Android** is dedicated to bringing the mature, desktop-grade *Azur Lane* automation assistant directly to native Android devices.
 
-By embedding a full Linux runtime container (Ubuntu 24.04, shipped per device architecture as arm64-v8a and x86_64 Runtime variants) inside the APK package, coupled with lightweight PRoot container isolation, it achieves **completely Root-free** and reliable execution of CPython, precompiled OCR models, and local WebUI services. Leveraging background virtual displays and accessibility services, users can chat, play games, or work on their device's main screen without interruption while automated sortie tasks run seamlessly in the background.
+By embedding a full Linux runtime container (Ubuntu 24.04, shipped per device architecture as arm64-v8a and x86_64 Runtime variants) inside the APK package, coupled with lightweight PRoot container isolation, it achieves **completely Root-free** and reliable execution of CPython, hardware-accelerated OCR models, and local WebUI services. Leveraging background virtual displays, anonymous SharedMemory frame channels, and auxiliary interaction services, users can chat, play games, or work on their device's main screen without interruption while automated sortie tasks run seamlessly in the background.
 
 ---
 
@@ -243,11 +245,11 @@ This project works closely with its related core projects; key dependencies and 
     <td width="50%" valign="top">
       <img src="https://img.shields.io/badge/Module-Running%20Mode-00875a?style=flat-square" alt="Tag"><br>
       <h3>Seamless Background Virtual Display</h3>
-      <p>Leveraging Android's Virtual Display mechanism, both the game instance and screen capture operate entirely on an isolated display layer. The foreground main screen remains free for daily apps, chat, or gaming with zero visual obstruction or input interruption.</p>
+      <p>Leveraging Android's Virtual Display mechanism, both the game instance and screen capture operate entirely on an isolated display layer. Built-in SdkTaskRepatriator monitors and intercepts escaping channel login/dialogs back into the virtual display; foreground tasks remain fully uninterrupted.</p>
       <div>
         <img src="https://img.shields.io/badge/Display%20Layer-Virtual%20Display-blue?style=flat-square" alt="Virtual Display">
         <img src="https://img.shields.io/badge/Foreground-Unrestricted-green?style=flat-square" alt="Free Foreground">
-        <img src="https://img.shields.io/badge/Interference-Zero%20Occlusion-teal?style=flat-square" alt="Zero Interference">
+        <img src="https://img.shields.io/badge/SDK%20Dialogs-Auto%20Repatriate-brightgreen?style=flat-square" alt="SdkTaskRepatriator">
       </div>
     </td>
   </tr>
@@ -286,12 +288,56 @@ This project works closely with its related core projects; key dependencies and 
     </td>
     <td width="50%" valign="top">
       <img src="https://img.shields.io/badge/Module-Lifecycle-ff5630?style=flat-square" alt="Tag"><br>
-      <h3>Dual-Track Independent Hot Updates</h3>
-      <p>The host app and the underlying Linux Runtime (rootfs) possess decoupled distribution and upgrade channels. Updating the container preserves all configs and logs; updating the host requires only a lightweight APK without re-unpacking the runtime.</p>
+      <h3>Multi-Track Decoupled Hot Updates</h3>
+      <p>The host app, underlying Linux Runtime, and upstream scripts feature completely decoupled distribution channels. Supports transactional hot updates to swap scripts without losing configs; features 4-connection segmented downloads and domestic CNB mirror sync.</p>
       <div>
-        <img src="https://img.shields.io/badge/Architecture-Dual%20Track%20Decoupled-purple?style=flat-square" alt="Dual Track">
-        <img src="https://img.shields.io/badge/Integrity-SHA256%20Verified-blue?style=flat-square" alt="SHA256">
-        <img src="https://img.shields.io/badge/Safety-Zero%20Config%20Loss-brightgreen?style=flat-square" alt="Safe">
+        <img src="https://img.shields.io/badge/Architecture-Decoupled%20Tracks-purple?style=flat-square" alt="Dual Track">
+        <img src="https://img.shields.io/badge/Hot%20Update-Transactional%20Rollback-brightgreen?style=flat-square" alt="Hot Update">
+        <img src="https://img.shields.io/badge/Speed-4--Connection%20Download-blue?style=flat-square" alt="Fast Download">
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/Module-Privilege-7F52FF?style=flat-square" alt="Tag"><br>
+      <h3>Embedded Local Wireless Activation</h3>
+      <p>Built-in local ADB pairing and connection transplanted from shizuku-m. Android 11+ users can pair directly via split-screen or notifications without installing third-party managers; supports offline reconnection during the same boot and Context-only MediaTek crash prevention.</p>
+      <div>
+        <img src="https://img.shields.io/badge/Activation-Builtin%20Wireless%20Pairing-brightgreen?style=flat-square" alt="Wireless Pairing">
+        <img src="https://img.shields.io/badge/Offline-Auto%20Reconnect-blue?style=flat-square" alt="Offline Reconnect">
+        <img src="https://img.shields.io/badge/MediaTek-Crash%20Guard-orange?style=flat-square" alt="MTK Safe">
+      </div>
+    </td>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/Module-Screen%20Capture-FF6F00?style=flat-square" alt="Tag"><br>
+      <h3>Anonymous SharedMemory Fast Capture</h3>
+      <p>Ultra-fast frame channel over abstract Unix domain sockets and anonymous SharedMemory (ashmem/memfd) with SCM_RIGHTS descriptor passing. Reduces capture latency from ~47.2ms (TCP) to ~15.6ms; 100% RAM flow with zero flash writes, protecting physical storage from wear.</p>
+      <div>
+        <img src="https://img.shields.io/badge/Latency-15.6ms%20Average-brightgreen?style=flat-square" alt="15ms Latency">
+        <img src="https://img.shields.io/badge/NAND%20Wear-Zero%20Flash%20Writes-teal?style=flat-square" alt="Zero Flash Write">
+        <img src="https://img.shields.io/badge/Transfer-Zero--Copy%20ashmem-blue?style=flat-square" alt="Zero-Copy">
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/Module-Vision%20AI-5C3EE8?style=flat-square" alt="Tag"><br>
+      <h3>Out-of-Process Hardware-Accelerated OCR</h3>
+      <p>Neural inference is hosted in an isolated :ocr worker process, protecting the host UI from crashing. Integrates LiteRT and MNN engines, fully accelerating Qualcomm Snapdragon QNN HTP, MediaTek NeuroPilot APU, and Kirin HiAI NPU with graceful fallback to multi-threaded LiteRT CPU.</p>
+      <div>
+        <img src="https://img.shields.io/badge/NPU-Snapdragon%20%7C%20Dimensity%20%7C%20Kirin-blueviolet?style=flat-square" alt="NPU Support">
+        <img src="https://img.shields.io/badge/Isolation-:ocr%20Worker%20Process-purple?style=flat-square" alt="Process Isolation">
+        <img src="https://img.shields.io/badge/Fallback-Multi--thread%20CPU-green?style=flat-square" alt="CPU Fallback">
+      </div>
+    </td>
+    <td width="50%" valign="top">
+      <img src="https://img.shields.io/badge/Module-Power%20Saving-ff5630?style=flat-square" alt="Tag"><br>
+      <h3>OLED Anti-Burn-In Kinetic Screensaver</h3>
+      <p>In background mode, open the black, dimmed screensaver manually or enable automatic entry when a task starts. The display stays on; after 30 seconds without interaction inside the screensaver, its content moves vertically by 16dp every 10 seconds to reduce burn-in risk. Drag the unlock slider to the right end and release to exit.</p>
+      <div>
+        <img src="https://img.shields.io/badge/Anti--Burn--In-16dp%20Periodic%20Drift-orange?style=flat-square" alt="Burn-in Drift">
+        <img src="https://img.shields.io/badge/Motion-MD3E%20Sequential%20Pulse-purple?style=flat-square" alt="MD3E Pulse">
+        <img src="https://img.shields.io/badge/Exit-Slide%20to%20Unlock-brightgreen?style=flat-square" alt="Slide to Unlock">
       </div>
     </td>
   </tr>
@@ -310,6 +356,7 @@ graph TD
         Overlay["FloatingX Systemwide Floating Controller"]
         Lifecycle["Process Supervisor & Runtime Lifecycle Manager"]
         Bridge["Embedded ADB / Shizuku / Root su Privilege Relay"]
+        OCRWorker["Dedicated OCR Worker Process (:ocr)\n(LiteRT NPU / MNN HiAI / CPU Inference)"]
     end
 
     subgraph Container ["PRoot Sandbox Layer (Ubuntu 24.04 · arm64 / x86_64)"]
@@ -321,8 +368,10 @@ graph TD
 
     subgraph DeviceTarget ["System Capabilities & Target Apps"]
         VDisplay["Background Virtual Display"]
+        Repatriator["SdkTaskRepatriator (Channel SDK Dialog Repatriation)"]
         InputService["MaaTouch / DroidCast / ADB Control Flow"]
-        GameApp["Azur Lane Game Instance"]
+        ShmChannel["SharedMemory Anonymous Shared Memory Channel"]
+        GameApp["Azur Lane Game Instance (All Servers Supported)"]
     end
 
     UI --> Lifecycle
@@ -336,7 +385,11 @@ graph TD
     Bridge --> VDisplay
     InputService --> GameApp
     VDisplay --> GameApp
+    Repatriator -. "Intercept & Repatriate" .-> GameApp
     CORE --> InputService
+    VDisplay --> ShmChannel
+    ShmChannel -. "SCM_RIGHTS Fast Capture" .-> CORE
+    CORE -. "127.0.0.1:22302 Tensor RPC" .-> OCRWorker
 ```
 
 ---
@@ -379,9 +432,14 @@ graph TD
     </tr>
     <tr>
       <td><b>Privilege Backend</b></td>
-      <td><img src="https://img.shields.io/badge/Backend-Shizuku%20%2F%20Root-orange?style=flat-square" alt="Shizuku / Root"></td>
-      <td><img src="https://img.shields.io/badge/Backend-Shizuku--m%20(No%20Debugging)-brightgreen?style=flat-square" alt="Shizuku-m"></td>
-      <td>Required for input simulation and Virtual Display projection authorization; MediaTek devices should use the patched build linked below</td>
+      <td><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20Pairing-brightgreen?style=flat-square" alt="Embedded ADB"></td>
+      <td><img src="https://img.shields.io/badge/Backend-Embedded%20ADB%20%7C%20Root-brightgreen?style=flat-square" alt="Root / ADB"></td>
+      <td>Required for input simulation and Virtual Display projection authorization; includes built-in wireless pairing and offline reconnect, with support for external Shizuku and Root</td>
+    </tr>
+    <tr>
+      <td><b>Server Coverage</b></td>
+      <td colspan="2"><img src="https://img.shields.io/badge/Servers-CN%20(Official%20%2F%20Bilibili)%20%7C%20JP%20%7C%20EN%20%7C%20TW-blueviolet?style=flat-square" alt="All Servers"></td>
+      <td>Full automated sortie coverage for all regions; target server instances can be switched directly within the app</td>
     </tr>
   </tbody>
 </table>
@@ -516,39 +574,57 @@ Signed GitHub build artifacts are mirrored to [CNB downloads](https://cnb.cool/a
       <td>Mini capsule, draggable</td>
       <td><img src="https://img.shields.io/badge/Status-Floating%20Window-brightgreen?style=flat-square" alt="Overlay"></td>
     </tr>
+    <tr>
+      <td><b>OLED Screensaver</b></td>
+      <td>Open the dimmed screensaver manually in background mode or enable entry when a task starts. After 30 seconds of inactivity inside it, content moves vertically by 16dp every 10 seconds; slide right to unlock and exit.</td>
+      <td>Burn-in drift, ultra-low power</td>
+      <td><img src="https://img.shields.io/badge/Status-Screensaver-ff5630?style=flat-square" alt="Screensaver"></td>
+    </tr>
   </tbody>
 </table>
 
 ---
 
-## Dual-Track Independent Updates
+## Multi-Track Decoupled Updates & Hot Updates
 
-To maximize stability and update flexibility, the host application and Linux runtime are managed via decoupled channels:
+To maximize stability and update flexibility, the host application, Linux container runtime, and upstream automation scripts are managed via completely decoupled channels:
 
 <table width="100%">
   <tr>
-    <td width="50%" valign="top">
+    <td width="33.3%" valign="top">
       <div align="center">
         <img src="https://img.shields.io/badge/Track-Host%20App%20Update-7F52FF?style=flat-square&logo=android&logoColor=white" alt="App Track"><br>
         <h4>Lightweight Host Overwrite</h4>
       </div>
       <ul>
         <li><b>Trigger</b>: Monitored via Android internal <code>VersionCode</code>.</li>
-        <li><b>Payload</b>: Lightweight APK containing only native Android code.</li>
+        <li><b>Payload</b>: Lightweight APK containing only native code (~25MB), accelerated by 4-connection segmented downloads.</li>
         <li><b>Process</b>: Standard system <code>PackageInstaller</code> in-place upgrade.</li>
         <li><b>Data Safety</b>: Completely preserves existing Linux rootfs, user configurations, and logs.</li>
       </ul>
     </td>
-    <td width="50%" valign="top">
+    <td width="33.3%" valign="top">
       <div align="center">
-        <img src="https://img.shields.io/badge/Track-Runtime%20Update-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Runtime Track"><br>
-        <h4>Decoupled Container Hot Replacement</h4>
+        <img src="https://img.shields.io/badge/Track-Container%20Runtime%20Update-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Runtime Track"><br>
+        <h4>Decoupled Image Hot Replacement</h4>
       </div>
       <ul>
-        <li><b>Trigger</b>: Checked against <code>latest.json</code> signature in GitHub Releases.</li>
-        <li><b>Verification</b>: Strict SHA-256 hash and byte length check after download.</li>
-        <li><b>Mechanism</b>: Gracefully stops Python services, swaps container rootfs, and preserves <code>/config</code> and data mounts.</li>
-        <li><b>Fallback</b>: Continues running current version smoothly if network fails or user postpones.</li>
+        <li><b>Trigger</b>: Checked against <code>latest.json</code> signature and ABI hash in releases.</li>
+        <li><b>Verification</b>: Strict SHA-256 hash and byte length verification after download.</li>
+        <li><b>Mechanism</b>: Gracefully stops services, swaps container rootfs, and preserves <code>/config</code> and data mounts.</li>
+        <li><b>Acceleration</b>: Supports domestic CNB and GitHub mirrors with 4-connection segmented downloads.</li>
+      </ul>
+    </td>
+    <td width="33.3%" valign="top">
+      <div align="center">
+        <img src="https://img.shields.io/badge/Track-Script%20Hot%20Update-00875a?style=flat-square&logo=git&logoColor=white" alt="Hot Update Track"><br>
+        <h4>Transactional Source Hot Update</h4>
+      </div>
+      <ul>
+        <li><b>Trigger</b>: Checks upstream commits via <code>/android/update</code>, preferentially fetching from domestic CNB.</li>
+        <li><b>Environment Guard</b>: Compares candidate vs current <code>uv.lock</code>; automatically falls back to container update on dependency changes.</li>
+        <li><b>Local Build</b>: Built-in Node.js/npm builds frontend dist locally, avoiding large rootfs re-downloads.</li>
+        <li><b>Atomic Rollback</b>: Records update transactions and auto-reloads; automatically rolls back source and dist if build or swap fails.</li>
       </ul>
     </td>
   </tr>
@@ -638,7 +714,7 @@ Adaptive dark/light mode Star History chart reflecting project growth:
 `-- tools/                    # Build tooling and local debugging scripts
 ```
 
-- **Build Tooling Standards**: Android Gradle Plugin 8.x, Kotlin 2.x, Jetpack Compose Material 3.
+- **Build Tooling Standards**: Android Gradle Plugin 9.x, Kotlin 2.x, Jetpack Compose Material 3.
 - **Automated Pipeline**: a matrix of native GitHub Actions runners (arm64 / x86_64) executes Ubuntu 24.04 slimming, uv dependency pre-installation, WebUI packaging, and high-ratio xz compression, publishing one artifact per architecture.
 - **Release Security**: Production signing keys are secured via GitHub Actions Secrets to prevent tampering.
 
@@ -654,6 +730,9 @@ Adaptive dark/light mode Star History chart reflecting project growth:
 | **PRoot** | <img src="https://img.shields.io/badge/License-GPL--2.0-blue?style=flat-square" alt="GPL-2.0"> | Rootless userspace syscall emulation engine |
 | **uv** | <img src="https://img.shields.io/badge/License-Apache--2.0%20%7C%20MIT-brightgreen?style=flat-square" alt="uv License"> | High-performance modern Python package manager |
 | **CPython 3.14** | <img src="https://img.shields.io/badge/License-PSF--2.0-blue?style=flat-square" alt="PSF-2.0"> | Core Python execution runtime |
+| **shizuku-m** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Origin of built-in local ADB runtime, providing wireless pairing and offline reconnect |
+| **LiteRT** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Google on-device ML runtime powering QNN HTP / APU NPU acceleration and CPU inference |
+| **MNN** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Alibaba lightweight deep learning engine driving Kirin HiAI NPU and GPU Softmax offload |
 | **AzurPilot** | <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" alt="GPL-3.0"> | Core automation logic and task engine |
 | **ALAS-AOS** | <img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0"> | Source repository of this project; this repo is forked from it and inherits its host architecture and containerization approach |
 | **MaaFwApp** | <img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0"> | Android host architecture and app framework template |
@@ -663,6 +742,8 @@ Adaptive dark/light mode Star History chart reflecting project growth:
 | Library | License Badge | Usage |
 | :--- | :--- | :--- |
 | **AndroidX Suite** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Modern components: Jetpack Compose, Lifecycle, DataStore |
+| **Jetpack Glance** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Declarative Material 3 AppWidget framework |
+| **Lottie Compose** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Dynamic useAnimations vector icons and runtime status animations |
 | **Koin** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Pragmatic lightweight dependency injection |
 | **OkHttp** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | High-performance HTTP client |
 | **Shizuku API** | <img src="https://img.shields.io/badge/License-Apache--2.0-brightgreen?style=flat-square" alt="Apache-2.0"> | Rootless inter-process privilege and IPC interface |
