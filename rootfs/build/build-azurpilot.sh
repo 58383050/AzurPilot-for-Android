@@ -89,7 +89,7 @@ guest apt-get install -y --no-install-recommends \
 # apt 缓存只服务安装；留在镜像里会把已安装的包再打包一份。
 guest apt-get clean
 rm -f "$ROOTFS_DIR/var/cache/apt/pkgcache.bin" "$ROOTFS_DIR/var/cache/apt/srcpkgcache.bin"
-# 使用按 ABI 固定并校验的官方 Node 分发包，构建和手机热更共用同一工具链。
+# 使用按 ABI 固定并校验的官方 Node 分发包，构建和设备端热更共用同一工具链。
 NODE_ARCHIVE="$WORK_DIR/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
 if [[ ! -s $NODE_ARCHIVE ]] || ! echo "$NODE_SHA256  $NODE_ARCHIVE" | sha256sum -c --status; then
     curl -fL --retry 3 "https://nodejs.org/dist/v${NODE_VERSION}/$(basename "$NODE_ARCHIVE")" -o "$NODE_ARCHIVE.part"

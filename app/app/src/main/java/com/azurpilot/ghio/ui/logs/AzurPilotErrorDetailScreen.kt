@@ -210,10 +210,10 @@ private fun rememberDecodedBitmap(file: File, maxDimension: Int) =
     }
 
 /**
- * 缩略图取 96dp 边长，解码上限 192px（2x 屏再留一倍余量，Crop 后仍清晰）； 全屏图解码上限 1920px——已盖过主流手机屏的宽高，再大只费内存
+ * 缩略图取 96dp 边长，解码上限 192px（2x 屏再留一倍余量，Crop 后仍清晰）； 全屏图解码上限 1920px——已盖过主流设备屏幕的宽高，再大只费内存
  *
  * Thumbnails are 96dp square with a 192px decode cap (headroom for 2x screens, still sharp after
- * Crop); the fullscreen decode caps at 1920px — beyond mainstream phone screens, larger only burns
+ * Crop); the fullscreen decode caps at 1920px — beyond mainstream device screens, larger only burns
  * memory.
  */
 private val THUMB_SIZE_DP = 96.dp

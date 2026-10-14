@@ -165,7 +165,7 @@
 
 **AzurPilot for Android** 致力於將桌面端功能成熟的《碧藍航線》自動化助手完整移植至 Android 行動端原生執行。
 
-透過在 APK 安裝包內預置完整的 Linux 執行階段容器（Ubuntu 24.04，依裝置架構提供 arm64-v8a 與 x86_64 兩種 Runtime），結合輕量級 PRoot 容器隔離技術，實現了在 **完全免 Root** 條件下穩定執行 CPython、硬體加速 OCR 演算法模型及本地 Web 控制台服務。借助背景虛擬螢幕、匿名共享記憶體訊框通道與輔助互動服務，使用者可以在手機主螢幕正常聊天、遊戲或辦公的同時，無感完成各項自動化巡航與出擊任務。
+透過在 APK 安裝包內預置完整的 Linux 執行階段容器（Ubuntu 24.04，依裝置架構提供 arm64-v8a 與 x86_64 兩種 Runtime），結合輕量級 PRoot 容器隔離技術，實現了在 **完全免 Root** 條件下穩定執行 CPython、硬體加速 OCR 演算法模型及本地 Web 控制台服務。借助背景虛擬螢幕、匿名共享記憶體訊框通道與輔助互動服務，使用者可以在裝置主螢幕正常聊天、遊戲或辦公的同時，無感完成各項自動化巡航與出擊任務。
 
 ---
 
@@ -267,7 +267,7 @@
     <td width="50%" valign="top">
       <img src="https://img.shields.io/badge/模組-控制台-172b4d?style=flat-square" alt="Tag"><br>
       <h3>完整內建 WebUI 體驗</h3>
-      <p>手機端直接承載原生 React + Vite 控制台前端，提供完整的實例細項設定、出擊模式編排、定時排程規則與即時數據儀表板，無需額外透過電腦瀏覽器存取。</p>
+      <p>裝置端直接承載原生 React + Vite 控制台前端，提供完整的實例細項設定、出擊模式編排、定時排程規則與即時數據儀表板，無需額外透過電腦瀏覽器存取。</p>
       <div>
         <img src="https://img.shields.io/badge/前端-React%20%2B%20Vite-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React">
         <img src="https://img.shields.io/badge/通訊-FastAPI%20%2F%20Uvicorn-009688?style=flat-square" alt="FastAPI">
@@ -484,7 +484,7 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
 </table>
 
 > [!TIP]
-> 已內建 [Shizuku-m](https://github.com/wess09/shizuku-m) 的本機 ADB 配對及離線重連功能。首次仍需系統配對及 USB 偵錯確認，重新啟動手機後需再次啟用。參見 [內建啟動說明](doc/embedded-shizuku.md)。
+> 已內建 [Shizuku-m](https://github.com/wess09/shizuku-m) 的本機 ADB 配對及離線重連功能。首次仍需系統配對及 USB 偵錯確認，重新啟動設備後需再次啟用。參見 [內建啟動說明](doc/embedded-shizuku.md)。
 
 > [!NOTE]
 > 內建路徑以 Context-only 方式啟動特權服務，避開聯發科 Application 初始化問題。繼續使用外部 Shizuku 時，聯發科裝置可選擇 [Shizuku-m 修正版](https://github.com/wess09/shizuku-m)。
@@ -600,7 +600,7 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
         <li><b>觸發依據</b>：比對 Android 內部版本號（<code>VersionCode</code>）。</li>
         <li><b>升級酬載</b>：僅包含原生業務層的輕量 APK（約 25MB），四連線分段加速下載。</li>
         <li><b>更新過程</b>：呼叫系統標準 <code>PackageInstaller</code> 進行覆蓋安裝。</li>
-        <li><b>資料保障</b>：完全重複使用手機已解壓的 Linux Runtime 與全部既有設定檔。</li>
+        <li><b>資料保障</b>：完全重複使用裝置已解壓的 Linux Runtime 與全部既有設定檔。</li>
       </ul>
     </td>
     <td width="33.3%" valign="top">
@@ -623,7 +623,7 @@ GitHub 建置的正式產物會同步到 [國內下載（CNB）](https://cnb.coo
       <ul>
         <li><b>觸發依據</b>：透過 <code>/android/update</code> 查詢上游新提交，支援優先自國內 CNB 下載。</li>
         <li><b>環境守衛</b>：候選與目前 <code>uv.lock</code> 比對；涉及底層依賴變更時自動轉為整包升級。</li>
-        <li><b>本機建置</b>：內建 Node.js/npm 於手機端建置前端 dist，無需重新下載數百兆容器映像檔。</li>
+        <li><b>本機建置</b>：內建 Node.js/npm 於裝置端建置前端 dist，無需重新下載數百兆容器映像檔。</li>
         <li><b>原子回滾</b>：寫入事務記錄並自動重載；若建置或切換失敗自動回滾舊原始碼與設定。</li>
       </ul>
     </td>

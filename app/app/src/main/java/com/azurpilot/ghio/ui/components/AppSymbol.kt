@@ -78,7 +78,7 @@ enum class AppSymbol(@param:RawRes val animationRes: Int, val fallback: ImageVec
     Appearance(R.raw.icon_sun, Icons.Outlined.Palette),
     /** 显示参数。 / Display parameters. */
     Display(R.raw.icon_monitor, Icons.Outlined.Monitor),
-    /** 手机与虚拟屏。 / Phone and virtual display. */
+    /** 设备与虚拟屏。 / Device and virtual display. */
     Phone(R.raw.icon_smartphone, Icons.Outlined.PhoneAndroid),
     /** 日志与文档。 / Logs and documents. */
     Logs(R.raw.icon_file_text, Icons.Outlined.Description),

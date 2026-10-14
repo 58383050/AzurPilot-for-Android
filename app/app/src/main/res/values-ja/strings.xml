@@ -200,7 +200,7 @@
     <string name="dialog_shizuku_switch_to_root">Root モードに切り替え</string>
     <string name="dialog_shizuku_skip_check">チェックをスキップ（非推奨）</string>
     <string name="dialog_shizuku_not_running_title">Shizuku が起動していません</string>
-    <string name="dialog_shizuku_not_running_message">Shizuku はインストールされていますが、サービスが起動していません。スマートフォンを再起動するたびに再有効化が必要です。shizuku-m を開いて「起動」をタップし（WLAN やパソコンは不要）、起動後に本アプリへ戻れば自動で続行します。</string>
+    <string name="dialog_shizuku_not_running_message">Shizuku はインストールされていますが、サービスが起動していません。端末を再起動するたびに再有効化が必要です。shizuku-m を開いて「起動」をタップし（WLAN やパソコンは不要）、起動後に本アプリへ戻れば自動で続行します。</string>
     <string name="dialog_shizuku_open_app">Shizuku を開く</string>
     <string name="dialog_sui_detected_title">Sui を検出</string>
     <string name="dialog_sui_detected_message">現在は Sui が Shizuku サービスを提供しています。Sui は Root 権限で動作するため、本アプリが正常に動作しない可能性があります。実際の動作で確認してください。</string>
@@ -253,7 +253,7 @@
     <string name="settings_auto_clean_logs">ログの自動削除</string>
     <string name="settings_auto_clean_logs_desc">コールドスタート時に 7 日より古い AzurPilot ログを自動削除し、期限切れのセッションログを切り詰めます</string>
     <string name="dialog_disable_auto_clean_title">自動削除をオフ</string>
-    <string name="dialog_disable_auto_clean_message">オフにすると期限切れのログが自動削除されなくなり、長く使うとスマートフォンの容量を大きく占める可能性があります。</string>
+    <string name="dialog_disable_auto_clean_message">オフにすると期限切れのログが自動削除されなくなり、長く使うと端末のストレージ容量を大きく占める可能性があります。</string>
 
     <!-- 診断文案；生成元は domain/Diagnostics.kt の DiagnosticMessages -->
 

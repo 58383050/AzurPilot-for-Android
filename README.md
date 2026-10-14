@@ -165,7 +165,7 @@
 
 **AzurPilot for Android** 致力于将桌面端功能成熟的《碧蓝航线》自动化助手完整移植至 Android 移动端原生运行。
 
-通过在 APK 安装包内预置完整的 Linux 运行时容器（Ubuntu 24.04，按设备架构提供 arm64-v8a 与 x86_64 两种 Runtime），结合轻量级 PRoot 容器隔离技术，实现了在 **完全免 Root** 条件下稳定运行 CPython、硬件加速 OCR 算法模型及本地 Web 控制台服务。借助后台虚拟屏幕、匿名共享内存帧通道与辅助交互服务，用户可以在手机主屏正常聊天、游戏或办公的同时，无感完成各项自动化巡航任务。
+通过在 APK 安装包内预置完整的 Linux 运行时容器（Ubuntu 24.04，按设备架构提供 arm64-v8a 与 x86_64 两种 Runtime），结合轻量级 PRoot 容器隔离技术，实现了在 **完全免 Root** 条件下稳定运行 CPython、硬件加速 OCR 算法模型及本地 Web 控制台服务。借助后台虚拟屏幕、匿名共享内存帧通道与辅助交互服务，用户可以在设备主屏正常聊天、游戏或办公的同时，无感完成各项自动化巡航任务。
 
 ---
 
@@ -267,7 +267,7 @@
     <td width="50%" valign="top">
       <img src="https://img.shields.io/badge/模块-控制台-172b4d?style=flat-square" alt="Tag"><br>
       <h3>完整内置 WebUI 体验</h3>
-      <p>手机端直接承载原生 React + Vite 控制台前端，提供完整的实例细分配置、出击模式编排、定时调度规则与实时数据看板，无需额外借助电脑浏览器访问。</p>
+      <p>设备端直接承载原生 React + Vite 控制台前端，提供完整的实例细分配置、出击模式编排、定时调度规则与实时数据看板，无需额外借助电脑浏览器访问。</p>
       <div>
         <img src="https://img.shields.io/badge/前端-React%20%2B%20Vite-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React">
         <img src="https://img.shields.io/badge/通信-FastAPI%20%2F%20Uvicorn-009688?style=flat-square" alt="FastAPI">
@@ -484,7 +484,7 @@ GitHub 构建的正式产物会同步到 [国内下载（CNB）](https://cnb.coo
 </table>
 
 > [!TIP]
-> 已内置 [Shizuku-m](https://github.com/wess09/shizuku-m) 的本机 ADB 配对和离线重连能力。首次仍需系统配对及 USB 调试确认，重启手机后需重新激活。参见 [内置启动说明](doc/embedded-shizuku.md)。
+> 已内置 [Shizuku-m](https://github.com/wess09/shizuku-m) 的本机 ADB 配对和离线重连能力。首次仍需系统配对及 USB 调试确认，重启设备后需重新激活。参见 [内置启动说明](doc/embedded-shizuku.md)。
 
 > [!NOTE]
 > 内置路径用 Context-only 方式启动特权服务，避开联发科 Application 初始化问题。继续使用外部 Shizuku 时，联发科设备可选择 [Shizuku-m 修复版](https://github.com/wess09/shizuku-m)。
@@ -600,7 +600,7 @@ GitHub 构建的正式产物会同步到 [国内下载（CNB）](https://cnb.coo
         <li><b>触发依据</b>：检测 Android 内部版本号（VersionCode）。</li>
         <li><b>升级载荷</b>：仅包含原生业务层的轻量 APK（约 25MB），四连接分段加速下载。</li>
         <li><b>更新过程</b>：调用系统标准 PackageInstaller 覆盖安装。</li>
-        <li><b>数据保障</b>：完全复用手机已解压的 Linux Runtime 与全部已有配置。</li>
+        <li><b>数据保障</b>：完全复用设备已解压的 Linux Runtime 与全部已有配置。</li>
       </ul>
     </td>
     <td width="33.3%" valign="top">

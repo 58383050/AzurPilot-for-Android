@@ -65,7 +65,7 @@
     <string name="settings_feedback_group">Join the Feedback Group</string>
     <string name="settings_feedback_group_desc">Join the QQ group to share questions and suggestions</string>
     <string name="compat_notice_title">Add your device to the list</string>
-    <string name="compat_notice_message">Whether the app runs well differs a lot between phones. Please add one entry — brand, model, system version, working or not — to the device support list on GitHub. Your single record saves others a lot of trial and error.</string>
+    <string name="compat_notice_message">Whether the app runs well differs a lot between devices. Please add one entry — brand, model, system version, working or not — to the device support list on GitHub. Your single record saves others a lot of trial and error.</string>
     <string name="compat_notice_dont_ask_again">Don\'t show again</string>
     <string name="compat_notice_go">Open the list</string>
     <string name="compat_notice_later">Not now</string>
@@ -207,7 +207,7 @@
     <string name="dialog_shizuku_switch_to_root">Switch to Root</string>
     <string name="dialog_shizuku_skip_check">Skip check (not recommended)</string>
     <string name="dialog_shizuku_not_running_title">Shizuku Not Running</string>
-    <string name="dialog_shizuku_not_running_message">Shizuku is installed but the service is not running. It must be reactivated after every phone reboot: open shizuku-m and tap Start (no WLAN or computer needed), then return to this app and it will continue automatically.</string>
+    <string name="dialog_shizuku_not_running_message">Shizuku is installed but the service is not running. It must be reactivated after every device reboot: open shizuku-m and tap Start (no WLAN or computer needed), then return to this app and it will continue automatically.</string>
     <string name="dialog_shizuku_open_app">Open Shizuku</string>
     <string name="dialog_sui_detected_title">Sui Detected</string>
     <string name="dialog_sui_detected_message">Sui is providing the Shizuku service with root privileges. This app may not work correctly; please verify by actual testing.</string>
@@ -849,7 +849,7 @@
     <string name="adb_setup_confirm">Activate</string>
     <string name="adb_guide">First use: enable wireless debugging, tap notification pairing, then enter the six-digit code in the notification while the system pairing dialog stays open. If USB approval appears, select always allow.</string>
     <string name="adb_legacy_guide">On Android 9–10, first run adb tcpip 5555 from a computer, then activate and approve system debugging.</string>
-    <string name="adb_idle">Once started, offline reconnection works for this boot. Start again after restarting the phone.</string>
+    <string name="adb_idle">Once started, offline reconnection works for this boot. Start again after restarting the device.</string>
     <string name="adb_working">Connecting. If the system asks for debugging approval, select always allow.</string>
     <string name="adb_ready">Return to the app. No additional grant is needed.</string>
     <string name="adb_failed">Enable wireless debugging, finish pairing and approve system debugging, then retry.</string>

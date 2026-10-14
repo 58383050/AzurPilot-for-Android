@@ -4,9 +4,9 @@
 
 ### 环境与范围
 
-2026-10-08，连接的 corot / MT6985 手机，Android 16，包名 `com.azurpilot.ghio`。
+2026-10-08，连接的 corot / MT6985 设备，Android 16，包名 `com.azurpilot.ghio`。
 最新测试包为 1.2.116-ocr-test，versionCode `1791463529`，R8 Release，使用本机测试签名。
-轻量 APK 沿用手机已安装的 rootfs。LiteRT 2.1.0rc1、NeuroPilot 8.0.10 / 9.0.3；未使用 NNAPI。
+轻量 APK 沿用设备已安装的 rootfs。LiteRT 2.1.0rc1、NeuroPilot 8.0.10 / 9.0.3；未使用 NNAPI。
 
 这是该设备的软件调用和测试图片记录。没有 NPU 硬件性能分析、完整游戏图片准确率或功耗验收，
 不能推广为全部芯片均可用或已经证明低功耗。

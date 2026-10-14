@@ -31,7 +31,7 @@ Manifest 还以 `required=false` 请求厂商公开的 RPC、NeuroPilot 和 HiAI
 | --- | --- | --- |
 | 高通 | LiteRT → QNN HTP | Android 12+、ARM64，内置 v68/v69/v73/v75/v79/v81 Skel 和 Stub；实际以驱动和算子编译成功为准 |
 | 联发科 | LiteRT → NeuroPilot | Android 12+、ARM64，内置 8.0.10 / 9.0.3 adapter；系统必须开放兼容的 APU 驱动 |
-| 小米手机中的高通 / 联发科芯片 | 使用芯片对应后端 | 按 SoC 厂商识别，与手机品牌无关 |
+| 小米设备中的高通 / 联发科芯片 | 使用芯片对应后端 | 按 SoC 厂商识别，与设备品牌无关 |
 | 小米玄戒 | CPU 回退 | 已找到官方 XNN 接口头文件，尚未取得匹配的用户态运行库和模型转换器 |
 | 海思 / 麒麟 | MNN → HiAI NPU | Android 10+、ARM64，内置官方示例的 NPU 最小库集；需兼容的 HiAI 驱动，全部算子必须被后端接受 |
 | 三星 Exynos | CPU 回退 | 已取得公开 AI LiteCore SDK，但四个内置识别器的 AOT 编译均失败；尚未启用此后端 |
@@ -170,7 +170,7 @@ MT6985 的 MDLA 策略在加载 adapter 前先尝试打开 APUSys 执行库；�
 `npu_accuracy`，包含 `max_abs_error` 和 `timestep_mismatches`，精度门槛不变。
 SDK 没有二进制修改，实际 MTK 结果仍需 1.2.108 真机日志验证。
 
-1.2.112 已在连接的 MT6985 / Android 16 手机上完成 Debug 和 R8 Release 验证，
+1.2.112 已在连接的 MT6985 / Android 16 设备上完成 Debug 和 R8 Release 验证，
 四个识别模型均生成实际 dispatch 分区并完成推理、原 ONNX 对照和 AP 接线。
 完整数据、之前的 NaN 原因定位、模型切换修复及当前限制见
 [MT6985 真机验收记录](ocr-mt6985-validation-20261008.md)。
@@ -244,7 +244,7 @@ AP 未启动时仍可测试内置模型，页面会提示启动 AP 后重新测�
 协议和配置诊断测试、17 项打包质量门测试和文案一致性检查。Linux 侧还从固定 AP 源码提取并原样
 执行 `RecOnlyOCR`、`OcrSettings` 和识别器工厂，配合真实 RapidOCR 3.9.0 与 ONNX CPU
 宿主协议替身，四个识别模型均正确解码测试图片的「12345」。这项隔离依赖的验证未执行
-完整 PRoot 运行时或 Android 厂商驱动；完整手机调用由 App 内测试入口验证。
+完整 PRoot 运行时或 Android 厂商驱动；完整设备端调用由 App 内测试入口验证。
 
 LiteRT 核心与 JIT 插件统一锁定在
 [v2.1.0rc1](https://github.com/google-ai-edge/LiteRT/releases/tag/v2.1.0rc1)。这是预发布版本，

@@ -65,7 +65,7 @@
     <string name="settings_feedback_group">加群回報</string>
     <string name="settings_feedback_group_desc">加入 QQ 群，交流使用問題與建議</string>
     <string name="compat_notice_title">來登記你的機型</string>
-    <string name="compat_notice_message">不同手機能否正常運作，差異很大。歡迎到 GitHub 的「機型支援列表」提交一筆：品牌、型號、系統版本、能不能用。你的一筆紀錄，能讓後來的人少踩坑。</string>
+    <string name="compat_notice_message">不同設備能否正常運作，差異很大。歡迎到 GitHub 的「機型支援列表」提交一筆：品牌、型號、系統版本、能不能用。你的一筆紀錄，能讓後來的人少踩坑。</string>
     <string name="compat_notice_dont_ask_again">不再彈出</string>
     <string name="compat_notice_go">去提交</string>
     <string name="compat_notice_later">暫不</string>
@@ -200,14 +200,14 @@
     <string name="dialog_shizuku_switch_to_root">切換至 Root 模式</string>
     <string name="dialog_shizuku_skip_check">略過檢查（不建議）</string>
     <string name="dialog_shizuku_not_running_title">Shizuku 未啟動</string>
-    <string name="dialog_shizuku_not_running_message">偵測到 Shizuku 已安裝但服務未啟動。每次重新啟動手機後都需要重新啟用：開啟 shizuku-m 點「啟動」（無需連接 WLAN 或電腦），啟動成功後返回本應用程式即可自動繼續。</string>
+    <string name="dialog_shizuku_not_running_message">偵測到 Shizuku 已安裝但服務未啟動。每次重新啟動設備後都需要重新啟用：開啟 shizuku-m 點「啟動」（無需連接 WLAN 或電腦），啟動成功後返回本應用程式即可自動繼續。</string>
     <string name="dialog_shizuku_open_app">開啟 Shizuku</string>
     <string name="dialog_sui_detected_title">偵測到 Sui</string>
     <string name="dialog_sui_detected_message">目前由 Sui 提供 Shizuku 服務。Sui 以 Root 身分執行，本應用程式可能無法正常運作，請以實際測試為準。</string>
     <string name="dialog_shizuku_need_auth_title">Shizuku 未授權</string>
     <string name="dialog_shizuku_need_auth_message">Shizuku 服務正在執行但尚未授權本應用程式，請完成授權。授權成功前會持續提示。</string>
     <string name="dialog_shizuku_official_conflict_title">偵測到官方版 Shizuku</string>
-    <string name="dialog_shizuku_official_conflict_message">本應用程式搭配的特權服務是修改版 shizuku-m：重新啟動手機後可離線自連，無需 WLAN 或電腦。它與官方 Shizuku 套件名稱相同但簽章不同，無法覆寫安裝——請先在系統中解除安裝官方 Shizuku，再依提示安裝 shizuku-m。解除安裝官方版不影響本應用程式的資料。</string>
+    <string name="dialog_shizuku_official_conflict_message">本應用程式搭配的特權服務是修改版 shizuku-m：重新啟動設備後可離線自連，無需 WLAN 或電腦。它與官方 Shizuku 套件名稱相同但簽章不同，無法覆寫安裝——請先在系統中解除安裝官方 Shizuku，再依提示安裝 shizuku-m。解除安裝官方版不影響本應用程式的資料。</string>
     <string name="dialog_shizuku_uninstall_confirm">前往解除安裝官方版</string>
     <string name="common_got_it">知道了</string>
 
@@ -253,7 +253,7 @@
     <string name="settings_auto_clean_logs">自動清理日誌</string>
     <string name="settings_auto_clean_logs_desc">冷啟動時自動刪除 7 天前的 AzurPilot 日誌，並截斷過期的工作階段日誌</string>
     <string name="dialog_disable_auto_clean_title">關閉自動清理</string>
-    <string name="dialog_disable_auto_clean_message">關閉後過期日誌將不再自動清理，長期使用可能佔用大量手機空間。</string>
+    <string name="dialog_disable_auto_clean_message">關閉後過期日誌將不再自動清理，長期使用可能佔用大量儲存空間。</string>
 
     <!-- 診斷文案；建構點在 domain/Diagnostics.kt 的 DiagnosticMessages -->
 
@@ -594,7 +594,7 @@
     <string name="widget_status_error">啟動異常</string>
     <string name="widget_task_idle">無正在執行的任務</string>
     <string name="widget_refresh">重新整理</string>
-    <string name="widget_pin_to_home_description">將控制面板或快捷開關添加至手機桌面，隨時查看狀態並操作</string>
+    <string name="widget_pin_to_home_description">將控制面板或快捷開關添加至桌面，隨時查看狀態並操作</string>
     <string name="widget_pin_control">添加控制面板 (4x2)</string>
     <string name="widget_pin_quick">添加快捷開關 (2x1)</string>
     <string name="widget_pin_success">已請求系統添加小組件到桌面</string>
@@ -837,7 +837,7 @@
     <string name="adb_setup_confirm">前往啟用</string>
     <string name="adb_guide">首次使用：開啟無線偵錯，點通知配對，在系統配對碼頁面的通知中輸入六位配對碼。啟動時如跳出 USB 偵錯確認，請勾選一律允許。</string>
     <string name="adb_legacy_guide">Android 9–10 需先在電腦執行 adb tcpip 5555，再點啟動並允許系統偵錯確認。</string>
-    <string name="adb_idle">啟用後，本次開機內可離線重連；手機重新啟動後需再次啟用。</string>
+    <string name="adb_idle">啟用後，本次開機內可離線重連；設備重新啟動後需再次啟用。</string>
     <string name="adb_working">正在連線，請稍候。若系統跳出偵錯確認，請選擇一律允許。</string>
     <string name="adb_ready">返回即可使用，無須另外授權。</string>
     <string name="adb_failed">連線失敗。請開啟無線偵錯、完成配對並允許偵錯確認，再點啟動。</string>

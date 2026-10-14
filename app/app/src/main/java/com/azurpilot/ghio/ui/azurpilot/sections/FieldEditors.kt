@@ -155,7 +155,7 @@ private val DATETIME = Regex("""\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}""")
 /**
  * 一个参数行
  *
- * 控件按 schema 的定义挑：布尔→开关，有候选→下拉，多选→勾选组，其余→文本。 开关与下拉这类**离散选择**改完立刻提交；文本类**防抖后提交**——手机上逐字符发请求既费流量，
+ * 控件按 schema 的定义挑：布尔→开关，有候选→下拉，多选→勾选组，其余→文本。 开关与下拉这类**离散选择**改完立刻提交；文本类**防抖后提交**——设备上逐字符发请求既费流量，
  * 也会让中间态（`1`、`1.`）撞上服务端校验。
  *
  * One argument row.
@@ -163,7 +163,7 @@ private val DATETIME = Regex("""\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}""")
  * The control is picked by the schema's definition: boolean → switch, options → dropdown,
  * multiselect → checkbox group, everything else → text. **Discrete choices** like switches and
  * dropdowns commit immediately; text fields **commit after a debounce** — per-character requests on
- * a phone burn traffic and let intermediate states (`1`, `1.`) trip server validation.
+ * a device burn traffic and let intermediate states (`1`, `1.`) trip server validation.
  *
  * @param schema schema 定义 / the schema definition
  * @param group 分组名 / the group name

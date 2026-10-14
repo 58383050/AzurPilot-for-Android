@@ -65,7 +65,7 @@
 adb forward tcp:22301 tcp:22301
 adb forward tcp:25548 tcp:25548
 
-# 2. 模式 A: 默认全量自主多页面巡检 (需手机游戏已启动在虚拟屏)
+# 2. 模式 A: 默认全量自主多页面巡检 (需游戏已启动在虚拟屏)
 C:/Users/AzurLane/Desktop/Projects/AzurLaneAutoScript/.venv/Scripts/python.exe tools/test_template_matching.py
 
 # 3. 模式 B: 仅巡检指定关键页面

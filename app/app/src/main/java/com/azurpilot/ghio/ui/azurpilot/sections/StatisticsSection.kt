@@ -617,11 +617,11 @@ private fun chartPalette(): List<Color> =
 /**
  * 明细表：横向滚动 + 竖向滚动
  *
- * 列数由服务端定（最多 9 列），手机宽度放不下，横滚比压成小字可读。
+ * 列数由服务端定（最多 9 列），设备屏幕宽度放不下，横滚比压成小字可读。
  *
  * A detail table: horizontal plus vertical scrolling.
  *
- * The column count is decided by the server (up to 9); a phone's width cannot fit that, and
+ * The column count is decided by the server (up to 9); a device screen width cannot fit that, and
  * horizontal scrolling reads better than shrinking the type.
  *
  * @param table 表格数据 / the table data

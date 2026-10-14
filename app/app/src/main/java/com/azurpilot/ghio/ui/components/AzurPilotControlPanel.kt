@@ -514,13 +514,13 @@ fun ToolSlotRow(
 /**
  * 工具槽竖排：虚拟屏页用，落在画面右侧的留白里
  *
- * 这个位子不是随便挑的：虚拟屏是 16:9，手机横屏接近 20:9，画面按高度撑满后左右天然 空出近 190dp。把入口放进这段留白，画面尺寸一点不减——压在画面下沿的那一版要吃掉 78dp
+ * 这个位子不是随便挑的：虚拟屏是 16:9，设备横屏接近 20:9，画面按高度撑满后左右天然 空出近 190dp。把入口放进这段留白，画面尺寸一点不减——压在画面下沿的那一版要吃掉 78dp
  * 的竖向高度，正是这一页最稀缺的一维
  *
  * Renders the tool slots in a column: for the virtual-display page, dropped into the whitespace
  * right of the frame.
  *
- * The spot is not arbitrary: the virtual display is 16:9 while a phone in landscape is nearly 20:9,
+ * The spot is not arbitrary: the virtual display is 16:9 while a device in landscape is nearly 20:9,
  * so a height-fitted frame naturally leaves ~190dp on each side. Placing the entries in that
  * whitespace costs the frame nothing — the variant pressed under the frame's bottom edge eats 78dp
  * of vertical height, the scarcest dimension on this page.

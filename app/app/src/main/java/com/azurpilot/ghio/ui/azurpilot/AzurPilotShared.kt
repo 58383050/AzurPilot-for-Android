@@ -34,13 +34,13 @@ import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
 /**
  * 宽屏（横屏/分屏/平板）下的内容最大宽度
  *
- * 全宽表单在大屏上行长失控、扫读困难；MD3 与小米大屏规范都要求列表/输入类组件有最大宽度。 手机竖屏（约 390dp）不受影响，横屏（约 870dp）起内容居中收窄。
+ * 全宽表单在大屏上行长失控、扫读困难；MD3 与小米大屏规范都要求列表/输入类组件有最大宽度。 设备竖屏（约 390dp）不受影响，横屏（约 870dp）起内容居中收窄。
  *
  * The maximum content width on wide screens (landscape / split-screen / tablets).
  *
  * Full-width forms lose control of line length on large screens and become hard to scan; both the
  * MD3 and the Xiaomi large-screen guidelines require a maximum width for list/input components.
- * Phone portrait (~390 dp) is unaffected; from landscape (~870 dp) the content centers and narrows.
+ * Device portrait (~390 dp) is unaffected; from landscape (~870 dp) the content centers and narrows.
  */
 val ApMaxContentWidth = 640.dp
 

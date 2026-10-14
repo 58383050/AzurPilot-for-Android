@@ -39,7 +39,7 @@ overlay 和依赖环境仍通过整包 Runtime 更新，见
 ### 工具链与兼容
 
 - `build-azurpilot.sh` 按 ABI 下载固定版本官方 Node 分发包，使用仓内固定的
-  SHA-256 校验。镜像构建和手机热更使用同一套 Node/npm，宿主无需另装 Node。
+  SHA-256 校验。镜像构建和设备端热更使用同一套 Node/npm，宿主无需另装 Node。
 - 构建清单新增 `node_version`、`azurpilot_branch`、`azurpilot_update_repo` 和
   `hot_update_mode=local`。
   工具链变化进入 rootfs 构建输入哈希，已有用户需要先整包升级一次。
@@ -49,7 +49,7 @@ overlay 和依赖环境仍通过整包 Runtime 更新，见
   发布兼容 dist；`AZURPILOT_ANDROID_DIST_BASE` 仅供旧通道使用。
 - `AZURPILOT_ANDROID_GIT_MIRROR` 传入 GitHub 镜像前缀，更改下载源后下次
   会话生效，仅影响 GitHub 回退源。npm 缓存放在 `/opt/azurpilot-npm-cache`，跨源码热更复用。
-- Node/npm、Git 对象和候选目录增加安装与更新空间。手机前端构建消耗 CPU、
+- Node/npm、Git 对象和候选目录增加安装与更新空间。设备前端构建消耗 CPU、
   内存和网络；空间不足或构建失败保持旧版。
 
 ### 真机回归
