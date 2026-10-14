@@ -658,6 +658,9 @@ class RootfsProvisioner(
             ?.forEach { file ->
                 file.copyRecursively(newPilot.resolve("config/${file.name}"), overwrite = true)
             }
+        // 迁移用户的 deploy.yaml，避免整包更新重置访问口令与 SSHUser 导致远程访问与局域网链接失效
+        oldPilot.resolve("config/deploy.yaml").takeIf { it.isFile && it.length() > 0 }
+            ?.copyTo(newPilot.resolve("config/deploy.yaml"), overwrite = true)
         oldPilot.resolve("password.txt").takeIf { it.isFile }
             ?.copyTo(newPilot.resolve("password.txt"), overwrite = true)
         oldPilot.resolve("log").takeIf { it.isDirectory }

@@ -626,8 +626,19 @@ class ProotHost(
             if (!file.isFile) return
             val tmp = File(installDir, "$DEPLOY_YAML_PATH.tmp")
             tmp.parentFile?.mkdirs()
-            tmp.writeText(renderRemoteAccessConfig(file.readText(), enabled))
+            val rendered = renderRemoteAccessConfig(file.readText(), enabled)
+            tmp.writeText(rendered)
             if (!tmp.renameTo(file)) error("rename to $file failed")
+            // 保持 password.txt 与 deploy.yaml 的 Password 一致，兼容旧版外部口令读取
+            val currentPassword = yamlValue(rendered.lines(), "Password")
+            if (!currentPassword.isNullOrEmpty()) {
+                runCatching {
+                    val pwFile = File(installDir, "password.txt")
+                    if (!pwFile.exists() || pwFile.readText().trim() != currentPassword) {
+                        pwFile.writeText(currentPassword)
+                    }
+                }
+            }
             Timber.i("deploy.yaml remote access synced: %s", if (enabled) "on" else "off")
         }.onFailure { Timber.w(it, "sync remote access config failed") }
     }
@@ -648,9 +659,11 @@ class ProotHost(
         if (host !in allowedHosts) {
             lines = setYamlKey(lines, "WebuiHost", if (lanEnabled) "0.0.0.0" else "127.0.0.1")
         }
-        // LAN 和远程入口共用部署口令，避免遗留 password.txt 成为另一份口令来源。
+        // LAN 和远程入口共用部署口令，优先复用已有 password.txt，避免重新生成打断已有连接
         if ((enabled || lanEnabled) && yamlValue(lines, "Password").isNullOrEmpty()) {
-            lines = setYamlKey(lines, "Password", generateWebUiPassword())
+            val legacy = File(installDir, "password.txt").takeIf { it.isFile }?.readText()?.trim()
+            val pwd = legacy?.takeIf { it.isNotBlank() } ?: generateWebUiPassword()
+            lines = setYamlKey(lines, "Password", pwd)
         }
         if (enabled) {
             if (yamlValue(lines, "SSHServer").isNullOrEmpty()) {

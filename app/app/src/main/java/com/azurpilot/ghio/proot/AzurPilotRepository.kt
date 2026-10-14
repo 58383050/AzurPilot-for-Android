@@ -971,6 +971,20 @@ class AzurPilotRepository(
                 error = it.optText("error").orEmpty(),
             )
         }
+        // 同步运行时的远程访问与局域网控制状态到 App 偏好，防止外部或 WebUI 的配置在下次重启时被还原
+        remote?.let {
+            if (settings.remoteAccessEnabled.value != it.enabled) {
+                settings.setRemoteAccessEnabled(it.enabled)
+            }
+        }
+        val webuiGroup = groups.firstOrNull { it.key == "Webui" }
+        val webuiHost = webuiGroup?.fields?.firstOrNull { it.key == "WebuiHost" }?.value as? String
+        if (webuiHost != null) {
+            val lanEnabled = webuiHost == "0.0.0.0" || webuiHost == "::"
+            if (settings.lanControlEnabled.value != lanEnabled) {
+                settings.setLanControlEnabled(lanEnabled)
+            }
+        }
         return AzurPilotDeploySettings(
             groups = groups,
             notice = data.optString("notice"),
