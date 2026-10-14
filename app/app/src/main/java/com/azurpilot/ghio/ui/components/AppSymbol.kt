@@ -53,6 +53,8 @@ import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.ksu.AppIcon
 import com.azurpilot.ghio.ui.ksu.AppText
 import kotlinx.coroutines.yield
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * 传递宿主按钮的点击序号，使子图标无需单独点击区域即可播放反馈。
@@ -144,12 +146,14 @@ enum class AppSymbol(@param:RawRes val animationRes: Int, val fallback: ImageVec
  * 在主线程绘制随主题着色的 useAnimations 图标；触发值变化播放一次，循环只用于忙碌状态。
  *
  * 初始与关闭动画时保留完整静态图形。进度只在绘制阶段读取，离开前台停止播放；快速切换
- * 从当前进度继续。图标默认装饰性，独立图标按钮由调用方提供无障碍名称。
+ * 从当前进度继续，并按剩余距离使用资源自身时长。系统时长缩放由 Compose 应用一次。
+ * 图标默认装饰性，独立图标按钮由调用方提供无障碍名称。
  *
  * Draws themed useAnimations icons on main. Trigger changes play once; loops indicate busy states.
  * Initial and reduced-motion states retain a complete static glyph. Progress is read during draw,
- * background playback stops, and rapid changes continue from the current progress. Icons are
- * decorative by default; standalone icon buttons supply an accessibility label.
+ * background playback stops, and rapid changes use the remaining distance at the asset's native
+ * duration. Compose applies system duration scaling once. Icons are decorative by default;
+ * standalone icon buttons supply an accessibility label.
  */
 @Composable
 fun AppSymbolIcon(
@@ -174,22 +178,26 @@ fun AppSymbolIcon(
         val changed = previousKey != animationKey || previousActive != active
         previousKey = animationKey
         previousActive = active
-        if (composition == null) return@LaunchedEffect
+        val loaded = composition ?: return@LaunchedEffect
+        val durationMillis = loaded.duration.roundToInt().coerceAtLeast(1)
         if (!motionAllowed) {
             progress.snapTo(if (active == true) 1f else 0f)
         } else if (loop) {
             while (true) {
                 progress.snapTo(0f)
-                progress.animateTo(1f, tween(1200, easing = LinearEasing))
+                progress.animateTo(1f, tween(durationMillis, easing = LinearEasing))
                 // 动画缩放归零时让出主线程，确保设置观察器能及时取消循环。
                 yield()
             }
         } else if (changed) {
             if (active == null) {
                 progress.snapTo(0f)
-                progress.animateTo(1f, tween(280, easing = LinearEasing))
+                progress.animateTo(1f, tween(durationMillis, easing = LinearEasing))
             } else {
-                progress.animateTo(if (active) 1f else 0f, tween(280, easing = LinearEasing))
+                val target = if (active) 1f else 0f
+                val remainingMillis = (loaded.duration * abs(target - progress.value))
+                    .roundToInt().coerceAtLeast(1)
+                progress.animateTo(target, tween(remainingMillis, easing = LinearEasing))
             }
         }
     }
