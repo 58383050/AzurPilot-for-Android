@@ -42,7 +42,7 @@
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_hint">Switching language reloads the project; unavailable while running</string>
-    <string name="settings_about_description">AzurPilot Android brings AzurPilot to Android, with run controls, a virtual display preview, a native in-app interface, and logs. It supports arm64-v8a and x86_64 devices; the app and Runtime update separately, with multi-mirror multi-threaded Runtime downloads.</string>
+    <string name="settings_about_description">AzurPilot for Android brings AzurPilot to Android, with run controls, a virtual display preview, a native in-app interface, and logs. It supports arm64-v8a and x86_64 devices; the app and Runtime update separately, with multi-mirror multi-threaded Runtime downloads.</string>
     <string name="settings_version">Version</string>
     <string name="settings_build">Build</string>
     <string name="settings_project">Project</string>
@@ -251,7 +251,7 @@
     <string name="log_export_running">Packing…</string>
     <string name="log_export_failed">Export failed: nothing to export</string>
     <string name="log_export_saved">Saved as %1$s</string>
-    <string name="log_export_subject">AzurPilot Android logs</string>
+    <string name="log_export_subject">AzurPilot for Android logs</string>
 
     <!-- Settings "Logs" group entries -->
     <string name="settings_log_launcher_desc">View launcher run logs and crash records</string>
@@ -302,7 +302,7 @@
     <string name="provision_source_cnb">CNB China (recommended)</string>
     <string name="provision_source_custom">Custom</string>
     <string name="provision_source_desc">Pick a built-in mirror or set a custom prefix in Settings; switching restarts the download right away</string>
-    <string name="app_update_title">AzurPilot Android update</string>
+    <string name="app_update_title">AzurPilot for Android update</string>
     <string name="app_update_message">App version %1$s is ready. Your app data and installed Runtime will be preserved.</string>
     <string name="app_update_downloading">Downloading the APK…</string>
     <string name="app_update_verifying">Verifying the APK…</string>

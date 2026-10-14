@@ -356,7 +356,7 @@ class CnbClient:
         if tag != RELEASE_TAG:
             raise ValueError("CNB publication must use the fixed latest tag")
         metadata = {
-            "name": f"AzurPilot Android {manifest['versionName']}",
+            "name": f"AzurPilot for Android {manifest['versionName']}",
             "body": "GitHub Actions 构建并校验，同一批产物同步到 CNB。\n\n"
                     "Built and verified by GitHub Actions; the same artifacts are mirrored to CNB.\n\n"
                     f"- Android: `{manifest['androidHostCommit']}`\n"

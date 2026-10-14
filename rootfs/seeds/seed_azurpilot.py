@@ -86,7 +86,7 @@ def main() -> None:
         'OcrBackend': 'onnxruntime',
     })
     target.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print('Seeded AzurPilot Android instance')
+    print('Seeded AzurPilot for Android instance')
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AzurPilot Android 虚拟屏专用性能基准测试与诊断套件。
+"""AzurPilot for Android 虚拟屏专用性能基准测试与诊断套件。
 
 本工具用于全方位评估 AzurPilot 在 Android 虚拟屏（azurpilot_android 架构）下的
 运行性能与通信开销，涵盖：
@@ -345,7 +345,7 @@ class VirtualDisplayBenchmarkSuite:
         if HAS_RICH:
             console = Console()
             table = Table(
-                title="AzurPilot Android 虚拟屏性能综合评测报告",
+                title="AzurPilot for Android 虚拟屏性能综合评测报告",
                 show_lines=True,
                 header_style="bold bright_cyan",
             )
@@ -426,7 +426,7 @@ class VirtualDisplayBenchmarkSuite:
             console.print()
         else:
             print("\n" + "=" * 78)
-            print("         AzurPilot Android 虚拟屏性能综合评测报告")
+            print("         AzurPilot for Android 虚拟屏性能综合评测报告")
             print("=" * 78)
             print(f"[*] Bridge Ping RTT     : {ping['mean_ms']:6.2f} ms  [{ping_rating}]")
             print(f"[*] Screencap Latency   : {sc['mean_ms']:6.2f} ms  [{sc_rating}]")
@@ -484,7 +484,7 @@ def run_alas_benchmark_mode(rounds: int = 15) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="AzurPilot Android 虚拟屏专项性能评测工具")
+    parser = argparse.ArgumentParser(description="AzurPilot for Android 虚拟屏专项性能评测工具")
     parser.add_argument("--host", default="127.0.0.1", help="特权桥监听地址 (默认 127.0.0.1)")
     parser.add_argument("--port", type=int, default=22301, help="特权桥端口 (默认 22301)")
     parser.add_argument("--rounds", type=int, default=15, help="评测轮数 (默认 15 次)")

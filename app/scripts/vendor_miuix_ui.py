@@ -48,7 +48,7 @@ def main():
                         text = text.replace("smoothing: Float)", "smoothing: Float = 0.15f)")
                     changed = True
                 if changed:
-                    text = "// Adapted for AzurPilot Android: merged platform declarations for JVM 17.\n" + text.rstrip() + "\n"
+                    text = "// Adapted for AzurPilot for Android: merged platform declarations for JVM 17.\n" + text.rstrip() + "\n"
                 output = target / "src/main/kotlin" / path.relative_to(base)
                 output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_text(text, encoding="utf-8")

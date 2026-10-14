@@ -1,4 +1,4 @@
-name: AzurPilot Android build
+name: AzurPilot for Android build
 
 on:
   push:
@@ -575,7 +575,7 @@ jobs:
           PY
           gh release view azurpilot-android-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create azurpilot-android-latest --repo "$GITHUB_REPOSITORY" --draft \
-              --title 'AzurPilot Android 自动构建' \
+              --title 'AzurPilot for Android 自动构建' \
               --notes '每 30 分钟检查 AzurPilot dev 更新；更新后按架构构建 rootfs 与两种签名 APK。'
           assets=(latest.json rootfs-arm64-v8a.tar.xz rootfs-x86_64.tar.xz BUILD_MANIFEST-arm64-v8a.json BUILD_MANIFEST-x86_64.json)
           # 预构建前端资产与 ABI 无关，任取一份（arm64）。命名带上游提交，运行时

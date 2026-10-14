@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 构建 AzurPilot Android rootfs（CI 用：rootfs.yml 的 build job 调用，也可本地手动执行）。
+# 构建 AzurPilot for Android rootfs（CI 用：rootfs.yml 的 build job 调用，也可本地手动执行）。
 # 目标架构由 AZURPILOT_ABI 决定：
 #   arm64-v8a（默认）→ Ubuntu arm64 base，需原生 ARM64 runner（ubuntu-24.04-arm）
 #   x86_64           → Ubuntu amd64 base，需原生 x86_64 runner（ubuntu-24.04）
@@ -8,7 +8,7 @@
 #   UBUNTU_BASE / WORK_DIR / DIST_DIR / ROOTFS_EXECUTOR（chroot 默认，或 proot）；
 #   需要 uv；Node.js/npm 内置于 guest；chroot 需要 root，proot 不需要挂载权限。
 #
-# Builds the AzurPilot Android rootfs. Invoked by the build job of the rootfs.yml
+# Builds the AzurPilot for Android rootfs. Invoked by the build job of the rootfs.yml
 # CI workflow; can also be run manually. The target architecture comes from
 # AZURPILOT_ABI:
 #   arm64-v8a (default) -> Ubuntu arm64 base, needs a native ARM64 runner

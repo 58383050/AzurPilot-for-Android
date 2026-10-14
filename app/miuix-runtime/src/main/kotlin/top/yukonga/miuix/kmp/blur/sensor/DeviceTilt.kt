@@ -1,4 +1,4 @@
-// Adapted for AzurPilot Android: merged platform declarations for JVM 17.
+// Adapted for AzurPilot for Android: merged platform declarations for JVM 17.
 // Copyright 2026, compose-miuix-ui contributors
 // SPDX-License-Identifier: Apache-2.0
 

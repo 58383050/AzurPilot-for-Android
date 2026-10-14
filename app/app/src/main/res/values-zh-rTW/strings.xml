@@ -42,7 +42,7 @@
     <string name="settings_theme_dark">深色</string>
     <string name="settings_language">語言</string>
     <string name="settings_language_hint">切換語言會重新載入專案，執行期間無法切換</string>
-    <string name="settings_about_description">AzurPilot Android 是 AzurPilot 的 Android 用戶端。它提供掛機控制、虛擬螢幕預覽、應用程式內原生介面與日誌檢視，支援 arm64-v8a 與 x86_64 裝置；App 與 Runtime 分開更新，Runtime 下載支援多鏡像與多執行緒。</string>
+    <string name="settings_about_description">AzurPilot for Android 是 AzurPilot 的 Android 用戶端。它提供掛機控制、虛擬螢幕預覽、應用程式內原生介面與日誌檢視，支援 arm64-v8a 與 x86_64 裝置；App 與 Runtime 分開更新，Runtime 下載支援多鏡像與多執行緒。</string>
     <string name="settings_version">版本</string>
     <string name="settings_build">建置</string>
     <string name="settings_project">專案</string>
@@ -244,7 +244,7 @@
     <string name="log_export_running">正在封裝…</string>
     <string name="log_export_failed">匯出失敗：沒有可匯出的日誌</string>
     <string name="log_export_saved">已儲存為 %1$s</string>
-    <string name="log_export_subject">AzurPilot Android 日誌</string>
+    <string name="log_export_subject">AzurPilot for Android 日誌</string>
 
     <!-- 設定頁「日誌」分組入口 -->
     <string name="settings_log_launcher_desc">檢視啟動器執行日誌與當機記錄</string>
@@ -295,7 +295,7 @@
     <string name="provision_source_cnb">CNB 中國大陸來源（推薦）</string>
     <string name="provision_source_custom">自訂</string>
     <string name="provision_source_desc">可從內建鏡像中選擇，或在設定裡填自訂前綴；切換後會立即重新下載</string>
-    <string name="app_update_title">AzurPilot Android 有新版本</string>
+    <string name="app_update_title">AzurPilot for Android 有新版本</string>
     <string name="app_update_message">App 版本 %1$s 已就緒，安裝後會保留 App 資料與已安裝的 Runtime。</string>
     <string name="app_update_downloading">正在下載安裝套件…</string>
     <string name="app_update_verifying">正在驗證安裝套件…</string>

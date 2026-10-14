@@ -88,7 +88,7 @@ class FakeApi:
         elif method == "PATCH":
             body = json.loads(request.data)
             assert body["draft"] is False and body["make_latest"] == "true"
-            assert body["name"].startswith("AzurPilot Android ") and not body["prerelease"]
+            assert body["name"].startswith("AzurPilot for Android ") and not body["prerelease"]
             assert self.confirmed == set(self.files)
             self.existing.update(body)
             result = None
@@ -309,7 +309,7 @@ class CnbReleaseTest(unittest.TestCase):
         api.existing = {"id": "release-1", "tag_name": self.tag, "draft": False}
         cnb.CnbClient("test-access-token", cnb.CNB_REPOSITORY, api).publish(self.output, mirror, self.tag)
         self.assertFalse(any(method == "PUT" for method, _, _ in api.requests))
-        self.assertEqual(api.existing["name"], "AzurPilot Android 1.3.0")
+        self.assertEqual(api.existing["name"], "AzurPilot for Android 1.3.0")
 
     def test_public_fixed_release_can_replace_old_assets_and_commits_index_last(self):
         mirror = self.prepare()

@@ -1,7 +1,7 @@
 # Android 虚拟屏性能基准测试与诊断 / Android Virtual Display Benchmarking and Diagnostics
 
-> 本文说明 AzurPilot Android 虚拟屏性能基准测试体系、核心性能指标与诊断工具的使用方法。
-> This document describes the Android virtual display benchmarking architecture, core performance metrics, and usage of diagnostic tools for AzurPilot.
+> 本文说明 AzurPilot for Android 虚拟屏性能基准测试体系、核心性能指标与诊断工具的使用方法。
+> This document describes the Android virtual display benchmarking architecture, core performance metrics, and usage of diagnostic tools for AzurPilot for Android.
 
 ## 中文
 

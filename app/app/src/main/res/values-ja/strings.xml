@@ -42,7 +42,7 @@
     <string name="settings_theme_dark">ダーク</string>
     <string name="settings_language">言語</string>
     <string name="settings_language_hint">言語を切り替えるとプロジェクトが再読み込みされます。実行中は切り替えられません</string>
-    <string name="settings_about_description">AzurPilot Android は AzurPilot の Android クライアントです。放置運転の操作、仮想ディスプレイのプレビュー、アプリ内ネイティブ UI、ログ閲覧を提供し、arm64-v8a / x86_64 デバイスに対応します。アプリと Runtime は別々に更新され、Runtime のダウンロードはマルチミラー・マルチスレッド対応です。</string>
+    <string name="settings_about_description">AzurPilot for Android は AzurPilot の Android クライアントです。放置運転の操作、仮想ディスプレイのプレビュー、アプリ内ネイティブ UI、ログ閲覧を提供し、arm64-v8a / x86_64 デバイスに対応します。アプリと Runtime は別々に更新され、Runtime のダウンロードはマルチミラー・マルチスレッド対応です。</string>
     <string name="settings_version">バージョン</string>
     <string name="settings_build">ビルド</string>
     <string name="settings_project">プロジェクト</string>
@@ -244,7 +244,7 @@
     <string name="log_export_running">パッケージング中…</string>
     <string name="log_export_failed">書き出しに失敗：書き出せるログがありません</string>
     <string name="log_export_saved">%1$s として保存しました</string>
-    <string name="log_export_subject">AzurPilot Android のログ</string>
+    <string name="log_export_subject">AzurPilot for Android のログ</string>
 
     <!-- 設定画面「ログ」グループの入口 -->
     <string name="settings_log_launcher_desc">ランチャーの実行ログとクラッシュ記録を表示</string>
@@ -295,7 +295,7 @@
     <string name="provision_source_cnb">CNB 中国向け（推奨）</string>
     <string name="provision_source_custom">カスタム</string>
     <string name="provision_source_desc">内蔵ミラーから選ぶか、設定でカスタム prefix を入力できます。切り替えるとすぐにダウンロードをやり直します</string>
-    <string name="app_update_title">AzurPilot Android の新しいバージョン</string>
+    <string name="app_update_title">AzurPilot for Android の新しいバージョン</string>
     <string name="app_update_message">アプリのバージョン %1$s を利用できます。インストールしてもアプリのデータとインストール済み Runtime は保持されます。</string>
     <string name="app_update_downloading">インストールパッケージをダウンロード中…</string>
     <string name="app_update_verifying">インストールパッケージを検証中…</string>
