@@ -73,7 +73,6 @@
     <string name="community_warning_message">严禁在 AzurPilot 仓库（wess09/AzurPilot）\n以及在非 AzurPilot for Android QQ 群内反馈或咨询任何问题\n包括 AzurPilot QQ 群\n\n违者永久踢出相应群聊 GitHub 永久拉黑</string>
     <string name="community_warning_confirm_read">我已阅读并理解</string>
     <string name="community_warning_continue">继续</string>
-    <string name="community_warning_continue_countdown">继续 (%1$ds)</string>
     <string name="settings_hot_update">热更新</string>
     <string name="settings_hot_update_desc">只更新源码和页面资源，不重装运行时；更新中任务会先停止，完成后自动恢复。</string>
     <string name="settings_hot_update_check">检查更新</string>
@@ -897,4 +896,82 @@
     <string name="status_starting">启动中</string>
     <string name="status_running">运行中</string>
     <string name="status_stopping">停止中</string>
+
+    <!-- OOBE 开箱即用体验引导向导 -->
+    <string name="oobe_step_welcome">欢迎</string>
+    <string name="oobe_priv_status_root_unavailable">未检测到 Root，请使用无线调试</string>
+    <string name="oobe_priv_requesting">正在请求授权…</string>
+    <string name="oobe_priv_grant_failed">未获得授权，请检查权限后重试，或稍后配置。</string>
+    <string name="oobe_ready_summary_style">界面风格：%1$s</string>
+    <string name="oobe_ready_pending_title">设置已保存</string>
+    <string name="oobe_ready_pending_subtitle">运行权限还可稍后配置。</string>
+    <string name="oobe_step_preferences">外观</string>
+    <string name="oobe_step_privileged">权限</string>
+    <string name="oobe_step_tutorial">使用提示</string>
+    <string name="oobe_step_ready">完成</string>
+    <string name="oobe_action_next">下一步</string>
+    <string name="oobe_action_prev">上一步</string>
+    <string name="oobe_action_skip">稍后配置</string>
+    <string name="oobe_action_start">开始使用</string>
+    <string name="oobe_progress_format">第 %1$d 步，共 %2$d 步</string>
+    <string name="settings_reopen_oobe">首次启动向导</string>
+    <string name="settings_reopen_oobe_summary">重新查看新手教程与初始化配置向导</string>
+
+    <string name="oobe_welcome_title">欢迎使用\nAzurPilot</string>
+    <string name="oobe_welcome_subtitle">先完成几项简单设置。</string>
+    <string name="oobe_welcome_features_title">基本功能</string>
+    <string name="oobe_welcome_feature_local">本地运行：任务与配置保存在本机。</string>
+    <string name="oobe_welcome_feature_vd">独立虚拟屏：运行任务时可继续使用设备。</string>
+    <string name="oobe_welcome_guidelines_title">协议与条款</string>
+    <string name="oobe_welcome_guidelines_desc">请阅读使用协议、隐私政策和开源许可，了解使用风险与数据处理方式。</string>
+    <string name="oobe_welcome_guidelines_acknowledged">你已确认使用协议与隐私政策，可随时在此查看全文。</string>
+    <string name="oobe_welcome_guidelines_accept">我已阅读并同意使用协议与隐私政策</string>
+
+    <string name="oobe_pref_title">选择外观</string>
+    <string name="oobe_pref_subtitle">选择界面风格和主题，之后可在设置中更改。</string>
+    <string name="oobe_pref_lang_title">界面语言</string>
+    <string name="oobe_pref_theme_title">主题模式</string>
+    <string name="oobe_pref_theme_system">跟随系统</string>
+    <string name="oobe_pref_theme_light">浅色</string>
+    <string name="oobe_pref_theme_dark">深色</string>
+    <string name="oobe_pref_monet_title">壁纸配色</string>
+    <string name="oobe_pref_monet_desc">使用系统壁纸的颜色。</string>
+
+    <string name="oobe_priv_title">设置运行权限</string>
+    <string name="oobe_priv_subtitle">允许应用在独立屏幕中运行，并执行你配置的操作。</string>
+    <string name="oobe_priv_mode_title">授权方式</string>
+    <string name="oobe_priv_mode_shizuku">Shizuku（推荐）</string>
+    <string name="oobe_priv_mode_root">Root</string>
+    <string name="oobe_priv_status_ready">运行权限已就绪</string>
+    <string name="oobe_priv_status_need_auth">等待授权</string>
+    <string name="oobe_priv_status_not_running">权限服务未连接</string>
+    <string name="oobe_priv_action_auth">立即授权</string>
+    <string name="oobe_priv_action_pair">配置无线调试</string>
+    <string name="oobe_priv_action_root">请求 Root 权限</string>
+    <string name="oobe_priv_delegate_note">连接后，应用会协助配置悬浮窗和后台运行权限。</string>
+    <string name="oobe_priv_skip_tip">也可以稍后在主页设置。</string>
+
+    <string name="oobe_tut_title">快速上手</string>
+    <string name="oobe_tut_subtitle">了解几个常用操作。</string>
+    <string name="oobe_tut_vd_title">独立屏幕</string>
+    <string name="oobe_tut_vd_desc">任务独立运行，不影响继续使用手机。</string>
+    <string name="oobe_tut_task_title">任务管理</string>
+    <string name="oobe_tut_task_desc">在主页启停任务，运行前检查任务设置。</string>
+    <string name="oobe_tut_overlay_title">悬浮控制</string>
+    <string name="oobe_tut_overlay_desc">点悬浮球打开面板，查看状态或启停任务。</string>
+    <string name="oobe_tut_saver_title">息屏模式</string>
+    <string name="oobe_tut_saver_desc">低亮界面减少误触，拖动滑块即可返回。</string>
+
+    <string name="oobe_ready_title">设置完成</string>
+    <string name="oobe_ready_subtitle">可以开始使用应用。</string>
+    <string name="oobe_ready_summary_title">设置概览</string>
+    <string name="oobe_ready_summary_lang">语言：%1$s</string>
+    <string name="oobe_ready_summary_theme">主题：%1$s</string>
+    <string name="oobe_ready_summary_priv">运行权限：%1$s</string>
+    <string name="oobe_ready_launch_note">若本机还没有运行环境，下一步会下载或解压约 1GB 文件。请保持应用在前台。</string>
+    <string name="oobe_legal_terms">使用协议与免责声明</string>
+    <string name="oobe_legal_privacy">隐私政策</string>
+    <string name="oobe_legal_agpl">AGPL-3.0 开源协议</string>
+    <string name="oobe_legal_agpl_note">以下为 AGPL-3.0 完整英文原文，包含全部条款及末尾的应用说明。软件权利以适用的开源许可证为准。</string>
+    <string name="oobe_legal_risk">自动操作可能导致游戏资源损失、误购买或账号封禁。软件不保证运行结果；法律规定不能免除的责任不受影响。</string>
 </resources>

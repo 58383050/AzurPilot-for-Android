@@ -9,6 +9,9 @@ import com.aliothmoon.preferences.PrefSchema
  */
 private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 
+/** 当前使用协议及隐私政策的版本。 / Current terms and privacy-policy version. */
+const val CURRENT_LEGAL_NOTICE_VERSION = "2026-10-14"
+
 /**
  * app 级设置，与 `UserConfiguration` 分开存
  *
@@ -173,10 +176,10 @@ data class AppSettings(
     @PrefKey(default = "false") val compatNoticeShown: String = "false",
 
     /**
-     * 社区规范与免责警告弹窗是否已确认（必须勾选已阅读并强制展示 10 秒后点击继续）； 确认后落盘，关闭后不再弹出
+     * 社区规范与免责警告弹窗是否已确认（勾选已阅读后点击继续）；确认后落盘，关闭后不再弹出。
      *
      * Whether the community guidelines warning dialog has been acknowledged (must check
-     * read-and-understood and wait for 10-second countdown before tapping continue); persisted once
+     * read-and-understood before tapping continue); persisted once
      * acknowledged, never shown again.
      */
     @PrefKey(default = "false") val communityNoticeAcknowledged: String = "false",
@@ -224,4 +227,14 @@ data class AppSettings(
      * to 08:00.
      */
     @PrefKey(default = "8") val autoUpdateHour: String = "8",
+
+    /**
+     * 开箱即用体验（OOBE / 首次启动引导向导）是否已完成。
+     *
+     * Whether the out-of-box experience (OOBE / initial setup wizard) has been completed.
+     */
+    @PrefKey(default = "false") val oobeCompleted: String = "false",
+
+    /** 实际确认的协议版本；旧社区提示不能代替确认。 / Acknowledged legal version, independent of the old community notice. */
+    @PrefKey(default = "") val legalNoticeVersion: String = "",
 )

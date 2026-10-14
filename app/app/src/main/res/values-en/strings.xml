@@ -73,7 +73,6 @@
     <string name="community_warning_message">Do NOT report issues or ask questions in the upstream AzurPilot repository (wess09/AzurPilot) or in non-AzurPilot for Android QQ groups (including upstream AzurPilot QQ groups).\n\nViolators will be permanently removed from related groups and blocked on GitHub.</string>
     <string name="community_warning_confirm_read">I have read and understood</string>
     <string name="community_warning_continue">Continue</string>
-    <string name="community_warning_continue_countdown">Continue (%1$ds)</string>
     <string name="settings_hot_update">Hot update</string>
     <string name="settings_hot_update_desc">Updates source and web assets only, never reinstalls the runtime; running tasks stop first and resume afterwards.</string>
     <string name="settings_hot_update_check">Check for updates</string>
@@ -898,4 +897,82 @@
     <string name="status_starting">Starting</string>
     <string name="status_running">Running</string>
     <string name="status_stopping">Stopping</string>
+
+    <!-- OOBE Setup Wizard -->
+    <string name="oobe_step_welcome">Welcome</string>
+    <string name="oobe_priv_status_root_unavailable">Root unavailable. Use wireless debugging.</string>
+    <string name="oobe_priv_requesting">Requesting access…</string>
+    <string name="oobe_priv_grant_failed">Access was not granted. Check permissions and try again, or configure later.</string>
+    <string name="oobe_ready_summary_style">Interface style: %1$s</string>
+    <string name="oobe_ready_pending_title">Settings saved</string>
+    <string name="oobe_ready_pending_subtitle">You can finish permission setup later.</string>
+    <string name="oobe_step_preferences">Appearance</string>
+    <string name="oobe_step_privileged">Permissions</string>
+    <string name="oobe_step_tutorial">Tips</string>
+    <string name="oobe_step_ready">Complete</string>
+    <string name="oobe_action_next">Next</string>
+    <string name="oobe_action_prev">Previous</string>
+    <string name="oobe_action_skip">Configure later</string>
+    <string name="oobe_action_start">Get started</string>
+    <string name="oobe_progress_format">Step %1$d of %2$d</string>
+    <string name="settings_reopen_oobe">Setup wizard</string>
+    <string name="settings_reopen_oobe_summary">Revisit the initial setup wizard and beginner guide</string>
+
+    <string name="oobe_welcome_title">Welcome to\nAzurPilot</string>
+    <string name="oobe_welcome_subtitle">Let’s set up a few basics.</string>
+    <string name="oobe_welcome_features_title">Basic features</string>
+    <string name="oobe_welcome_feature_local">Local operation: tasks and configuration are stored on this device.</string>
+    <string name="oobe_welcome_feature_vd">Virtual display: keep using your device while tasks run.</string>
+    <string name="oobe_welcome_guidelines_title">Terms and agreements</string>
+    <string name="oobe_welcome_guidelines_desc">Read the terms, privacy policy and open-source license to understand the risks and data processing.</string>
+    <string name="oobe_welcome_guidelines_acknowledged">You have acknowledged the terms and privacy policy. You can read them here at any time.</string>
+    <string name="oobe_welcome_guidelines_accept">I have read and agree to the terms and privacy policy</string>
+
+    <string name="oobe_pref_title">Make it yours</string>
+    <string name="oobe_pref_subtitle">Choose an interface and theme. You can change them later in Settings.</string>
+    <string name="oobe_pref_lang_title">Interface Language</string>
+    <string name="oobe_pref_theme_title">Theme Mode</string>
+    <string name="oobe_pref_theme_system">Follow system</string>
+    <string name="oobe_pref_theme_light">Light</string>
+    <string name="oobe_pref_theme_dark">Dark</string>
+    <string name="oobe_pref_monet_title">Wallpaper colors</string>
+    <string name="oobe_pref_monet_desc">Use colors from your system wallpaper.</string>
+
+    <string name="oobe_priv_title">Set up permissions</string>
+    <string name="oobe_priv_subtitle">Allow the app to run on a separate screen and carry out the actions you configure.</string>
+    <string name="oobe_priv_mode_title">Authorization method</string>
+    <string name="oobe_priv_mode_shizuku">Shizuku (recommended)</string>
+    <string name="oobe_priv_mode_root">Root</string>
+    <string name="oobe_priv_status_ready">Permissions are ready</string>
+    <string name="oobe_priv_status_need_auth">Waiting for authorization</string>
+    <string name="oobe_priv_status_not_running">Permission service is disconnected</string>
+    <string name="oobe_priv_action_auth">Authorize Now</string>
+    <string name="oobe_priv_action_pair">Configure Wireless Debugging</string>
+    <string name="oobe_priv_action_root">Request Root</string>
+    <string name="oobe_priv_delegate_note">Once connected, the app helps configure floating windows and background permissions.</string>
+    <string name="oobe_priv_skip_tip">You can also set this up later on the home screen.</string>
+
+    <string name="oobe_tut_title">Getting started</string>
+    <string name="oobe_tut_subtitle">Learn a few common actions.</string>
+    <string name="oobe_tut_vd_title">Separate screen</string>
+    <string name="oobe_tut_vd_desc">Tasks run separately while you use your phone.</string>
+    <string name="oobe_tut_task_title">Task management</string>
+    <string name="oobe_tut_task_desc">Check settings, then start or stop tasks on Home.</string>
+    <string name="oobe_tut_overlay_title">Floating controls</string>
+    <string name="oobe_tut_overlay_desc">Tap the floating ball for status and task controls.</string>
+    <string name="oobe_tut_saver_title">Dim screen mode</string>
+    <string name="oobe_tut_saver_desc">Reduce accidental touches. Drag the slider to return.</string>
+
+    <string name="oobe_ready_title">Setup complete</string>
+    <string name="oobe_ready_subtitle">You can start using the app.</string>
+    <string name="oobe_ready_summary_title">Your settings</string>
+    <string name="oobe_ready_summary_lang">Language: %1$s</string>
+    <string name="oobe_ready_summary_theme">Theme: %1$s</string>
+    <string name="oobe_ready_summary_priv">Permissions: %1$s</string>
+    <string name="oobe_ready_launch_note">If the runtime is not installed, the next step downloads or extracts about 1 GB of files. Keep the app in the foreground.</string>
+    <string name="oobe_legal_terms">Terms of use and disclaimer</string>
+    <string name="oobe_legal_privacy">Privacy policy</string>
+    <string name="oobe_legal_agpl">AGPL-3.0 license</string>
+    <string name="oobe_legal_agpl_note">The complete original English AGPL-3.0 follows, including every section and its application instructions. Software rights are governed by the applicable open-source license.</string>
+    <string name="oobe_legal_risk">Automation may cause loss of game resources, unintended purchases or account bans. Results are not guaranteed. Liability that cannot legally be waived is unaffected.</string>
 </resources>

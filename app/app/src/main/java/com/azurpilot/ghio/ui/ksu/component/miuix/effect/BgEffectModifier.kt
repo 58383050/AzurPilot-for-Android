@@ -9,7 +9,7 @@ package com.azurpilot.ghio.ui.ksu.component.miuix.effect
 import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -29,7 +29,6 @@ internal fun Modifier.bgEffectDraw(
     effectBackground: Boolean,
     isFullSize: Boolean,
     playing: Boolean,
-    colorStage: () -> Float,
     alpha: () -> Float,
 ): Modifier = this then BgEffectElement(
     painter = painter,
@@ -40,7 +39,6 @@ internal fun Modifier.bgEffectDraw(
     effectBackground = effectBackground,
     isFullSize = isFullSize,
     playing = playing,
-    colorStage = colorStage,
     alpha = alpha,
 )
 
@@ -54,7 +52,6 @@ private data class BgEffectElement(
     val effectBackground: Boolean,
     val isFullSize: Boolean,
     val playing: Boolean,
-    val colorStage: () -> Float,
     val alpha: () -> Float,
 ) : ModifierNodeElement<BgEffectNode>() {
 
@@ -67,7 +64,6 @@ private data class BgEffectElement(
         effectBackground = effectBackground,
         isFullSize = isFullSize,
         playing = playing,
-        colorStage = colorStage,
         alpha = alpha,
     )
 
@@ -81,7 +77,6 @@ private data class BgEffectElement(
             effectBackground = effectBackground,
             isFullSize = isFullSize,
             playing = playing,
-            colorStage = colorStage,
             alpha = alpha,
         )
     }
@@ -96,7 +91,6 @@ private class BgEffectNode(
     private var effectBackground: Boolean,
     private var isFullSize: Boolean,
     private var playing: Boolean,
-    private var colorStage: () -> Float,
     private var alpha: () -> Float,
 ) : Modifier.Node(),
     DrawModifierNode {
@@ -123,7 +117,6 @@ private class BgEffectNode(
         effectBackground: Boolean,
         isFullSize: Boolean,
         playing: Boolean,
-        colorStage: () -> Float,
         alpha: () -> Float,
     ) {
         this.painter = painter
@@ -133,7 +126,6 @@ private class BgEffectNode(
         this.surface = surface
         this.effectBackground = effectBackground
         this.isFullSize = isFullSize
-        this.colorStage = colorStage
         this.alpha = alpha
 
         if (this.playing != playing) {
@@ -152,13 +144,10 @@ private class BgEffectNode(
         animationJob?.cancel()
         startOffset = animTime
         animationJob = coroutineScope.launch {
-            val minDeltaNanos = 1_000_000_000L / 60L
-            val origin = withFrameNanos { it }
-            var lastEmit = origin
+            val origin = withInfiniteAnimationFrameNanos { it }
             while (isActive) {
-                val now = withFrameNanos { it }
-                if (now - lastEmit < minDeltaNanos) continue
-                lastEmit = now
+                val now = withInfiniteAnimationFrameNanos { it }
+                // 帧时钟已经与屏幕同步；再次按 60 Hz 限流会因微小抖动漏掉整帧。
                 animTime = startOffset + (now - origin) / 1_000_000_000f
                 invalidateDraw()
             }
@@ -176,7 +165,7 @@ private class BgEffectNode(
                 painter.updateResolution(size.width, size.height)
                 painter.updateBoundIfNeeded(drawHeight, size.height, size.width)
                 painter.updatePresetIfNeeded(deviceType, isDarkTheme)
-                painter.updateColors(preset, colorStage())
+                painter.updateColors(preset, animTime / preset.colorInterpPeriod)
                 painter.updateAnimTime(animTime)
                 painter.updatePointsAnim(animTime, preset)
 

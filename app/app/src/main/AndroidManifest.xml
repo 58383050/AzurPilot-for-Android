@@ -103,7 +103,7 @@
         <uses-native-library android:name="libhiai_om.so" android:required="false" />
 
         <!--
-          小米澎湃OS 平板「工作台」无极窗口 2.0（窗口在范围内任意缩放，见 doc/xiaomi-workstation.md）
+          允许支持该能力的系统在范围内调整窗口尺寸，界面随窗口尺寸更新。
           走 property 而非 meta-data；ENABLED 只能挂在 application，MODE=1 全无极（2 竖无极 / 3 横无极），
           若某 activity 另配 MODE 则以该 activity 为准。全 UI 仅 MainActivity，其已按可任意缩放窗口设计
         -->

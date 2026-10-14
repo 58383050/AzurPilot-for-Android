@@ -17,7 +17,6 @@
 | [cnb-ci.md](cnb-ci.md) | GitHub 产物分发到 CNB Releases / Mirroring GitHub artifacts to CNB Releases |
 | [multi-arch.md](multi-arch.md) | 多架构支持：arm64 与 x86_64、CI 矩阵、限制 / Multi-architecture support: arm64 and x86_64, CI matrix, limitations |
 | [adb-e2e-testing.md](adb-e2e-testing.md) | ADB 全流程测试手册 / ADB end-to-end testing guide |
-| [xiaomi-workstation.md](xiaomi-workstation.md) | 小米澎湃OS「工作台」无极窗口 2.0 适配 / Xiaomi HyperOS Workstation (resizable windows 2.0) adaptation |
 | [comment-style.md](comment-style.md) | 注释规范：Google 风格基准 + 双语 KDoc 惯例 / Comment conventions: Google style baseline + bilingual KDoc rules |
 | [development-guide.md](development-guide.md) | 开发指南：环境、构建、调试、签名与发布 / Development guide: environment, build, debug, signing, and release |
 | [build-profiles.md](build-profiles.md) | 构建 Profile：PI 打包配方、身份覆盖与验证 / Build profiles: PI packaging recipes, identity overrides, and verification |

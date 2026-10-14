@@ -56,6 +56,7 @@ import com.azurpilot.ghio.provision.ProvisionState
 import com.azurpilot.ghio.provision.RootfsProvisioner
 import com.azurpilot.ghio.service.HostState
 import com.azurpilot.ghio.settings.AppSettingsManager
+import com.azurpilot.ghio.settings.CURRENT_LEGAL_NOTICE_VERSION
 import com.azurpilot.ghio.settings.SettingsIntent
 import com.azurpilot.ghio.settings.SettingsViewModel
 import com.azurpilot.ghio.theme.AzurPilotTheme
@@ -86,6 +87,7 @@ import top.yukonga.miuix.kmp.nav.core.LocalNavTransitionScope
 import com.azurpilot.ghio.ui.navigation.AppRoute
 import com.azurpilot.ghio.ui.navigation.rememberAppNavigator
 import com.azurpilot.ghio.ui.screen.ScreenPage
+import com.azurpilot.ghio.ui.oobe.OobeScreen
 import com.azurpilot.ghio.ui.settings.AboutSettingsPage
 import com.azurpilot.ghio.ui.settings.AdvancedSettingsPage
 import com.azurpilot.ghio.ui.settings.DeviceReportSettingsPage
@@ -234,6 +236,10 @@ fun AppRoot(
     // 必须等设置读盘完成，否则老用户会先看到默认 false 闪一下
     val communityNoticeAcknowledged by
         appSettings.communityNoticeAcknowledged.collectAsStateWithLifecycle()
+    val oobeCompleted by appSettings.oobeCompleted.collectAsStateWithLifecycle()
+    val legalNoticeVersion by appSettings.legalNoticeVersion.collectAsStateWithLifecycle()
+    var showOobePreview by rememberSaveable { mutableStateOf(false) }
+    val oobeVisible = settingsLoaded && (!oobeCompleted || showOobePreview)
     val compatNoticeShown by appSettings.compatNoticeShown.collectAsStateWithLifecycle()
     var compatNoticeDismissed by rememberSaveable { mutableStateOf(false) }
     var showCompatNoticeDialog by rememberSaveable { mutableStateOf(false) }
@@ -271,7 +277,7 @@ fun AppRoot(
             },
             modifier = Modifier.fillMaxSize(),
         ) {
-            if (!isAppLocked && settingsLoaded && !communityNoticeAcknowledged) {
+            if (!isAppLocked && settingsLoaded && !oobeVisible && !communityNoticeAcknowledged) {
                 CommunityWarningDialog(
                     onAcknowledge = {
                         scope.launch { appSettings.setCommunityNoticeAcknowledged(true) }
@@ -281,6 +287,7 @@ fun AppRoot(
 
             if (
                 !isAppLocked &&
+                    !oobeVisible &&
                     communityNoticeAcknowledged &&
                     provisionState is ProvisionState.Ready &&
                     fullUpdatePending &&
@@ -332,7 +339,7 @@ fun AppRoot(
                     applyingRuntimeUpdate = false
                 }
             }
-            if (!isAppLocked && communityNoticeAcknowledged) {
+            if (!isAppLocked && !oobeVisible && communityNoticeAcknowledged) {
                 appUpdateState.available
                     ?.takeUnless {
                         provisionState is ProvisionState.Ready &&
@@ -482,6 +489,7 @@ fun AppRoot(
                 showProvision,
                 isAppLocked,
                 settingsLoaded,
+                oobeVisible,
                 communityNoticeAcknowledged,
                 compatNoticeShown,
                 compatNoticeDismissed,
@@ -497,6 +505,7 @@ fun AppRoot(
                         !showProvision &&
                         !isAppLocked &&
                         settingsLoaded &&
+                        !oobeVisible &&
                         communityNoticeAcknowledged &&
                         !compatNoticeShown &&
                         !compatNoticeDismissed &&
@@ -515,7 +524,7 @@ fun AppRoot(
                 }
             }
 
-            if (showCompatNoticeDialog) {
+            if (showCompatNoticeDialog && !oobeVisible) {
                 val uriHandler = LocalUriHandler.current
                 var dontAskAgain by remember { mutableStateOf(false) }
                 AlertDialog(
@@ -595,8 +604,8 @@ fun AppRoot(
             // 桌面快捷方式的跳转请求：MainActivity 收到后登记到总线，这里消费。
             // 部署或应用锁挡住时保留请求，就绪后再跳转，避免在遮罩背后切换页面。
             val shortcutRequests: ShortcutRequests = koinInject()
-            LaunchedEffect(showProvision, isAppLocked) {
-                if (showProvision || isAppLocked) return@LaunchedEffect
+            LaunchedEffect(showProvision, isAppLocked, oobeVisible) {
+                if (showProvision || isAppLocked || oobeVisible) return@LaunchedEffect
                 shortcutRequests.requests.collect { id ->
                     when (id) {
                         ShortcutRequests.OPEN_SCREEN -> goToPage(TopDestination.Screen.ordinal)
@@ -606,19 +615,32 @@ fun AppRoot(
                 }
             }
 
-            // 内置启动或外部授权未就绪时显示引导。
-            ShizukuReadinessDialog(
-                readiness = readiness,
-                onOpenApp = { permissionManager.openShizuku(context) },
-                onRequestAuth = { scope.launch { permissionManager.requestRemoteAccess() } },
-                onDismiss = { scope.launch { permissionManager.skipShizukuCheck() } },
-                onSwitchToRoot = {
-                    settingsViewModel.onIntent(SettingsIntent.SetBackend(RemoteBackend.ROOT))
-                },
-                isRequesting = isGranting,
-            )
+            // 内置启动或外部授权未就绪时显示引导（仅在完成 OOBE 且非预览模式下）。
+            if (!isAppLocked && settingsLoaded && !oobeVisible) {
+                ShizukuReadinessDialog(
+                    readiness = readiness,
+                    onOpenApp = { permissionManager.openShizuku(context) },
+                    onRequestAuth = { scope.launch { permissionManager.requestRemoteAccess() } },
+                    onDismiss = { scope.launch { permissionManager.skipShizukuCheck() } },
+                    onSwitchToRoot = {
+                        settingsViewModel.onIntent(SettingsIntent.SetBackend(RemoteBackend.ROOT))
+                    },
+                    isRequesting = isGranting,
+                )
+            }
 
-            if (showProvision) {
+            val isOobeActive = !isAppLocked && settingsLoaded && !oobeCompleted
+            if (isOobeActive) {
+                OobeScreen(
+                    alreadyAcknowledged = legalNoticeVersion == CURRENT_LEGAL_NOTICE_VERSION,
+                    onComplete = {
+                        scope.launch {
+                            appSettings.completeOobe()
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else if (showProvision) {
                 ProvisionScreen(
                     state = provisionState,
                     onRetry = { provisioner.retry() },
@@ -690,6 +712,7 @@ fun AppRoot(
                                     state = settingsState,
                                     onOpenSection = { navigator.push(it.route) },
                                     onBack = { navigator.pop() },
+                                    onOpenOobe = { showOobePreview = true },
                                     modifier = Modifier.fillMaxSize().graphicsLayer {
                                         // Keep content clear during predictive preview; fade it
                                         // before the container becomes small on actual exit.
@@ -791,6 +814,7 @@ fun AppRoot(
                                     navigator.push(AppRoute.LicenseDetail(id))
                                 },
                                 onBack = { navigator.pop() },
+                                onOpenOobe = { showOobePreview = true },
                             )
                         }
                         entry<AppRoute.DeviceReport>(swipeDismiss = swipeDismiss) {
@@ -839,6 +863,15 @@ fun AppRoot(
                     onMessage = { message ->
                         scope.launch { snackbarHostState.showSnackbar(message) }
                     },
+                )
+            }
+
+            if (showOobePreview && !isAppLocked) {
+                OobeScreen(
+                    alreadyAcknowledged = true,
+                    onComplete = { showOobePreview = false },
+                    onDismiss = { showOobePreview = false },
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }

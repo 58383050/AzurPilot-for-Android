@@ -182,6 +182,16 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
     /** 社区规范与免责警告弹窗是否已确认 / Whether the community guidelines warning dialog has been acknowledged. */
     val communityNoticeAcknowledged: StateFlow<Boolean> = _communityNoticeAcknowledged.asStateFlow()
 
+    private val _oobeCompleted = MutableStateFlow(defaults.oobeCompleted.toBoolean())
+
+    /** 开箱即用体验（OOBE / 首次启动引导）是否已完成 / Whether the out-of-box experience (OOBE) has been completed. */
+    val oobeCompleted: StateFlow<Boolean> = _oobeCompleted.asStateFlow()
+
+    private val _legalNoticeVersion = MutableStateFlow(defaults.legalNoticeVersion)
+
+    /** 已确认的协议版本。 / The acknowledged legal-document version. */
+    val legalNoticeVersion: StateFlow<String> = _legalNoticeVersion.asStateFlow()
+
     private val _hotUpdateEnabled = MutableStateFlow(defaults.hotUpdateEnabled.toBoolean())
 
     /** 允许运行时热更新 / Whether runtime hot updates are allowed. */
@@ -241,6 +251,8 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
                 _appLockEnabled.value = s.appLockEnabled.toBoolean()
                 _compatNoticeShown.value = s.compatNoticeShown.toBoolean()
                 _communityNoticeAcknowledged.value = s.communityNoticeAcknowledged.toBoolean()
+                _oobeCompleted.value = s.oobeCompleted.toBoolean()
+                _legalNoticeVersion.value = s.legalNoticeVersion
                 _hotUpdateEnabled.value = s.hotUpdateEnabled.toBoolean()
                 _lanControlEnabled.value = s.lanControlEnabled.toBoolean()
                 _remoteAccessEnabled.value = s.remoteAccessEnabled.toBoolean()
@@ -366,6 +378,36 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
         with(AppSettingsSchema) {
             context.dataStore.edit { it[communityNoticeAcknowledged] = acknowledged.toString() }
         }
+
+    /**
+     * 写入「开箱即用体验已完成」标记。
+     *
+     * Writes the "out-of-box experience completed" flag.
+     */
+    suspend fun setOobeCompleted(completed: Boolean) =
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[oobeCompleted] = completed.toString() }
+        }
+
+    /** 保存确认版本，也用于撤回或恢复本地确认记录。 / Stores a legal version, including withdrawal or restoration of local acknowledgement. */
+    suspend fun setLegalNoticeVersion(version: String) =
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[legalNoticeVersion] = version }
+        }
+
+    /**
+     * 在一次事务中保存向导完成、协议版本与旧提示确认，避免首启状态不一致。
+     *
+     * Persists setup completion, legal version and legacy acknowledgement in one transaction, avoiding
+     * inconsistent first-run state after a restart.
+     */
+    suspend fun completeOobe() = with(AppSettingsSchema) {
+        context.dataStore.edit {
+            it[communityNoticeAcknowledged] = "true"
+            it[oobeCompleted] = "true"
+            it[legalNoticeVersion] = CURRENT_LEGAL_NOTICE_VERSION
+        }
+    }
 
     /** 写入「允许运行时热更新」 / Writes the "runtime hot updates allowed" flag. */
     suspend fun setHotUpdateEnabled(enabled: Boolean) =

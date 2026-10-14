@@ -23,7 +23,7 @@ internal class BgEffectPainter {
         }
     }
 
-    val brush: Brush get() = runtimeShader.asBrush()
+    val brush: Brush by lazy { runtimeShader.asBrush() }
 
     private val resolution = FloatArray(2)
     private val bound = FloatArray(4)
@@ -98,7 +98,8 @@ internal class BgEffectPainter {
         if (cachedColorsPreset === preset && cachedColorStage == stage) return
 
         val base = stage.toInt()
-        val fraction = stage - base
+        // 颜色沿同一帧时钟连续循环，余弦插值让每次换色的两端速度自然归零。
+        val fraction = (1f - cos((stage - base) * Math.PI).toFloat()) * .5f
         val start = colorsForCycleIndex(preset, base)
         val end = colorsForCycleIndex(preset, base + 1)
         for (i in 0 until 16) {

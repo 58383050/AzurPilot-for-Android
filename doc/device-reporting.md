@@ -23,9 +23,8 @@ ABI、主屏参数、约整 GiB 内存、App 版本、配置的 Shizuku/Root 后
 由 `app/scripts/build_device_catalog.py` 下载公开 CSV 并压缩；设备不向第三方查询自身参数。
 当前目录约 502 KiB，随 CI 构建更新。未运行目录脚本的本地构建仍可使用系统商品名。
 
-厂商系统通过 `DeviceIdentity` 中的只读属性白名单识别 MIUI、HyperOS、ColorOS、realme UI、
-OxygenOS、EMUI、MagicOS、vivo OS 和 One UI 等，始终保留 `Build.VERSION.INCREMENTAL`
-与 `Build.DISPLAY`。例如 `V12.5.1.0.RKPCNXM` 显示为 `MIUI 12.5.1.0`，完整版本另列。
+厂商系统通过 `DeviceIdentity` 中的只读属性白名单识别，始终保留
+`Build.VERSION.INCREMENTAL` 与 `Build.DISPLAY`，完整构建版本另列。
 无法读取的字段保持空值或退回 Android，不读取用户可修改且可能带个人信息的设备名称。
 
 不读取 IMEI、IMSI、序列号、Android ID、MAC、账户、电话服务、完整系统属性、日志或截图。
@@ -159,9 +158,8 @@ the model code. `app/scripts/build_device_catalog.py` downloads the public CSV a
 502 KiB offline asset. Devices never send their details to a third-party lookup service.
 Local builds without the catalog still support system marketing-name properties.
 
-Allowlisted read-only vendor properties identify MIUI, HyperOS, ColorOS, realme UI, OxygenOS, EMUI,
-MagicOS, vivo OS and One UI. `Build.VERSION.INCREMENTAL` and `Build.DISPLAY` retain full build details.
-For example, `V12.5.1.0.RKPCNXM` displays as `MIUI 12.5.1.0` alongside the full version.
+Allowlisted read-only properties identify vendor systems. `Build.VERSION.INCREMENTAL` and
+`Build.DISPLAY` retain the full build details alongside the normalized system version.
 Unavailable values remain empty or fall back to Android. User-editable device names are never read.
 
 It never reads IMEI, IMSI, serial, Android ID, MAC, accounts, telephony, complete system properties,

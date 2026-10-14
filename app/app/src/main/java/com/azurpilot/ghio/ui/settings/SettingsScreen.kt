@@ -180,6 +180,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     bottomInnerPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    onOpenOobe: (() -> Unit)? = null,
 ) {
     val uriHandler = LocalUriHandler.current
     val manager: AppSettingsManager = koinInject()
@@ -255,6 +256,16 @@ fun SettingsScreen(
                             onClick = { uriHandler.openUri(ProjectLinks.QQ_FEEDBACK_GROUP) },
                             icon = Icons.Outlined.Forum,
                         )
+                    }
+                    if (onOpenOobe != null) {
+                        item {
+                            AppNavigationRow(
+                                label = stringResource(R.string.settings_reopen_oobe),
+                                description = stringResource(R.string.settings_reopen_oobe_summary),
+                                onClick = onOpenOobe,
+                                icon = Icons.Outlined.AutoAwesome,
+                            )
+                        }
                     }
                 }
             }
@@ -1029,6 +1040,7 @@ fun AboutSettingsPage(
     onOpenLicenseDetail: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenOobe: (() -> Unit)? = null,
     licenseRepository: LicenseRepository = koinInject(),
 ) {
     val uriHandler = LocalUriHandler.current
@@ -1036,28 +1048,45 @@ fun AboutSettingsPage(
         value = withContext(AppDispatchers.IO) { licenseRepository.getAllComponents() }
     }
     val links =
-        listOf(
-            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
-                stringResource(R.string.settings_about_license),
-                "license:alas-aos",
-                icon = Icons.Outlined.Gavel,
-            ),
-            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
-                stringResource(R.string.settings_about_repository),
-                "https://github.com/wess09/AzurPilot-for-Android",
-                icon = Icons.Outlined.Code,
-            ),
-            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
-                stringResource(R.string.settings_about_source_project),
-                "https://github.com/Shinarin/ALAS-AOS",
-                icon = Icons.Outlined.ForkRight,
-            ),
-            com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
-                stringResource(R.string.settings_open_source_licenses) + " (${components.size})",
-                "licenses:",
-                icon = Icons.Outlined.Description,
-            ),
-        )
+        buildList {
+            add(
+                com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                    stringResource(R.string.settings_about_license),
+                    "license:alas-aos",
+                    icon = Icons.Outlined.Gavel,
+                )
+            )
+            add(
+                com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                    stringResource(R.string.settings_about_repository),
+                    "https://github.com/wess09/AzurPilot-for-Android",
+                    icon = Icons.Outlined.Code,
+                )
+            )
+            add(
+                com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                    stringResource(R.string.settings_about_source_project),
+                    "https://github.com/Shinarin/ALAS-AOS",
+                    icon = Icons.Outlined.ForkRight,
+                )
+            )
+            add(
+                com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                    stringResource(R.string.settings_open_source_licenses) + " (${components.size})",
+                    "licenses:",
+                    icon = Icons.Outlined.Description,
+                )
+            )
+            if (onOpenOobe != null) {
+                add(
+                    com.azurpilot.ghio.ui.ksu.screen.about.LinkInfo(
+                        stringResource(R.string.settings_reopen_oobe),
+                        "oobe:",
+                        icon = Icons.Outlined.AutoAwesome,
+                    )
+                )
+            }
+        }
     val state =
         com.azurpilot.ghio.ui.ksu.screen.about.AboutUiState(
             title = stringResource(R.string.settings_cat_about),
@@ -1070,6 +1099,7 @@ fun AboutSettingsPage(
             onBack = onBack,
             onOpenLink = { url ->
                 when {
+                    url == "oobe:" -> onOpenOobe?.invoke()
                     url == "licenses:" -> onOpenLicenses()
                     url.startsWith("license:") -> onOpenLicenseDetail(url.removePrefix("license:"))
                     else -> uriHandler.openUri(url)

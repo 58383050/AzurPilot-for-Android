@@ -52,7 +52,7 @@
 | 用户配置 | `config/UserConfigurationStore.kt`、`domain/UserConfiguration.kt` | 这套 JSON DataStore 与应用设置的 Preferences DataStore 独立；不要混用文件、键或序列化规则。 |
 | Compose 设置与业务页面 | `ui/settings/`、`ui/azurpilot/`、`ui/logs/`、`ui/components/` | 页面状态由 ViewModel 或 repository 提供。新增文案需同步翻译，且中文 `values/` 是源文件。 |
 | 悬浮控件与屏保 | `overlay/`、`overlay/screensaver/`、`overlay/border/` | 悬浮窗属于独立 Window，不能假定能读到 Activity 的 `Configuration` 或 ViewModelStore。通过 `AppThemeState` 和 `OverlayController` 传递必要状态。 |
-| 桌面小组件 | `widget/`、`res/xml/widget_*` | 使用 Glance/RemoteViews 可用的资源。MIUI 12.5 不可靠地解析 `?attr` 矢量着色与 `cornerRadius`，小组件需要显式 drawable 资源。 |
+| 桌面小组件 | `widget/`、`res/xml/widget_*` | 使用 Glance/RemoteViews 可用的资源。部分旧版厂商系统不可靠地解析 `?attr` 矢量着色与 `cornerRadius`，小组件需要显式 drawable 资源。 |
 
 ### 保活、日志与故障诊断
 
@@ -135,7 +135,7 @@ Runtime 接口见 [architecture.md](architecture.md)。
 | User configuration | `config/UserConfigurationStore.kt`, `domain/UserConfiguration.kt` | This JSON DataStore is independent from the Preferences DataStore for app settings. Do not mix their files, keys, or serialization rules. |
 | Compose settings and operational pages | `ui/settings/`, `ui/azurpilot/`, `ui/logs/`, `ui/components/` | Page state comes from a ViewModel or repository. New copy requires translated strings; Chinese `values/` is the source file. |
 | Floating controls and screen saver | `overlay/`, `overlay/screensaver/`, `overlay/border/` | Overlays are separate windows and cannot assume they can read an Activity `Configuration` or ViewModelStore. Pass required state through `AppThemeState` and `OverlayController`. |
-| Home-screen widgets | `widget/`, `res/xml/widget_*` | Use resources that Glance/RemoteViews can render. MIUI 12.5 does not reliably resolve `?attr` vector tints or `cornerRadius`, so widgets require explicit drawable resources. |
+| Home-screen widgets | `widget/`, `res/xml/widget_*` | Use resources that Glance/RemoteViews can render. Some older vendor systems do not reliably resolve `?attr` vector tints or `cornerRadius`, so widgets require explicit drawable resources. |
 
 ### Keep-alive, logs, and diagnosis
 

@@ -17,7 +17,10 @@ android {
     sourceSets {
         named("androidTest") {
             // 独立设备测试避开引用旧运行时类型的历史测试集。
-            if (providers.gradleProperty("azurpilot.downloadBenchmark").orNull == "true") {
+            if (providers.gradleProperty("oobeTestsOnly").orNull == "true") {
+                kotlin.directories.clear()
+                kotlin.directories.add("src/oobeTest/java")
+            } else if (providers.gradleProperty("azurpilot.downloadBenchmark").orNull == "true") {
                 kotlin.directories.clear()
                 kotlin.directories.add("src/downloadTest/java")
             } else if (providers.gradleProperty("embeddedAdbTestsOnly").orNull == "true") {
@@ -43,6 +46,7 @@ android {
     }
 
     defaultConfig {
+        providers.gradleProperty("oobeTestApplicationId").orNull?.let { applicationId = it }
         externalNativeBuild {
             cmake {
                 arguments += "-DANDROID_STL=c++_shared"
