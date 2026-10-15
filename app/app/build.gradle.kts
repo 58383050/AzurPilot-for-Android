@@ -19,18 +19,18 @@ android {
             // 独立设备测试避开引用旧运行时类型的历史测试集。
             if (providers.gradleProperty("oobeTestsOnly").orNull == "true") {
                 kotlin.directories.clear()
-                kotlin.directories.add("src/oobeTest/java")
+                kotlin.directories.add("src/oobeTest/kotlin")
             } else if (providers.gradleProperty("azurpilot.downloadBenchmark").orNull == "true") {
                 kotlin.directories.clear()
-                kotlin.directories.add("src/downloadTest/java")
+                kotlin.directories.add("src/downloadTest/kotlin")
             } else if (providers.gradleProperty("embeddedAdbTestsOnly").orNull == "true") {
                 kotlin.directories.clear()
-                kotlin.directories.add("src/embeddedAdbTest/java")
+                kotlin.directories.add("src/embeddedAdbTest/kotlin")
             } else if (providers.gradleProperty("navigationTestsOnly").orNull == "true") {
                 kotlin.directories.clear()
-                kotlin.directories.add("src/navigationTest/java")
+                kotlin.directories.add("src/navigationTest/kotlin")
             } else {
-                kotlin.directories.add("src/navigationTest/java")
+                kotlin.directories.add("src/navigationTest/kotlin")
             }
         }
         named("main") {

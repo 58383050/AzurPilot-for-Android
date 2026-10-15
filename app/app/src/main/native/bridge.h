@@ -4,7 +4,7 @@
 // :root_service 进程）：FrameInfo 供同进程内的原生消费者锁定最新帧，
 // DispatchInputMessage 把触摸 / 按键 / 启动请求上行给 Kotlin 侧的 DriverClass。
 // JNI 静态方法面在 bridge.cpp 注册，对应 Kotlin 侧
-// app/app/src/main/java/com/azurpilot/ghio/bridge/（NativeBridgeLib.kt 声明
+// app/app/src/main/kotlin/com/azurpilot/ghio/bridge/（NativeBridgeLib.kt 声明
 // external 方法，DriverClass.kt 声明上行回调目标）。
 //
 // Public ABI header of libbridge.so: the frame-buffer handoff (FrameInfo with
@@ -15,7 +15,7 @@
 // consumers lock the latest frame, while DispatchInputMessage forwards
 // touch / key / start-app requests up to DriverClass on the Kotlin side. The
 // JNI static-method surface is registered in bridge.cpp and mirrors the Kotlin
-// package app/app/src/main/java/com/azurpilot/ghio/bridge/ (NativeBridgeLib.kt
+// package app/app/src/main/kotlin/com/azurpilot/ghio/bridge/ (NativeBridgeLib.kt
 // declares the external methods; DriverClass.kt declares the upcall targets).
 
 #ifndef NATIVE_LIB_H

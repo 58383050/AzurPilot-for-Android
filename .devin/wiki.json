@@ -9,7 +9,7 @@
       "author": "AzurPilot Maintainer"
     },
     {
-      "content": "优先覆盖当前有效源码与运行链：app/app/src/main/java/com/azurpilot/ghio、app/app/src/main/native、app/hidden-api、app/annotation-api、app/ksp-processor、app/build-logic、rootfs、.github/workflows/rootfs.yml、README.md、development.md。devlog.md、debug.md、handoff/、docs/roadmap-v3.md 可作为背景和维护资料，但不要把历史方案、已删除模块或旧端口误写为当前架构。",
+      "content": "优先覆盖当前有效源码与运行链：app/app/src/main/kotlin/com/azurpilot/ghio、app/app/src/main/native、app/hidden-api、app/annotation-api、app/ksp-processor、app/build-logic、rootfs、.github/workflows/rootfs.yml、README.md、development.md。devlog.md、debug.md、handoff/、docs/roadmap-v3.md 可作为背景和维护资料，但不要把历史方案、已删除模块或旧端口误写为当前架构。",
       "author": "AzurPilot Maintainer"
     },
     {

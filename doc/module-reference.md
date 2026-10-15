@@ -21,7 +21,7 @@
 
 | 职责 | 主要入口 | 维护约束 |
 |---|---|---|
-| 应用启动与进程分流 | `app/app/src/main/java/com/azurpilot/ghio/AzurPilotApp.kt` | 仅主进程执行完整初始化；`:daemon` 进程只能启动它需要的最小组件。`postCreate` 在设置加载后按依赖顺序启动常驻服务。 |
+| 应用启动与进程分流 | `app/app/src/main/kotlin/com/azurpilot/ghio/AzurPilotApp.kt` | 仅主进程执行完整初始化；`:daemon` 进程只能启动它需要的最小组件。`postCreate` 在设置加载后按依赖顺序启动常驻服务。 |
 | 窗口与 Compose 根节点 | `MainActivity.kt`、`ui/AppRoot.kt` | Activity 管理 splash、edge-to-edge 和保持亮屏；业务状态应来自 ViewModel、仓库或状态流，不应存放在 Activity。 |
 | Koin 组合根 | `di/CoreModule.kt`、`di/HostModule.kt`、`di/LogModule.kt`、`di/OverlayModule.kt`、`di/PrivilegedModule.kt`、`di/ProvisionModule.kt`、`di/ProotModule.kt`、`di/ViewModelModule.kt` | 新依赖先定义接口或端口，再在所属模块中绑定。`AppCoroutineScope` 是进程级监督 scope；不能将 UI 生命周期工作放入其中。 |
 
@@ -104,7 +104,7 @@ Runtime 接口见 [architecture.md](architecture.md)。
 
 | Responsibility | Primary entry points | Maintenance contract |
 |---|---|---|
-| Application startup and process routing | `app/app/src/main/java/com/azurpilot/ghio/AzurPilotApp.kt` | Only the main process performs full initialization; the `:daemon` process starts only its minimum components. `postCreate` starts resident services in dependency order after settings load. |
+| Application startup and process routing | `app/app/src/main/kotlin/com/azurpilot/ghio/AzurPilotApp.kt` | Only the main process performs full initialization; the `:daemon` process starts only its minimum components. `postCreate` starts resident services in dependency order after settings load. |
 | Window and Compose root | `MainActivity.kt`, `ui/AppRoot.kt` | The Activity owns splash, edge-to-edge, and keep-screen-on behavior. Business state belongs in a ViewModel, repository, or state flow, never in the Activity. |
 | Koin composition root | `di/CoreModule.kt`, `di/HostModule.kt`, `di/LogModule.kt`, `di/OverlayModule.kt`, `di/PrivilegedModule.kt`, `di/ProvisionModule.kt`, `di/ProotModule.kt`, `di/ViewModelModule.kt` | Define an interface or port before adding a dependency, then bind it in its owning module. `AppCoroutineScope` is a process-level supervised scope; do not put UI-lifecycle work in it. |
 

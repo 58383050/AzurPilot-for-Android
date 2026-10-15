@@ -1,19 +1,18 @@
-package android.content.pm;
+package android.content.pm
 
-import android.os.Binder;
-import android.os.IBinder;
-import android.os.IInterface;
-import android.os.RemoteException;
+import android.os.IBinder
+import android.os.IInterface
+import android.os.RemoteException
 
 /**
  * IPackageManager 的隐藏 API 编译期桩，覆盖权限授予/撤销与权限标志位查询。
  * 仅在编译期镜像框架签名，运行时由系统框架提供实现。
  *
- * Compile-time stub of the hidden API {@code IPackageManager}, covering runtime permission
+ * Compile-time stub of the hidden API `IPackageManager`, covering runtime permission
  * grant/revoke and permission-flags queries. Mirrors the framework signature at compile time
  * only; the real implementation is provided by the platform at runtime.
  */
-public interface IPackageManager extends IInterface {
+interface IPackageManager : IInterface {
 
     /**
      * 向指定用户授予一条运行时权限。
@@ -25,7 +24,8 @@ public interface IPackageManager extends IInterface {
      * @param userId 目标用户 / the target user
      * @throws RemoteException binder 调用失败时抛出 / if the binder call fails
      */
-    void grantRuntimePermission(String packageName, String permissionName, int userId) throws RemoteException;
+    @Throws(RemoteException::class)
+    fun grantRuntimePermission(packageName: String?, permissionName: String?, userId: Int)
 
     /**
      * 撤销指定用户的一条运行时权限。
@@ -37,7 +37,8 @@ public interface IPackageManager extends IInterface {
      * @param userId 目标用户 / the target user
      * @throws RemoteException binder 调用失败时抛出 / if the binder call fails
      */
-    void revokeRuntimePermission(String packageName, String permissionName, int userId) throws RemoteException;
+    @Throws(RemoteException::class)
+    fun revokeRuntimePermission(packageName: String?, permissionName: String?, userId: Int)
 
     /**
      * 查询某权限在某应用上的标志位。
@@ -50,7 +51,8 @@ public interface IPackageManager extends IInterface {
      * @return 权限标志位掩码 / the permission flag bitmask
      * @throws RemoteException binder 调用失败时抛出 / if the binder call fails
      */
-    int getPermissionFlags(String permissionName, String packageName, int userId) throws RemoteException;
+    @Throws(RemoteException::class)
+    fun getPermissionFlags(permissionName: String?, packageName: String?, userId: Int): Int
 
     /**
      * 按 mask/values 更新某权限在某应用上的标志位。
@@ -64,7 +66,14 @@ public interface IPackageManager extends IInterface {
      * @param userId 目标用户 / the target user
      * @throws RemoteException binder 调用失败时抛出 / if the binder call fails
      */
-    void updatePermissionFlags(String permissionName, String packageName, int flagMask, int flagValues, int userId) throws RemoteException;
+    @Throws(RemoteException::class)
+    fun updatePermissionFlags(
+        permissionName: String?,
+        packageName: String?,
+        flagMask: Int,
+        flagValues: Int,
+        userId: Int,
+    )
 
     /**
      * 检查某应用在某用户下是否持有指定权限。
@@ -77,15 +86,17 @@ public interface IPackageManager extends IInterface {
      * @return 授予或拒绝的判定值 / the grant or deny verdict
      * @throws RemoteException binder 调用失败时抛出 / if the binder call fails
      */
-    int checkPermission(String permName, String pkgName, int userId) throws RemoteException;
+    @Throws(RemoteException::class)
+    fun checkPermission(permName: String?, pkgName: String?, userId: Int): Int
 
     /**
-     * Binder 桩。仅为编译期签名镜像，方法体不会执行，运行时由框架提供真正的 Stub。
+     * 保留框架 Stub 的静态入口；编译期签名镜像的函数体不会执行。
+     * 使用 object 与 @JvmStatic，使 Kotlin 调用直接链接系统静态方法。
      *
-     * Binder stub. A compile-time signature mirror only; the body never runs, the platform
-     * supplies the real Stub at runtime.
+     * Mirrors the framework Stub static entry point; compile-time bodies never execute.
+     * An object with @JvmStatic makes Kotlin calls link directly to the platform static method.
      */
-    abstract class Stub extends Binder implements IPackageManager {
+    object Stub {
 
         /**
          * 桩实现，永远抛出；运行时使用框架提供的真正 asInterface。
@@ -95,8 +106,9 @@ public interface IPackageManager extends IInterface {
          * @param obj 远端 binder 对象 / the remote binder object
          * @return 永不返回 / never returns
          */
-        public static IPackageManager asInterface(IBinder obj) {
-            throw new UnsupportedOperationException();
+        @JvmStatic
+        fun asInterface(obj: IBinder?): IPackageManager {
+            throw UnsupportedOperationException()
         }
     }
 }

@@ -25,7 +25,7 @@
 
 ### App 壳层
 
-- **RootfsProvisioner**（`app/app/src/main/java/com/azurpilot/ghio/provision/RootfsProvisioner.kt`）：
+- **RootfsProvisioner**（`app/app/src/main/kotlin/com/azurpilot/ghio/provision/RootfsProvisioner.kt`）：
   负责 Runtime 的首次部署与升级，见 [runtime-provisioning.md](runtime-provisioning.md)。
 - **ProotHost**（`proot/ProotHost.kt`）：以 App 进程为父拉起 proot 会话，
   崩溃退避重拉、stdin 保活约定、清理残留锁。
@@ -97,7 +97,7 @@ Runtime 在 `127.0.0.1:25548` 同时暴露三类接口：
 
 ### App shell
 
-- **RootfsProvisioner** (`app/app/src/main/java/com/azurpilot/ghio/provision/RootfsProvisioner.kt`):
+- **RootfsProvisioner** (`app/app/src/main/kotlin/com/azurpilot/ghio/provision/RootfsProvisioner.kt`):
   owns first-time Runtime deployment and upgrades. See [runtime-provisioning.md](runtime-provisioning.md).
 - **ProotHost** (`proot/ProotHost.kt`): spawns the proot session with the app
   process as parent, restarts with backoff on crash, keeps stdin alive, and

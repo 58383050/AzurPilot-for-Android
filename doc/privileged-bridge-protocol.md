@@ -7,7 +7,7 @@
 
 ### 范围与边界
 
-桥服务实现位于 `app/app/src/main/java/com/azurpilot/ghio/remote/internal/BridgeServer.kt`，只监听 `127.0.0.1:22301`。它不是公网服务：不要把端口转发、监听地址变更或认证方案视为兼容的小改动。特权进程拥有屏幕捕获、输入注入和 shell 执行能力，任何新端点都必须先审查最小权限、参数约束、超时与输出上限。
+桥服务实现位于 `app/app/src/main/kotlin/com/azurpilot/ghio/remote/internal/BridgeServer.kt`，只监听 `127.0.0.1:22301`。它不是公网服务：不要把端口转发、监听地址变更或认证方案视为兼容的小改动。特权进程拥有屏幕捕获、输入注入和 shell 执行能力，任何新端点都必须先审查最小权限、参数约束、超时与输出上限。
 
 协议兼容性由当前服务实现和本文件共同定义。不存在可作为规范依据的历史 m0 脚本，也不得宣称与未固定的上游补丁逐字节兼容。
 
@@ -82,7 +82,7 @@ Android 装备码适配由 `rootfs/overlays/android_equipment.py` 在 AP 模块�
 
 ### Scope and boundary
 
-The bridge implementation is `app/app/src/main/java/com/azurpilot/ghio/remote/internal/BridgeServer.kt` and listens only on `127.0.0.1:22301`. It is not a public network service. Treat port forwarding, bind-address changes, and authentication changes as compatibility-sensitive work. The privileged process can capture screens, inject input, and execute shell commands, so every new endpoint requires a least-privilege review of parameters, timeouts, and output caps.
+The bridge implementation is `app/app/src/main/kotlin/com/azurpilot/ghio/remote/internal/BridgeServer.kt` and listens only on `127.0.0.1:22301`. It is not a public network service. Treat port forwarding, bind-address changes, and authentication changes as compatibility-sensitive work. The privileged process can capture screens, inject input, and execute shell commands, so every new endpoint requires a least-privilege review of parameters, timeouts, and output caps.
 
 The current service implementation and this document define compatibility. No historical m0 script is a normative source, and the project must not claim byte-for-byte compatibility with an unpinned upstream patch.
 

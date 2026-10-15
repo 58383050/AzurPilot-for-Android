@@ -26,7 +26,7 @@ from OpenGL.GL.shaders import compileShader, compileProgram
 def main():
     """校验大字典、极端 logits 和均匀分布。 / Checks large dictionaries, extreme logits, and uniform rows."""
     root = Path(__file__).resolve().parents[2]
-    source = (root / 'app/app/src/main/java/com/azurpilot/ghio/ocr/OcrGpuSoftmax.kt').read_text()
+    source = (root / 'app/app/src/main/kotlin/com/azurpilot/ghio/ocr/OcrGpuSoftmax.kt').read_text()
     shader = textwrap.dedent(source.split('val SHADER = """', 1)[1].split('""".trimIndent()', 1)[0]).strip()
     display = EGL.eglGetDisplay(EGL.EGL_DEFAULT_DISPLAY)
     assert EGL.eglInitialize(display, None, None)

@@ -84,7 +84,7 @@ class UiTextArityTest {
     }
 
     private fun sourceFiles(): List<File> =
-        File("src/main/java").walkTopDown().filter { it.extension == "kt" }.toList()
+        File("src/main/kotlin").walkTopDown().filter { it.extension == "kt" }.toList()
 
     /**
      * 取 `%N$s` 里最大的 N；没有占位符即 0

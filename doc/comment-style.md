@@ -81,10 +81,10 @@
 - 测试类 KDoc：一句话说明钉住的行为面。
 - 单个测试函数：命名已自解释的可省略 KDoc；否则写一行说明前置条件与断言意图。
 
-### Java（hidden-api 编译期桩）
+### Kotlin（hidden-api 编译期桩）
 
-按 Google Java 风格指南第 7 节：所有类与方法写 Javadoc，双语规则同上；
-`@param` / `@return` / `@throws` 齐全。桩代码注明「编译期签名镜像，运行时由框架提供」。
+按上述 Kotlin KDoc 规则：所有类与方法遵守双语规则，按需说明参数、返回值与异常。
+桩代码注明「编译期签名镜像，运行时由框架提供」，并说明保持框架 JVM 签名所需的声明约束。
 
 ### C++（native 桥接库）
 
@@ -177,11 +177,12 @@
 - Individual test functions: omit KDoc when the name is self-explanatory; otherwise one
   line stating the setup and the assertion intent.
 
-### Java (hidden-api compile-time stubs)
+### Kotlin (hidden-api compile-time stubs)
 
-Follow Google Java Style section 7: every class and method gets Javadoc with the same
-bilingual rule; include `@param` / `@return` / `@throws`. Note that stubs mirror framework
-signatures at compile time and are provided by the platform at runtime.
+Follow the Kotlin KDoc rules above: classes and methods use the same bilingual rule,
+documenting parameters, return values, and exceptions as needed. Note that stubs mirror
+framework signatures at compile time and are provided by the platform at runtime, and
+explain declaration constraints needed to preserve the framework's JVM signatures.
 
 ### C++ (native bridge library)
 

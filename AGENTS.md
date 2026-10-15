@@ -15,7 +15,7 @@ License: AGPL-3.0. Package: `com.azurpilot.ghio`.
 | `app/app/` | Main `:app` module — all Kotlin/Compose UI, services, and native bridge code |
 | `app/build-logic/` | Convention plugins (`azurpilot.android.*`); SDK/JVM baselines live in `AndroidCommon.kt` |
 | `app/annotation-api/`, `app/ksp-processor/` | `@PrefSchema` / `@PrefKey` KSP code-gen for DataStore preferences |
-| `app/hidden-api/` | Compile-only stubs for hidden Android framework APIs |
+| `app/hidden-api/` | Kotlin compile-only stubs for hidden Android framework APIs |
 | `app/app/src/main/native/` | C++17 NDK bridge library (capture, input injection, frame buffer) |
 | `app/app/src/main/prootLibs/` | PRoot nine-library set shipped as `jniLibs` (arm64 committed; x86_64 fetched by CI script) |
 | `rootfs/` | CI build scripts (`build/`), Python overlay shims (`overlays/`), seed configs (`seeds/`), and tests for the Ubuntu rootfs |
@@ -75,6 +75,7 @@ Key subsystems:
 ## Coding conventions
 
 ### Kotlin / Compose
+- **Source directories**: keep Kotlin sources in `src/<sourceSet>/kotlin/`, including framework API stubs; do not add Java sources or use `java/` source directories.
 - **DI**: Koin (module files in `di/`). No Hilt/Dagger.
 - **Theme**: Material 3 only. Reuse the existing app theme and Material 3 components.
 - **DataStore preferences**: annotate with `@PrefSchema`; KSP generates accessors. Keys follow camelToSnakeCase mapping (`useGithubMirror` → `use_github_mirror`). Migrations must use the snake_case raw key strings.
@@ -90,7 +91,7 @@ Key subsystems:
 
 ### Comments
 - All comments follow [`doc/comment-style.md`](doc/comment-style.md): Google style guides
-  (Kotlin KDoc / Java Javadoc / C++ §7 / Python docstrings) plus the repo bilingual rule —
+  (Kotlin KDoc / C++ §7 / Python docstrings) plus the repo bilingual rule —
   doc comments carry Chinese first then the English mirror, inline comments are Chinese
   and explain why, not what.
 

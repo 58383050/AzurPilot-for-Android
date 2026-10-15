@@ -103,7 +103,7 @@ class UiTextBoundaryTest {
         source.replace(BLOCK_COMMENT, " ").replace(LINE_COMMENT, "")
 
     private companion object {
-        const val SOURCE_ROOT = "src/main/java/com/azurpilot/ghio"
+        const val SOURCE_ROOT = "src/main/kotlin/com/azurpilot/ghio"
 
         /**
          * 渲染层：就地把资源画出来，不把文案当值传，规则不约束它们
