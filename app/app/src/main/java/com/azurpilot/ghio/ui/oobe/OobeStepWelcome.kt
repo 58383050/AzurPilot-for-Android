@@ -73,7 +73,7 @@ internal fun OobeStepWelcome(modifier: Modifier, onNext: () -> Unit, nextLabel: 
     }
     val title = stringResource(R.string.oobe_welcome_title)
     val colors = MaterialTheme.colorScheme
-    BoxWithConstraints(modifier) {
+    Box(modifier) {
         if (miuix) BgEffectBackground(
             dynamicBackground = !reduced && lifecycle.isAtLeast(Lifecycle.State.RESUMED),
             modifier = Modifier.matchParentSize(), isFullSize = true,
@@ -94,6 +94,8 @@ internal fun OobeStepWelcome(modifier: Modifier, onNext: () -> Unit, nextLabel: 
                     size = androidx.compose.ui.geometry.Size(size.width * 1.25f, size.width * .8f), style = Stroke(1.dp.toPx()))
             }
         }
+        // 背景画入系统栏，交互内容仍避让手势区和屏幕挖孔。
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
         if (miuix) {
             // 低矮窗口改用居中堆叠，避免字标与继续按钮按比例定位后重叠。
             val compact = maxHeight < 320.dp
@@ -133,5 +135,6 @@ internal fun OobeStepWelcome(modifier: Modifier, onNext: () -> Unit, nextLabel: 
         }
         if (onDismiss != null) TextButton(onDismiss, Modifier.align(Alignment.TopStart).padding(12.dp)
             .heightIn(min = 48.dp)) { Text(dismissLabel) }
+        }
     }
 }

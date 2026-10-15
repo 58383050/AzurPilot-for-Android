@@ -71,6 +71,13 @@ class OobeHostInstrumentedTest {
             await { currentActivity() is MainActivity }
             runBlocking { settings.setOobeCompleted(false) }
             await { hasProgress(1) }
+            await { statusBarVisible() == false }
+            instrumentation.runOnMainSync {
+                val window = currentActivityOnMain()!!.window
+                @Suppress("DEPRECATION")
+                assertEquals(android.graphics.Color.TRANSPARENT, window.navigationBarColor)
+                if (android.os.Build.VERSION.SDK_INT >= 29) assertFalse(window.isNavigationBarContrastEnforced)
+            }
             SystemClock.sleep(2200)
             screenshot("host_${testStyle}_glow_welcome")
             if (InstrumentationRegistry.getArguments().getString("glowCapture") == "true") {
@@ -88,7 +95,7 @@ class OobeHostInstrumentedTest {
             for ((tag, label) in listOf("en" to "English", "ja" to "日本語",
                 "zh-TW" to "繁體中文", "zh-CN" to "简体中文")) {
                 clickLabel(label)
-                await { AppLocales.currentTag() == tag && hasProgress(2) }
+                await { AppLocales.currentTag() == tag && hasProgress(2) && statusBarVisible() == false }
                 screenshot("host_language_$tag")
             }
             if (testLocale != "zh-CN") {
@@ -110,6 +117,7 @@ class OobeHostInstrumentedTest {
             await { currentActivity()?.javaClass?.simpleName == "AdbActivationActivity" }
             instrumentation.runOnMainSync { currentActivityOnMain()?.finish() }
             await { hasProgress(5) }
+            await { statusBarVisible() == false }
             val granted = permissions.state.value.isGranted(RemoteBackend.SHIZUKU)
             click(if (granted) R.string.oobe_action_next else R.string.oobe_action_skip)
             screenshot("host_${testStyle}_tutorial_$testLocale")
@@ -120,6 +128,7 @@ class OobeHostInstrumentedTest {
             await { settings.oobeCompleted.value && settings.communityNoticeAcknowledged.value }
             assertEquals(com.azurpilot.ghio.settings.CURRENT_LEGAL_NOTICE_VERSION, settings.legalNoticeVersion.value)
             await { !hasProgress(7) }
+            await { statusBarVisible() == true }
             val provisioner = GlobalContext.get().get<RootfsProvisioner>()
             await { provisioner.state.value is ProvisionState.Ready || hasText(R.string.provision_skip) }
             if (provisioner.state.value !is ProvisionState.Ready) click(R.string.provision_skip, scroll = true)
@@ -127,6 +136,7 @@ class OobeHostInstrumentedTest {
             click(R.string.nav_settings)
             click(R.string.settings_reopen_oobe, scroll = true)
             await { hasProgress(1) }
+            await { statusBarVisible() == false }
             assertFalse("Preview must hide the settings action from accessibility",
                 hasText(R.string.settings_reopen_oobe))
             screenshot("host_reopened")
@@ -142,6 +152,7 @@ class OobeHostInstrumentedTest {
                 hasText(R.string.settings_reopen_oobe))
             click(R.string.dialog_cancel)
             await { !hasProgress(1) }
+            await { statusBarVisible() == true }
         } finally {
             runBlocking {
                 settings.setAppearance { original }
@@ -165,6 +176,17 @@ class OobeHostInstrumentedTest {
         var activity: android.app.Activity? = null
         instrumentation.runOnMainSync { activity = currentActivityOnMain() }
         return activity
+    }
+
+    private fun statusBarVisible(): Boolean? {
+        var visible: Boolean? = null
+        instrumentation.runOnMainSync {
+            currentActivityOnMain()?.window?.decorView?.let { view ->
+                visible = androidx.core.view.ViewCompat.getRootWindowInsets(view)
+                    ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            }
+        }
+        return visible
     }
 
     private fun string(resource: Int, vararg args: Any) =

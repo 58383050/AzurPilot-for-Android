@@ -7,6 +7,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +26,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -60,6 +64,7 @@ import org.koin.compose.koinInject
 @Composable
 fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
     modifier: Modifier = Modifier, onDismiss: (() -> Unit)? = null) {
+    OobeSystemBars()
     val steps = OobeStep.entries
     var currentIndex by rememberSaveable { mutableIntStateOf(0) }
     var acknowledged by rememberSaveable { mutableStateOf(alreadyAcknowledged) }
@@ -75,11 +80,20 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
     val pageTransition = updateTransition(currentIndex, label = "OobeStep")
     val reveal by pageTransition.animateFloat(transitionSpec = {
-        tween(if (reduced || !miuix) 0 else OobeWelcomeRevealDuration, easing = HyperOsPageEasing)
+        tween(if (reduced || !miuix) 0 else OobeWelcomeRevealDuration, easing = OobeWelcomeEasing)
     }, label = "OobeWelcomeReveal") { if (it == 0) 0f else 1f }
     val overlay by pageTransition.animateFloat(transitionSpec = {
-        tween(if (reduced || !miuix) 0 else OobeWelcomeRevealDuration, easing = OobeWelcomeOverlayEasing)
+        tween(if (reduced || !miuix || targetState == 0) 0 else OobeWelcomeOverlayDuration,
+            easing = OobeWelcomeOverlayEasing)
     }, label = "OobeLanguageOverlay") { if (it == 0) 1f else 0f }
+    val windowAlpha by pageTransition.animateFloat(transitionSpec = {
+        tween(if (reduced || !miuix) 0 else 100,
+            delayMillis = if (!reduced && miuix && targetState == 0) 100 else 0,
+            easing = LinearEasing)
+    }, label = "OobeWelcomeWindowAlpha") { if (it == 0) 0f else 1f }
+    val blur by pageTransition.animateFloat(transitionSpec = {
+        tween(if (reduced || !miuix) 0 else 100, easing = LinearEasing)
+    }, label = "OobeWelcomeBackgroundBlur") { if (it == 0) 0f else 1f }
     var pageOrigin by remember { mutableStateOf(Offset.Zero) }
     var welcomeButton by remember { mutableStateOf(Rect.Zero) }
     val welcomeBounds = welcomeButton.translate(-pageOrigin)
@@ -144,13 +158,28 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                 val background = MaterialTheme.colorScheme.background
                 val revealing = miuix && !reduced && index == 1 &&
                     betweenWelcomeAndLanguage && !welcomeBounds.isEmpty
+                val welcomeBackground = miuix && !reduced && index == 0 && betweenWelcomeAndLanguage
                 Column(Modifier.fillMaxSize().graphicsLayer {
-                    if (revealing) { shape = OobeWelcomeRevealShape(welcomeBounds, reveal); clip = true }
+                    if (revealing) {
+                        val frame = oobeWelcomeFrame(welcomeBounds, size, reveal,
+                            closing = pageTransition.targetState == 0)
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        scaleX = frame.scale; scaleY = frame.scale
+                        translationX = frame.bounds.left; translationY = frame.bounds.top
+                        shape = frame; clip = true
+                    }
+                    if (welcomeBackground && blur > 0f && android.os.Build.VERSION.SDK_INT >= 31) {
+                        renderEffect = BlurEffect(40f * blur, 40f * blur, TileMode.Clamp)
+                    }
+                }.background(background).graphicsLayer {
+                    if (revealing) alpha = windowAlpha
                 }.drawWithContent {
                     drawContent()
-                    if (revealing) drawRect(background, alpha = overlay)
+                    if (revealing && pageTransition.targetState != 0) drawRect(background, alpha = overlay)
+                    if (welcomeBackground) drawRect(Color.Black, alpha = .5f * reveal)
                 }.background(background)
-                    .safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    .then(if (index == 0) Modifier else Modifier.safeDrawingPadding()),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
                     if (index == 0) {
                         OobeStepWelcome(Modifier.weight(1f).fillMaxWidth(), next, primary,
                             canProceed, if (onDismiss != null) back else null, secondary,

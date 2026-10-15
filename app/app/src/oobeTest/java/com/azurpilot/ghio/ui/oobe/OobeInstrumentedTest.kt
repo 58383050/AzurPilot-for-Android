@@ -471,6 +471,48 @@ class OobeInstrumentedTest {
     }
 
     @Test
+    fun welcomeSpringMatches101SamplesFromTheOriginalOs3Framework() {
+        assertEquals(497, OobeWelcomeRevealDuration)
+        val rows = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("oobe/os3-welcome-spring.csv").bufferedReader().use { reader ->
+                reader.readLines().filterNot { it.startsWith("#") || it.isBlank() }
+            }
+        assertEquals(101, rows.size)
+        for (row in rows) {
+            val (fraction, expected) = row.split(',').map(String::toFloat)
+            assertEquals("Native OS3 interpolation at $fraction", expected,
+                OobeWelcomeEasing.transform(fraction), .000001f)
+        }
+    }
+
+    @Test
+    fun welcomeGeometryMatchesOriginalSystemUiInBothDirections() {
+        val rows = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("oobe/os3-welcome-geometry.csv").bufferedReader().use { reader ->
+                reader.readLines().filterNot { it.startsWith("#") || it.isBlank() }
+            }
+        assertEquals(22, rows.size)
+        for (row in rows) {
+            val cells = row.split(',')
+            val closing = cells[0].toBoolean()
+            val fraction = cells[1].toFloat()
+            val frame = oobeWelcomeFrame(androidx.compose.ui.geometry.Rect(435f, 1746f, 645f, 1956f),
+                androidx.compose.ui.geometry.Size(1080f, 2400f),
+                if (closing) 1f - fraction else fraction, closing)
+            assertEquals("Native OS3 x at $row", cells[2].toFloat(), frame.bounds.left, .001f)
+            assertEquals("Native OS3 y at $row", cells[3].toFloat(), frame.bounds.top, .001f)
+            assertEquals("Native OS3 scale at $row", cells[4].toFloat(), frame.scale, .000001f)
+            assertEquals(cells[5].toFloat(), frame.crop.width, 0f)
+            assertEquals(cells[6].toFloat(), frame.crop.height, 0f)
+            val outline = frame.createOutline(androidx.compose.ui.geometry.Size(1080f, 2400f),
+                androidx.compose.ui.unit.LayoutDirection.Ltr, androidx.compose.ui.unit.Density(1f))
+                as androidx.compose.ui.graphics.Outline.Rounded
+            assertEquals("Native OS3 physical radius at $row", cells[7].toFloat(),
+                outline.roundRect.topLeftCornerRadius.x * frame.scale, .001f)
+        }
+    }
+
+    @Test
     fun welcomeLaunchExpandsInPlaceAndReturnsToTheSameButton() {
         runBlocking { manager.setAppearance { it.copy(uiMode = "miuix", colorMode = "1") } }
         compose.mainClock.autoAdvance = false
@@ -482,10 +524,14 @@ class OobeInstrumentedTest {
             screenshot("welcome_launch_000")
             node(R.string.oobe_action_next).assertIsEnabled().performClick()
             compose.mainClock.advanceTimeBy(64)
-            val title = node(R.string.oobe_pref_lang_title).getUnclippedBoundsInRoot()
-            val root = compose.onRoot().getUnclippedBoundsInRoot()
-            assertEquals("Language content must remain centered during the button launch",
-                ((root.left + root.right) / 2).value, ((title.left + title.right) / 2).value, 1f)
+            // 布局尺寸不含 graphicsLayer 的缩放，必须比较变换后的实际坐标。
+            val title = node(R.string.oobe_pref_lang_title).fetchSemanticsNode().layoutInfo.coordinates
+            val root = compose.onRoot().fetchSemanticsNode().layoutInfo.coordinates
+            val start = title.localToRoot(androidx.compose.ui.geometry.Offset.Zero)
+            val end = title.localToRoot(androidx.compose.ui.geometry.Offset(title.size.width.toFloat(), 0f))
+            val center = root.localToRoot(androidx.compose.ui.geometry.Offset(root.size.width * .5f, 0f))
+            assertEquals("Language content must remain centered inside the scaled surface",
+                center.x, (start.x + end.x) * .5f, 1f)
             screenshot("welcome_launch_064")
             for (time in listOf(160L, 320L, 640L)) {
                 compose.mainClock.advanceTimeBy(if (time == 160L) 96L else time / 2)
