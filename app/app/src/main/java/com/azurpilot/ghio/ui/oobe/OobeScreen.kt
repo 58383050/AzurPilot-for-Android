@@ -5,6 +5,8 @@ package com.azurpilot.ghio.ui.oobe
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,7 +14,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -20,8 +21,13 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
@@ -45,10 +51,10 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /**
- * 保存七步激活流程的状态，并让导航、标题与内容作为完整页面共同移动。
+ * 保存七步激活流程；首屏从继续按钮展开，其余页面将导航、标题与内容共同移动。
  * 预览允许关闭，首次激活只通过完成回调持久化。
  *
- * Retains seven activation steps and moves navigation, headings, and content as one page.
+ * Retains seven activation steps, expanding the welcome button and moving later pages as a whole.
  * Preview can dismiss; initial activation persists only through the completion callback.
  */
 @Composable
@@ -61,10 +67,24 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
     val savedSteps = rememberSaveableStateHolder()
     val permissions: PermissionManager = koinInject()
     val access by permissions.state.collectAsStateWithLifecycle()
+    val granting by permissions.isGranting.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val miuix = LocalUiMode.current == UiMode.Miuix
     val reduced = rememberOobeReducedMotion()
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+    val pageTransition = updateTransition(currentIndex, label = "OobeStep")
+    val reveal by pageTransition.animateFloat(transitionSpec = {
+        tween(if (reduced || !miuix) 0 else OobeWelcomeRevealDuration, easing = HyperOsPageEasing)
+    }, label = "OobeWelcomeReveal") { if (it == 0) 0f else 1f }
+    val overlay by pageTransition.animateFloat(transitionSpec = {
+        tween(if (reduced || !miuix) 0 else OobeWelcomeRevealDuration, easing = OobeWelcomeOverlayEasing)
+    }, label = "OobeLanguageOverlay") { if (it == 0) 1f else 0f }
+    var pageOrigin by remember { mutableStateOf(Offset.Zero) }
+    var welcomeButton by remember { mutableStateOf(Rect.Zero) }
+    val welcomeBounds = welcomeButton.translate(-pageOrigin)
+    val betweenWelcomeAndLanguage =
+        setOf(pageTransition.currentState, pageTransition.targetState) == setOf(0, 1)
     val progress = stringResource(R.string.oobe_progress_format, currentIndex + 1, steps.size)
     val previous: () -> Unit = {
         if (!navigating) {
@@ -74,21 +94,33 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
     BackHandler(enabled = currentIndex > 0 || onDismiss != null, onBack = previous)
     MaterialTheme(typography = if (miuix) MaterialTheme.typography.oobeMiuix() else MaterialTheme.typography) {
     // 预览覆盖主页时让整页参与命中，空白区域不能点到后方操作。
-    Surface(modifier.fillMaxSize().pointerInput(Unit) { }, color = MaterialTheme.colorScheme.background) {
-        AnimatedContent(currentIndex, Modifier.fillMaxSize().clipToBounds().semantics {
+    Surface(modifier.fillMaxSize().pointerInput(Unit) { }
+        .onGloballyPositioned { pageOrigin = it.positionInRoot() },
+        color = MaterialTheme.colorScheme.background) {
+        pageTransition.AnimatedContent(Modifier.fillMaxSize().clipToBounds().semantics {
             stateDescription = progress
         }, transitionSpec = {
-            val direction = if (targetState > initialState) 1 else -1
+            val direction = (if (targetState > initialState) 1 else -1) * (if (rtl) -1 else 1)
             if (reduced) fadeIn(tween(100)).togetherWith(fadeOut(tween(100)))
+            else if (miuix && setOf(initialState, targetState) == setOf(0, 1) && !welcomeBounds.isEmpty) {
+                // OS3 第一跳从继续按钮展开，其余页面才使用横向弹簧转场。
+                EnterTransition.None.togetherWith(ExitTransition.KeepUntilTransitionsFinished).apply {
+                    if (targetState == 0) targetContentZIndex = -1f
+                }
+            }
             else {
                 val spec = if (miuix) tween<IntOffset>(875, easing = HyperOsPageEasing) else spatial
                 slideInHorizontally(spec) { it * direction }
                     .togetherWith(slideOutHorizontally(spec) { -it * direction })
             }.using(SizeTransform(clip = false))
-        }, label = "OobePage") { index ->
+        }) { index ->
             savedSteps.SaveableStateProvider(index) {
+                CompositionLocalProvider(LocalOobePageActive provides
+                    (index == currentIndex && pageTransition.currentState == pageTransition.targetState &&
+                        !pageTransition.isRunning)) {
                 val step = steps[index]
-                val canProceed = !navigating && (step != OobeStep.AGREEMENT || acknowledged)
+                val canProceed = !navigating && (step != OobeStep.AGREEMENT || acknowledged) &&
+                    (step != OobeStep.PRIVILEGED || !granting)
                 val primary = stringResource(when {
                     step == OobeStep.READY -> R.string.oobe_action_start
                     step == OobeStep.PRIVILEGED && !access.isGranted(access.configuredBackend) -> R.string.oobe_action_skip
@@ -109,11 +141,21 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                     }
                 }
                 val back: () -> Unit = { if (index == currentIndex) previous() }
-                Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+                val background = MaterialTheme.colorScheme.background
+                val revealing = miuix && !reduced && index == 1 &&
+                    betweenWelcomeAndLanguage && !welcomeBounds.isEmpty
+                Column(Modifier.fillMaxSize().graphicsLayer {
+                    if (revealing) { shape = OobeWelcomeRevealShape(welcomeBounds, reveal); clip = true }
+                }.drawWithContent {
+                    drawContent()
+                    if (revealing) drawRect(background, alpha = overlay)
+                }.background(background)
                     .safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
                     if (index == 0) {
                         OobeStepWelcome(Modifier.weight(1f).fillMaxWidth(), next, primary,
-                            canProceed, if (onDismiss != null) back else null, secondary)
+                            canProceed, if (onDismiss != null) back else null, secondary,
+                            onNextBoundsChanged = { welcomeButton = it },
+                            exiting = pageTransition.targetState != 0)
                     } else {
                         Row(Modifier.widthIn(max = 600.dp).fillMaxWidth().height(56.dp)
                             .padding(horizontal = if (miuix) 12.dp else 20.dp),
@@ -121,7 +163,8 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                             IconButton(back, Modifier.size(48.dp).semantics { contentDescription = secondary },
                                 enabled = !navigating) {
                                 if (miuix) Icon(painterResource(R.drawable.oobe_os3_back), null,
-                                    Modifier.size(22.dp, 16.dp), tint = MaterialTheme.colorScheme.onSurface)
+                                    Modifier.size(22.dp, 16.dp).graphicsLayer { if (rtl) scaleX = -1f },
+                                    tint = MaterialTheme.colorScheme.onSurface)
                                 else Icon(Icons.AutoMirrored.Outlined.ArrowBack, null)
                             }
                         }
@@ -146,6 +189,7 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                             OobeNextButton(primary, canProceed, next)
                         }
                     }
+                }
                 }
             }
         }

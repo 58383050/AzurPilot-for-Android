@@ -48,14 +48,7 @@ fun OobeStepReady(
     val settings by manager.appearance.collectAsStateWithLifecycle()
     val accessState by permissionManager.state.collectAsStateWithLifecycle()
 
-    val currentLang = when (val tag = AppLocales.currentTag()) {
-        "zh-CN" -> "简体中文"
-        "zh-TW" -> "繁體中文"
-        "en" -> "English"
-        "ja" -> "日本語"
-        null -> stringResource(R.string.settings_follow_system)
-        else -> tag
-    }
+    val currentLang = oobeLanguageName(AppLocales.currentTag())
 
     val currentColorMode = ColorMode.fromValue(settings.colorMode.toIntOrNull() ?: 0)
     val themeText = when {

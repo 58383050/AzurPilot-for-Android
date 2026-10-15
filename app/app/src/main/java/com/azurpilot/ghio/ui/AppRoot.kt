@@ -35,6 +35,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
@@ -239,6 +241,14 @@ fun AppRoot(
     val oobeCompleted by appSettings.oobeCompleted.collectAsStateWithLifecycle()
     val legalNoticeVersion by appSettings.legalNoticeVersion.collectAsStateWithLifecycle()
     var showOobePreview by rememberSaveable { mutableStateOf(false) }
+    // 应用锁会移除向导；会话状态需由锁屏分支外的持有者保留。
+    val oobeStateHolder = rememberSaveableStateHolder()
+    LaunchedEffect(oobeCompleted) {
+        if (oobeCompleted) oobeStateHolder.removeState("initial")
+    }
+    LaunchedEffect(showOobePreview) {
+        if (!showOobePreview) oobeStateHolder.removeState("preview")
+    }
     val oobeVisible = settingsLoaded && (!oobeCompleted || showOobePreview)
     val compatNoticeShown by appSettings.compatNoticeShown.collectAsStateWithLifecycle()
     var compatNoticeDismissed by rememberSaveable { mutableStateOf(false) }
@@ -631,15 +641,17 @@ fun AppRoot(
 
             val isOobeActive = !isAppLocked && settingsLoaded && !oobeCompleted
             if (isOobeActive) {
-                OobeScreen(
-                    alreadyAcknowledged = legalNoticeVersion == CURRENT_LEGAL_NOTICE_VERSION,
-                    onComplete = {
-                        scope.launch {
-                            appSettings.completeOobe()
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                oobeStateHolder.SaveableStateProvider("initial") {
+                    OobeScreen(
+                        alreadyAcknowledged = legalNoticeVersion == CURRENT_LEGAL_NOTICE_VERSION,
+                        onComplete = {
+                            scope.launch {
+                                appSettings.completeOobe()
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             } else if (showProvision) {
                 ProvisionScreen(
                     state = provisionState,
@@ -664,7 +676,10 @@ fun AppRoot(
                 )
             } else {
                 com.azurpilot.ghio.ui.ksu.AppRootScaffold {
-                    AppNavigation(navigator, modifier = Modifier.fillMaxSize()) { swipeDismiss ->
+                    AppNavigation(navigator, modifier = Modifier.fillMaxSize().semantics {
+                        // 预览覆盖导航页时，读屏也只能访问当前向导。
+                        if (showOobePreview) hideFromAccessibility()
+                    }) { swipeDismiss ->
                         entry<AppRoute.Main>(swipeDismiss = swipeDismiss) {
                             AppNavigationScaffold(
                                 mainPagerState = mainPagerState,
@@ -867,12 +882,14 @@ fun AppRoot(
             }
 
             if (showOobePreview && !isAppLocked) {
-                OobeScreen(
-                    alreadyAcknowledged = true,
-                    onComplete = { showOobePreview = false },
-                    onDismiss = { showOobePreview = false },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                oobeStateHolder.SaveableStateProvider("preview") {
+                    OobeScreen(
+                        alreadyAcknowledged = true,
+                        onComplete = { showOobePreview = false },
+                        onDismiss = { showOobePreview = false },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }

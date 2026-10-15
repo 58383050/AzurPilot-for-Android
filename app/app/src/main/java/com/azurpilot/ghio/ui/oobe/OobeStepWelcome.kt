@@ -13,11 +13,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -31,7 +32,6 @@ import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.ksu.component.miuix.effect.BgEffectBackground
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 import com.azurpilot.ghio.ui.ksu.AppTextButton as TextButton
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
@@ -45,7 +45,8 @@ import kotlin.math.sin
  */
 @Composable
 internal fun OobeStepWelcome(modifier: Modifier, onNext: () -> Unit, nextLabel: String,
-    enabled: Boolean, onDismiss: (() -> Unit)?, dismissLabel: String) {
+    enabled: Boolean, onDismiss: (() -> Unit)?, dismissLabel: String,
+    onNextBoundsChanged: (Rect) -> Unit = {}, exiting: Boolean = false) {
     val miuix = LocalUiMode.current == UiMode.Miuix
     val reduced = rememberOobeReducedMotion()
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
@@ -57,19 +58,21 @@ internal fun OobeStepWelcome(modifier: Modifier, onNext: () -> Unit, nextLabel: 
         if (introduced || reduced || !miuix) {
             scale.snapTo(1f); alpha.snapTo(1f); button.snapTo(1f)
         } else {
-            // 入场只用于第一次欢迎；点击可立即打断，不延迟导航。
+            // 品牌与按钮沿用 OS3 首次入场时序；隐藏期间不接受继续操作。
             introduced = true
-            launch { delay(60); alpha.animateTo(1f, tween(300)) }
+            launch { alpha.animateTo(1f, tween(300, delayMillis = 60)) }
             launch {
                 scale.animateTo(.95f, tween(440, easing = Easing { sin(it * Math.PI / 2).toFloat() }))
                 scale.animateTo(1f, tween(700, easing = Easing { 1f - (1f - it) * (1f - it) * (1f - it) }))
             }
-            launch { delay(1340); button.animateTo(1f, tween(450, easing = Easing { 1f - (1f - it) * (1f - it) * (1f - it) })) }
+            launch {
+                button.animateTo(1f, tween(450, delayMillis = 1340,
+                    easing = Easing { 1f - (1f - it) * (1f - it) * (1f - it) }))
+            }
         }
     }
     val title = stringResource(R.string.oobe_welcome_title)
     val colors = MaterialTheme.colorScheme
-    val density = LocalDensity.current
     BoxWithConstraints(modifier) {
         if (miuix) BgEffectBackground(
             dynamicBackground = !reduced && lifecycle.isAtLeast(Lifecycle.State.RESUMED),
@@ -101,12 +104,17 @@ internal fun OobeStepWelcome(modifier: Modifier, onNext: () -> Unit, nextLabel: 
                 else (maxHeight * .8f - 70.dp).coerceAtLeast(0.dp)
             Box(Modifier.align(Alignment.TopCenter).offset(y = brandY)
                 .graphicsLayer { scaleX = scale.value; scaleY = scale.value; this.alpha = alpha.value }
-                .semantics { contentDescription = title; heading() }) {
+                .clearAndSetSemantics { contentDescription = title; heading() }) {
                 OobeWordmark()
             }
-            OobeNextButton(nextLabel, enabled, onNext, Modifier.align(Alignment.TopCenter)
-                .offset(y = nextY)
-                .graphicsLayer { this.alpha = button.value; scaleX = .9f + .1f * button.value; scaleY = scaleX })
+            OobeNextButton(nextLabel, enabled && button.value == 1f && !exiting, onNext,
+                Modifier.align(Alignment.TopCenter).offset(y = nextY)
+                    .onGloballyPositioned { onNextBoundsChanged(it.boundsInRoot()) }
+                    .graphicsLayer {
+                        this.alpha = if (exiting) 0f else button.value
+                        scaleX = .9f + .1f * button.value
+                        scaleY = scaleX
+                    })
         } else {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.weight(1f).widthIn(max = 600.dp).fillMaxWidth().padding(horizontal = 32.dp)) {

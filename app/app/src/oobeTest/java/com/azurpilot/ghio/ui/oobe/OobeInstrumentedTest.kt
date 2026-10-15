@@ -269,6 +269,87 @@ class OobeInstrumentedTest {
     }
 
     @Test
+    fun glyphsWaitForEntryAndResumeFromTheirPausedFrame() {
+        val composition = mutableStateOf<com.airbnb.lottie.LottieComposition?>(null)
+        var progress: androidx.compose.runtime.State<Float>? = null
+        val entered = mutableStateOf(false)
+        lateinit var owner: GlyphLifecycleOwner
+        compose.runOnUiThread {
+            owner = GlyphLifecycleOwner()
+            owner.registry.currentState = androidx.lifecycle.Lifecycle.State.STARTED
+        }
+        val resolver = context.contentResolver
+        val originalScale = android.provider.Settings.Global.getString(resolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE)
+        fun shell(command: String) = android.os.ParcelFileDescriptor.AutoCloseInputStream(
+            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command),
+        ).use { it.bufferedReader().readText() }
+        fun frame() = checkNotNull(progress).value
+        try {
+            shell("settings put global animator_duration_scale 1")
+            compose.mainClock.autoAdvance = false
+            compose.setContent { AzurPilotTheme {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.lifecycle.compose.LocalLifecycleOwner provides owner,
+                    LocalOobePageActive provides entered.value,
+                ) {
+                    progress = rememberOobeGlyphProgress(composition.value)
+                }
+            } }
+            for (asset in OobeGlyph.entries) {
+                val loaded = checkNotNull(com.airbnb.lottie.LottieCompositionFactory
+                    .fromRawResSync(context, asset.resource).value)
+                compose.runOnUiThread {
+                    entered.value = false
+                    owner.registry.currentState = androidx.lifecycle.Lifecycle.State.STARTED
+                    composition.value = loaded
+                }
+                compose.mainClock.advanceTimeBy(100)
+                assertEquals("$asset must wait for page entry", 0f, frame(), .001f)
+                compose.runOnUiThread { entered.value = true }
+                compose.mainClock.advanceTimeBy(250)
+                assertEquals("$asset must not jump to the end before resume", 0f,
+                    frame(), .001f)
+                compose.runOnUiThread {
+                    owner.registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED
+                }
+                compose.mainClock.advanceTimeBy(220)
+                val playing = frame()
+                assertTrue("$asset must animate after entry: $playing", playing > 0f && playing < .9f)
+                compose.runOnUiThread {
+                    owner.registry.currentState = androidx.lifecycle.Lifecycle.State.STARTED
+                }
+                compose.mainClock.advanceTimeByFrame()
+                val paused = frame()
+                compose.mainClock.advanceTimeBy(250)
+                assertEquals("$asset must retain its frame in the background", paused, frame(), .001f)
+                compose.runOnUiThread {
+                    owner.registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED
+                }
+                compose.mainClock.advanceTimeBy(120)
+                val resumed = frame()
+                compose.mainClock.advanceTimeBy(2000)
+                val complete = frame()
+                assertTrue("$asset must resume without skipping to the end",
+                    resumed > paused && resumed < complete)
+                assertTrue("$asset must reach the final frame", complete > .95f)
+                compose.mainClock.advanceTimeBy(500)
+                assertEquals("$asset must settle after one complete playback", complete, frame(), .001f)
+            }
+        } finally {
+            compose.mainClock.autoAdvance = true
+            shell(if (originalScale == null) "settings delete global animator_duration_scale"
+                else "settings put global animator_duration_scale ${originalScale.toFloat()}")
+        }
+    }
+
+    /** 在主线程驱动图标的前后台状态。 / Drives glyph foreground state on the main thread. */
+    private class GlyphLifecycleOwner : androidx.lifecycle.LifecycleOwner {
+        val registry = androidx.lifecycle.LifecycleRegistry(this)
+        override val lifecycle: androidx.lifecycle.Lifecycle get() = registry
+    }
+
+    @Test
     fun legalDocumentsReadOfflineAndRetainConsentWhenClosed() {
         for (language in listOf("zh-CN", "zh-TW", "en", "ja")) {
             for (document in listOf(OobeLegalDocument.TERMS, OobeLegalDocument.PRIVACY)) {
@@ -347,6 +428,76 @@ class OobeInstrumentedTest {
         node(R.string.oobe_action_next).performClick()
         assertEquals(1, next)
         screenshot("miuix_compact_welcome")
+    }
+
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+    @Test
+    fun miuixWelcomeEnablesContinueAfterTheOriginalButtonEntrance() {
+        runBlocking { manager.setAppearance { it.copy(uiMode = "miuix", colorMode = "1") } }
+        compose.waitUntil(10_000) {
+            manager.appearance.value.uiMode == "miuix" && manager.appearance.value.colorMode == "1"
+        }
+        var next = 0
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.setContent { AzurPilotTheme { AppRootScaffold {
+                OobeStepWelcome(Modifier.fillMaxSize(), { next++ }, text(R.string.oobe_action_next),
+                    true, null, text(R.string.dialog_cancel))
+            } } }
+            val button = node(R.string.oobe_action_next).assertIsNotEnabled()
+            button.performTouchInput { click() }
+            assertEquals(0, next)
+            compose.mainClock.advanceTimeBy(2500)
+            button.assertIsDisplayed().assertIsEnabled()
+            val pixels = button.captureToImage().toPixelMap()
+            var darkest = 1f
+            var lightest = 0f
+            // 只看圆形按钮内部，避免把边缘与动态背景的差异误判为箭头。
+            for (y in pixels.height / 4 until pixels.height * 3 / 4) {
+                for (x in pixels.width / 4 until pixels.width * 3 / 4) {
+                    val color = pixels[x, y]
+                    val brightness = (color.red + color.green + color.blue) / 3f
+                    darkest = minOf(darkest, brightness)
+                    lightest = maxOf(lightest, brightness)
+                }
+            }
+            assertTrue("The entered button must contain a visible arrow",
+                lightest - darkest > .3f)
+            button.performTouchInput { click() }
+            compose.runOnIdle { assertEquals(1, next) }
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test
+    fun welcomeLaunchExpandsInPlaceAndReturnsToTheSameButton() {
+        runBlocking { manager.setAppearance { it.copy(uiMode = "miuix", colorMode = "1") } }
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.setContent { AzurPilotTheme { AppRootScaffold {
+                OobeScreen(true, {})
+            } } }
+            compose.mainClock.advanceTimeBy(2500)
+            screenshot("welcome_launch_000")
+            node(R.string.oobe_action_next).assertIsEnabled().performClick()
+            compose.mainClock.advanceTimeBy(64)
+            val title = node(R.string.oobe_pref_lang_title).getUnclippedBoundsInRoot()
+            val root = compose.onRoot().getUnclippedBoundsInRoot()
+            assertEquals("Language content must remain centered during the button launch",
+                ((root.left + root.right) / 2).value, ((title.left + title.right) / 2).value, 1f)
+            screenshot("welcome_launch_064")
+            for (time in listOf(160L, 320L, 640L)) {
+                compose.mainClock.advanceTimeBy(if (time == 160L) 96L else time / 2)
+                screenshot("welcome_launch_$time")
+            }
+            node(R.string.oobe_pref_lang_title).assertIsDisplayed()
+            node(R.string.oobe_action_prev).performClick()
+            compose.mainClock.advanceTimeBy(700)
+            node(R.string.oobe_action_next).assertIsDisplayed().assertIsEnabled()
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
     }
 
     @Test

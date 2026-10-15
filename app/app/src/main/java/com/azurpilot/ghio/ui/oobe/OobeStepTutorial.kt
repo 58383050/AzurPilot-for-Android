@@ -25,6 +25,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.theme.ksu.LocalUiMode
+import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 
@@ -42,7 +44,8 @@ import com.azurpilot.ghio.ui.ksu.AppText as Text
 fun OobeStepTutorial(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(
+            if (LocalUiMode.current == UiMode.Miuix) 16.dp else 12.dp),
     ) {
         OobePageHeader(
             title = stringResource(R.string.oobe_tut_title),

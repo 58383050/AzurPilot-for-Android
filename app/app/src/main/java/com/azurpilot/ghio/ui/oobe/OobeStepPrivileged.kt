@@ -26,6 +26,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -169,7 +172,7 @@ internal fun OobePrivilegedContent(
                     )
                     Text(
                         text = statusText,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
                         style = MaterialTheme.typography.titleSmall,
                         color = statusColor,
                     )
@@ -198,6 +201,7 @@ internal fun OobePrivilegedContent(
                             } else {
                                 Button(
                                     onClick = onOpenActivation,
+                                    enabled = !isGranting,
                                     modifier = Modifier.weight(1f),
                                 ) {
                                     Icon(
@@ -230,6 +234,7 @@ internal fun OobePrivilegedContent(
                         Text(
                             text = stringResource(if (isGranting) R.string.oobe_priv_requesting
                                 else R.string.oobe_priv_grant_failed),
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (grantFailed) MaterialTheme.colorScheme.error
                                 else MaterialTheme.colorScheme.onSurfaceVariant,

@@ -127,7 +127,19 @@ class OobeHostInstrumentedTest {
             click(R.string.nav_settings)
             click(R.string.settings_reopen_oobe, scroll = true)
             await { hasProgress(1) }
+            assertFalse("Preview must hide the settings action from accessibility",
+                hasText(R.string.settings_reopen_oobe))
             screenshot("host_reopened")
+            repeat(4) { click(R.string.oobe_action_next) }
+            val previewGranted = permissions.state.value.isGranted(RemoteBackend.SHIZUKU)
+            click(if (previewGranted) R.string.oobe_action_next else R.string.oobe_action_skip)
+            click(R.string.oobe_action_next)
+            click(R.string.oobe_action_start)
+            await { !hasProgress(7) }
+            click(R.string.settings_reopen_oobe, scroll = true)
+            await { hasProgress(1) }
+            assertFalse("A new preview must keep background settings inaccessible",
+                hasText(R.string.settings_reopen_oobe))
             click(R.string.dialog_cancel)
             await { !hasProgress(1) }
         } finally {

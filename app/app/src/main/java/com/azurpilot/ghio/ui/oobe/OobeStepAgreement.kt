@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +25,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.azurpilot.ghio.R
+import com.azurpilot.ghio.theme.ksu.LocalUiMode
+import com.azurpilot.ghio.theme.ksu.UiMode
 import com.azurpilot.ghio.ui.ksu.AppCheckbox as Checkbox
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
 import com.azurpilot.ghio.ui.ksu.AppText as Text
@@ -42,27 +45,36 @@ internal fun OobeStepAgreement(
 ) {
     var confirmed by rememberSaveable { mutableStateOf(alreadyAcknowledged) }
     var document by rememberSaveable { mutableStateOf<OobeLegalDocument?>(null) }
+    val miuix = LocalUiMode.current == UiMode.Miuix
     LaunchedEffect(confirmed, alreadyAcknowledged) {
         onAcknowledgeStateChanged(alreadyAcknowledged || confirmed)
     }
     document?.let { OobeLegalReader(it) { document = null } }
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (miuix) 16.dp else 20.dp)) {
         OobePageHeader(stringResource(R.string.oobe_welcome_guidelines_title), null, Icons.Outlined.VerifiedUser, OobeGlyph.AGREEMENT)
         Text(stringResource(R.string.oobe_welcome_guidelines_desc),
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(stringResource(R.string.oobe_legal_risk),
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface)
-        Column(Modifier.fillMaxWidth()) {
-            OobeLegalDocument.entries.forEach { entry ->
+        val documents: @Composable () -> Unit = {
+            OobeLegalDocument.entries.forEachIndexed { index, entry ->
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button) { document = entry }
-                    .padding(horizontal = 4.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    .padding(horizontal = if (miuix) 20.dp else 4.dp,
+                        vertical = if (miuix) 16.dp else 12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(entry.title), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary)
+                        color = if (miuix) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary)
                     Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (miuix && index < OobeLegalDocument.entries.lastIndex) {
+                    HorizontalDivider(Modifier.padding(horizontal = 20.dp), thickness = .5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
                 }
             }
         }
+        if (miuix) OobeCard { Column { documents() } }
+        else Column(Modifier.fillMaxWidth()) { documents() }
         if (alreadyAcknowledged) {
             Text(stringResource(R.string.oobe_welcome_guidelines_acknowledged),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)

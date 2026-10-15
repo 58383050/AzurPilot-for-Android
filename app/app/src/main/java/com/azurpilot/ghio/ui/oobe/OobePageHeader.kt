@@ -27,7 +27,8 @@ internal fun OobePageHeader(title: String, subtitle: String?, icon: ImageVector,
     glyph: OobeGlyph? = null, compact: Boolean = false) {
     val miuix = LocalUiMode.current == UiMode.Miuix
     Column(Modifier.fillMaxWidth().padding(horizontal = if (miuix) 20.dp else 0.dp)
-        .padding(top = if (miuix) 10.dp else 12.dp, bottom = if (compact) 12.dp else 28.dp),
+        .padding(top = if (miuix) 10.dp else 12.dp,
+            bottom = if (miuix || compact) 12.dp else 28.dp),
         horizontalAlignment = if (miuix) Alignment.CenterHorizontally else Alignment.Start) {
         if (miuix && glyph != null) {
             OobeActivationGlyph(glyph)
