@@ -54,7 +54,8 @@ class RemotePairings(context: Context) {
 
     /** 固定注册服务地址。 / Fixed registry service URL. */
     companion object {
-        const val REGISTRY = "https://ap-remote.108-186-180-52.sslip.io:8443"
+        const val REGISTRY = "https://remote.azurpilot.com"
+        const val LEGACY_REGISTRY = "https://ap-remote.108-186-180-52.sslip.io:8443"
         private const val KEY_ALIAS = "azurpilot.remote-pairings.v1"
         private val lock = Any()
     }
@@ -73,7 +74,7 @@ class RemotePairings(context: Context) {
             Claim(scanSecret = value)
         }
         synchronized(lock) { check(read().size < 20) }
-        client.newCall(Request.Builder().url("$REGISTRY/v1/pairings/claim")
+        client.newCall(Request.Builder().url("$REGISTRY/api/v1/pairings/claim")
             .post(json.encodeToString(request).toRequestBody("application/json".toMediaType())).build())
             .execute().use { response ->
                 check(response.isSuccessful) { "HTTP ${response.code}" }
@@ -96,6 +97,7 @@ class RemotePairings(context: Context) {
         require(pairing.url == "$REGISTRY/d/${pairing.deviceId}/")
         client.newCall(Request.Builder().url(pairing.url).header("Cache-Control", "no-cache").build())
             .execute().use { response ->
+                check(response.code != 302 || response.header("Location") != "/error") { "AP 暂时离线" }
                 check(response.code == 301) { "HTTP ${response.code}" }
                 val location = response.header("Location").orEmpty()
                 require(location.matches(Regex("https://[a-z0-9-]+\\.trycloudflare\\.com/")))
@@ -119,7 +121,12 @@ class RemotePairings(context: Context) {
         require(parts.size == 2)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, Base64.decode(parts[0], Base64.NO_WRAP)))
-        return json.decodeFromString(cipher.doFinal(Base64.decode(parts[1], Base64.NO_WRAP)).decodeToString())
+        val saved = json.decodeFromString<List<RemotePairing>>(cipher.doFinal(Base64.decode(parts[1], Base64.NO_WRAP)).decodeToString())
+        // 只迁移已知试验入口，保留设备身份和独立授权。
+        return saved.map { pairing ->
+            if (pairing.url == "$LEGACY_REGISTRY/d/${pairing.deviceId}/")
+                pairing.copy(url = "$REGISTRY/d/${pairing.deviceId}/") else pairing
+        }
     }
 
     private fun write(pairings: List<RemotePairing>) {

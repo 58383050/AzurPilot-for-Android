@@ -674,7 +674,8 @@ class ProotHost(
             if (yamlValue(lines, "RemoteAccessMode").isNullOrEmpty()) {
                 lines = setYamlKey(lines, "RemoteAccessMode", "cloudflare")
             }
-            if (yamlValue(lines, "CloudflareRegistry").isNullOrEmpty()) {
+            val registry = yamlValue(lines, "CloudflareRegistry")
+            if (registry.isNullOrEmpty() || registry == com.azurpilot.ghio.remoteaccess.RemotePairings.LEGACY_REGISTRY) {
                 lines = setYamlKey(lines, "CloudflareRegistry",
                     com.azurpilot.ghio.remoteaccess.RemotePairings.REGISTRY)
             }

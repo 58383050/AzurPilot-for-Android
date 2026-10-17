@@ -9,7 +9,7 @@
 
 AFA 每次打开都请求固定入口，读取禁止缓存的 301 跳转，校验目标为
 `https://<name>.trycloudflare.com/`。因此 AP 重启、Tunnel URL 改变后无需重新配对。
-设备离线时提示稍后重试；重新打开会重新解析入口。
+设备离线时，浏览器入口以 302 跳到 `/error`；原生客户端提示稍后重试，重新打开会重新解析入口。
 
 「试用 Quick Tunnel」将本机 AP 的远程模式保存为 `cloudflare` 并提示重启。
 首次启用会写入 Android ID 与随机安装因子的 SHA-256 摘要作为设备 ID，设备注册密钥由 AP 保存在
@@ -31,7 +31,8 @@ Hamming(12,8) 与 18×18 绿色差分载波。协议、渲染和原生识别均�
 ### 存储与安全边界
 
 - `remoteaccess/RemotePairings.kt` 使用 OkHttp 和 kotlinx.serialization 调用注册服务。
-  服务器地址固定为 `https://ap-remote.108-186-180-52.sslip.io:8443`，不接受扫码内容指定任意服务器。
+  服务器地址固定为 `https://remote.azurpilot.com`，领取接口为 `/api/v1/pairings/claim`，不接受扫码内容指定任意服务器。
+  旧试验地址的已保存配对与本机注册配置会迁移到新域名，继续使用原设备 ID 和独立授权。
 - 设备列表和独立凭据通过 Android Keystore AES-GCM 加密，保存到 `noBackupFilesDir`。
   长期凭据不进入 DataStore 明文偏好、Android 备份、日志或 Intent。扫描 Activity 仅返回本次配对的一次性密钥。
 - `ParticleScanActivity` 用原生 CameraX 采集绿色通道，搜索中心裁剪、缩放、旋转与镜像。
@@ -67,7 +68,7 @@ are independently implemented; upstream source code is not bundled.
 
 Every open resolves the stable entry again, checks the non-cacheable 301 response, and validates its
 `https://<name>.trycloudflare.com/` destination. AP restarts therefore do not require pairing again.
-Offline devices show a retry message; reopening resolves the entry again.
+Offline browser entries receive a 302 to `/error`. Native clients show a retry message; reopening resolves the entry again.
 
 Try Quick Tunnel saves `cloudflare` as the local AP remote mode and requests a runtime restart.
 First use stores a SHA-256 digest of Android ID plus an installation nonce as the ID; AP persists a registration
@@ -88,7 +89,8 @@ Quick Tunnel enabled and generate a code on its remote access page.
 ### Storage and trust boundaries
 
 - `remoteaccess/RemotePairings.kt` uses OkHttp and kotlinx.serialization. The registry is fixed to
-  `https://ap-remote.108-186-180-52.sslip.io:8443`; scanned data cannot select arbitrary servers.
+  `https://remote.azurpilot.com`, with claims at `/api/v1/pairings/claim`; scanned data cannot select arbitrary servers.
+  Saved pairings and local registration settings from the old trial host migrate while retaining device IDs and credentials.
 - Android Keystore AES-GCM encrypts entries and independent credentials in `noBackupFilesDir`.
   Long-term credentials are excluded from plaintext DataStore, backups, logs, and Intents. The scanner activity returns only a one-time pairing secret.
 - Native `ParticleScanActivity` samples green-channel CameraX frames, searching centered crops, scales,

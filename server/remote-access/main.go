@@ -8,11 +8,13 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math/big"
 	"net"
@@ -40,7 +42,15 @@ type service struct {
 	base   string
 	mu     sync.Mutex
 	limits map[string]rate
+	probe  func(context.Context, string) bool
 }
+
+// 页面与样式随二进制部署，避免依赖外部静态资源。
+// Pages and styles ship with the binary without external assets.
+//
+//go:embed web/*
+var pages embed.FS
+
 type rate struct {
 	count int
 	until time.Time
@@ -113,7 +123,32 @@ CREATE TABLE IF NOT EXISTS pairings(id TEXT PRIMARY KEY, code_hash TEXT UNIQUE N
 		db.Close()
 		return nil, err
 	}
-	return &service{db: db, base: strings.TrimRight(base, "/"), limits: map[string]rate{}}, nil
+	client := &http.Client{Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return &service{db: db, base: strings.TrimRight(base, "/"), limits: map[string]rate{}, probe: tunnelProbe(client)}, nil
+}
+
+// 访问前确认 AP 仍在响应；不跟随目标跳转，也不传递注册或配对凭据。
+// Verifies AP before redirecting, without forwarding credentials or following redirects.
+func tunnelProbe(client *http.Client) func(context.Context, string) bool {
+	return func(ctx context.Context, target string) bool {
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, target+"/healthz", nil)
+		if err != nil {
+			return false
+		}
+		response, err := client.Do(request)
+		if err != nil {
+			return false
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			return false
+		}
+		var health struct {
+			Status          string `json:"status"`
+			ProtocolVersion int    `json:"protocolVersion"`
+		}
+		return json.NewDecoder(io.LimitReader(response.Body, 1024)).Decode(&health) == nil && health.Status == "ok" && health.ProtocolVersion == 1
+	}
 }
 
 func (s *service) allowed(key string, maximum int) bool {
@@ -141,6 +176,18 @@ func (s *service) allowed(key string, maximum int) bool {
 
 func bearer(r *http.Request) string {
 	return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+}
+
+// 仅信任本机反代写入的地址，公网请求不能伪造限流来源。
+// Trusts proxy addresses only from loopback, preventing public rate-limit spoofing.
+func clientIP(r *http.Request) string {
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	if parsed := net.ParseIP(ip); parsed != nil && parsed.IsLoopback() {
+		if forwarded := net.ParseIP(r.Header.Get("X-Real-IP")); forwarded != nil {
+			return forwarded.String()
+		}
+	}
+	return ip
 }
 func (s *service) authorized(r *http.Request, id string) bool {
 	key := bearer(r)
@@ -195,11 +242,11 @@ func (s *service) redirect(w http.ResponseWriter, r *http.Request) {
 	var target string
 	var seen int64
 	if s.db.QueryRow("SELECT tunnel_url,seen FROM devices WHERE id=?", r.PathValue("id")).Scan(&target, &seen) != nil || time.Now().Unix()-seen > 180 {
-		failure(w, 503, "设备离线，请稍后重试")
+		http.Redirect(w, r, "/error", http.StatusFound)
 		return
 	}
-	if !tunnelPattern.MatchString(target) {
-		failure(w, 503, "隧道地址无效")
+	if !tunnelPattern.MatchString(target) || !s.probe(r.Context(), target) {
+		http.Redirect(w, r, "/error", http.StatusFound)
 		return
 	}
 	u, _ := url.Parse(target)
@@ -254,7 +301,7 @@ func (s *service) createPairing(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *service) claim(w http.ResponseWriter, r *http.Request) {
-	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	ip := clientIP(r)
 	if !s.allowed("claim:"+ip, 5) || !s.allowed("claim:global", 120) {
 		failure(w, 429, "尝试过于频繁，请稍后重试")
 		return
@@ -319,19 +366,30 @@ func (s *service) pairingStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *service) handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, map[string]string{"status": "ok"}) })
-	mux.HandleFunc("POST /v1/devices/register", s.register)
-	mux.HandleFunc("DELETE /v1/devices/{id}", s.offline)
-	mux.HandleFunc("POST /v1/pairings", s.createPairing)
-	mux.HandleFunc("POST /v1/pairings/claim", s.claim)
-	mux.HandleFunc("GET /v1/pairings/{id}", s.pairingStatus)
+	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, map[string]string{"status": "ok"}) })
+	mux.HandleFunc("POST /api/v1/devices/register", s.register)
+	mux.HandleFunc("DELETE /api/v1/devices/{id}", s.offline)
+	mux.HandleFunc("POST /api/v1/pairings", s.createPairing)
+	mux.HandleFunc("POST /api/v1/pairings/claim", s.claim)
+	mux.HandleFunc("GET /api/v1/pairings/{id}", s.pairingStatus)
 	mux.HandleFunc("GET /d/{id}/{path...}", s.redirect)
+	mux.HandleFunc("GET /d", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/error", http.StatusFound) })
+	static, _ := fs.Sub(pages, "web")
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(static))))
+	for path, file := range map[string]string{"/{$}": "index.html", "/error": "error.html"} {
+		content, _ := pages.ReadFile("web/" + file)
+		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write(content)
+		})
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store, no-cache, max-age=0, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		ip := clientIP(r)
 		if !s.allowed("all:"+ip, 120) {
 			failure(w, 429, "请求过于频繁")
 			return
