@@ -55,19 +55,21 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /**
- * 保存七步激活流程；首屏从继续按钮展开，其余页面将导航、标题与内容共同移动。
+ * 保存本机激活流程；远程入口只需确认协议，随后直接配对，不经过本机权限步骤。
  * 预览允许关闭，首次激活只通过完成回调持久化。
  *
- * Retains seven activation steps, expanding the welcome button and moving later pages as a whole.
+ * Retains local activation steps; remote access proceeds from legal acknowledgement to pairing.
  * Preview can dismiss; initial activation persists only through the completion callback.
  */
 @Composable
 fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
-    modifier: Modifier = Modifier, onDismiss: (() -> Unit)? = null) {
+    modifier: Modifier = Modifier, onDismiss: (() -> Unit)? = null,
+    onRemoteComplete: (() -> Unit)? = null) {
     OobeSystemBars()
     val steps = OobeStep.entries
     var currentIndex by rememberSaveable { mutableIntStateOf(0) }
     var acknowledged by rememberSaveable { mutableStateOf(alreadyAcknowledged) }
+    var remoteClient by rememberSaveable { mutableStateOf(false) }
     var navigating by remember { mutableStateOf(false) }
     val savedSteps = rememberSaveableStateHolder()
     val permissions: PermissionManager = koinInject()
@@ -102,7 +104,11 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
     val progress = stringResource(R.string.oobe_progress_format, currentIndex + 1, steps.size)
     val previous: () -> Unit = {
         if (!navigating) {
-            if (currentIndex == 0) onDismiss?.invoke() else currentIndex--
+            if (currentIndex == 0) onDismiss?.invoke()
+            else if (remoteClient && currentIndex == OobeStep.AGREEMENT.ordinal) {
+                currentIndex = 0
+                remoteClient = false
+            } else currentIndex--
         }
     }
     BackHandler(enabled = currentIndex > 0 || onDismiss != null, onBack = previous)
@@ -136,6 +142,7 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                 val canProceed = !navigating && (step != OobeStep.AGREEMENT || acknowledged) &&
                     (step != OobeStep.PRIVILEGED || !granting)
                 val primary = stringResource(when {
+                    remoteClient && step == OobeStep.AGREEMENT -> R.string.remote_pair_title
                     step == OobeStep.READY -> R.string.oobe_action_start
                     step == OobeStep.PRIVILEGED && !access.isGranted(access.configuredBackend) -> R.string.oobe_action_skip
                     else -> R.string.oobe_action_next
@@ -144,7 +151,11 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                 val next: () -> Unit = {
                     // 离场页与同一帧重复点击不能改变新页面的步骤。
                     if (canProceed && index == currentIndex) {
-                        if (step == OobeStep.READY) onComplete()
+                        if (remoteClient && step == OobeStep.AGREEMENT) {
+                            navigating = true
+                            onRemoteComplete?.invoke()
+                        }
+                        else if (step == OobeStep.READY) onComplete()
                         else if (step == OobeStep.PRIVILEGED && !access.isGranted(access.configuredBackend)) {
                             navigating = true
                             scope.launch {
@@ -181,10 +192,16 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                     .then(if (index == 0) Modifier else Modifier.safeDrawingPadding()),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     if (index == 0) {
-                        OobeStepWelcome(Modifier.weight(1f).fillMaxWidth(), next, primary,
+                        OobeStepWelcome(Modifier.weight(1f).fillMaxWidth(), { remoteClient = false; next() }, primary,
                             canProceed, if (onDismiss != null) back else null, secondary,
                             onNextBoundsChanged = { welcomeButton = it },
-                            exiting = pageTransition.targetState != 0)
+                            exiting = pageTransition.targetState != 0,
+                            onRemote = onRemoteComplete?.let { {
+                                if (canProceed && index == currentIndex) {
+                                    remoteClient = true
+                                    currentIndex = OobeStep.AGREEMENT.ordinal
+                                }
+                            } })
                     } else {
                         Row(Modifier.widthIn(max = 600.dp).fillMaxWidth().height(56.dp)
                             .padding(horizontal = if (miuix) 12.dp else 20.dp),

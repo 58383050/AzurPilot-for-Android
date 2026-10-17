@@ -12,6 +12,7 @@ import com.azurpilot.ghio.service.RunForegroundService
 import com.azurpilot.ghio.settings.AppSettingsManager
 import com.azurpilot.ghio.update.ReleaseUrls
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -405,7 +406,12 @@ class ProotHost(
             var rapidDeaths = 0
             var spawnedAt = System.currentTimeMillis()
             while (true) {
-                val code = runCatching { runInterruptible { proc.waitFor() } }.getOrDefault(-1)
+                val code = runCatching { runInterruptible { proc.waitFor() } }.getOrElse {
+                    // 取消的是守望协程，进程仍可能存活；保留 session 给停机链关闭 stdin 并回收。
+                    if (it is CancellationException) throw it
+                    Timber.w(it, "proot waitFor failed")
+                    -1
+                }
                 val livedMs = System.currentTimeMillis() - spawnedAt
                 Timber.w("proot session exited code=%s lived=%dms", code, livedMs)
                 session = null

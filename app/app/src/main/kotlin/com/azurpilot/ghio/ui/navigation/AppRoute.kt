@@ -50,6 +50,9 @@ sealed interface AppRoute : NavKey {
     /** 运行时设置。 / Runtime settings. */
     @Serializable data object Runtime : AppRoute
 
+    /** 无需本机运行时的远程配对页。 / Remote pairing without a local Runtime. */
+    @Serializable data object RemoteAccess : AppRoute
+
     /** OCR 设置。 / OCR settings. */
     @Serializable data object Ocr : AppRoute
 

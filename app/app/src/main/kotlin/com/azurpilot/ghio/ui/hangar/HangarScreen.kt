@@ -109,6 +109,7 @@ fun HangarScreen(
     onOpenSettings: () -> Unit = {},
     onSettingsAnchorChanged: (Offset) -> Unit = {},
     onOpenTasks: () -> Unit = {},
+    onOpenRemote: () -> Unit = {},
     hostState: HostState = koinInject(),
     runController: AzurPilotRunController = koinInject(),
     prootHost: ProotHost = koinInject(),
@@ -121,13 +122,15 @@ fun HangarScreen(
     val connected by repository.connected.collectAsStateWithLifecycle()
     val overview by repository.overview.collectAsStateWithLifecycle()
     val access by permissionManager.state.collectAsStateWithLifecycle()
+    val settings: com.azurpilot.ghio.settings.AppSettingsManager = koinInject()
+    val remoteClientMode by settings.remoteClientMode.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     // 仅在虚拟屏确实不存在时补拉环境。返回主页不能再次主动探测桥接，
     // 否则探测的短暂失败会把已就绪的页面闪成「正在准备设备」。
-    LaunchedEffect(active, host.privilegedConnected) {
-        if (active && host.privilegedConnected &&
+    LaunchedEffect(active, host.privilegedConnected, remoteClientMode) {
+        if (!remoteClientMode && active && host.privilegedConnected &&
             hostState.snapshot.value.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE
         ) {
             hostState.ensureEnvironmentStarted()
@@ -182,35 +185,48 @@ fun HangarScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            HomeRunCard(
-                mode = mode,
-                onStart = runController::startRunner,
-                onStop = runController::stopRunner,
-                onRetry = prootHost::ensureStarted,
-                onResolve = {
-                    when (mode) {
-                        HomeMode.NEEDS_SHIZUKU -> permissionManager.openShizuku(context)
-                        HomeMode.NEEDS_AUTH -> scope.launch {
-                            permissionManager.requestRemoteAccess()
-                            permissionManager.bindService()
-                        }
-                        HomeMode.NEEDS_CONNECTION -> scope.launch { permissionManager.bindService() }
-                        HomeMode.NEEDS_ACTION -> onOpenSettings()
-                        else -> Unit
+            AppCard {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppText(stringResource(R.string.remote_pair_title), style = MaterialTheme.typography.titleMedium)
+                    AppText(stringResource(R.string.remote_client_hint), style = MaterialTheme.typography.bodyMedium)
+                    AppButton(onClick = onOpenRemote) { AppText(stringResource(R.string.remote_pair_title)) }
+                    if (remoteClientMode) AppButton(onClick = onOpenTasks) {
+                        AppText(stringResource(R.string.nav_azurpilot))
                     }
-                },
-            )
+                }
+            }
 
-            // 息屏运行是独立的手动操作，不能依赖调度器已经启动。
-            // 是否支持由 ScreenSaverButton 按真实运行模式判断。
-            ScreenSaverButton(modifier = Modifier.fillMaxWidth())
+            if (!remoteClientMode) {
+                HomeRunCard(
+                    mode = mode,
+                    onStart = runController::startRunner,
+                    onStop = runController::stopRunner,
+                    onRetry = prootHost::ensureStarted,
+                    onResolve = {
+                        when (mode) {
+                            HomeMode.NEEDS_SHIZUKU -> permissionManager.openShizuku(context)
+                            HomeMode.NEEDS_AUTH -> scope.launch {
+                                permissionManager.requestRemoteAccess()
+                                permissionManager.bindService()
+                            }
+                            HomeMode.NEEDS_CONNECTION -> scope.launch { permissionManager.bindService() }
+                            HomeMode.NEEDS_ACTION -> onOpenSettings()
+                            else -> Unit
+                        }
+                    },
+                )
 
-            HomeTasks(
-                overview = activeOverview,
-                loading = !connected || activeOverview == null,
-                running = run.runnerAlive && run.reachable && run.statusKnown,
-                onOpenTasks = onOpenTasks,
-            )
+                // 息屏运行是独立的手动操作，不能依赖调度器已经启动。
+                // 是否支持由 ScreenSaverButton 按真实运行模式判断。
+                ScreenSaverButton(modifier = Modifier.fillMaxWidth())
+
+                HomeTasks(
+                    overview = activeOverview,
+                    loading = !connected || activeOverview == null,
+                    running = run.runnerAlive && run.reachable && run.statusKnown,
+                    onOpenTasks = onOpenTasks,
+                )
+            }
             Spacer(Modifier.height(bottomInnerPadding + 16.dp))
         }
     }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
@@ -42,6 +43,8 @@ import com.azurpilot.ghio.proot.AzurPilotRunController
 import com.azurpilot.ghio.proot.ProotHost
 import com.azurpilot.ghio.proot.ProotPhase
 import com.azurpilot.ghio.service.HostState
+import com.azurpilot.ghio.settings.AppSettingsManager
+import com.azurpilot.ghio.remoteaccess.RemotePairingCard
 import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.azurpilot.sections.ConfigSection
 import com.azurpilot.ghio.ui.azurpilot.sections.LogsSection
@@ -61,6 +64,8 @@ import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
 import com.azurpilot.ghio.ui.ksu.AppSnackbarHost as SnackbarHost
 import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
 import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppButton as Button
+import com.azurpilot.ghio.ui.ksu.AppPageScaffold
 import com.azurpilot.ghio.ui.navigation.AppRoute
 import org.koin.compose.koinInject
 import top.yukonga.miuix.kmp.utils.pagerGestureOverride
@@ -78,8 +83,9 @@ fun AzurPilotPage(
     active: Boolean,
     onNavigate: (AppRoute) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenRemote: () -> Unit = {},
 ) {
-    AzurPilotRuntimeSurface(active = active, modifier = modifier) { repository ->
+    AzurPilotRuntimeSurface(active = active, modifier = modifier, onOpenRemote = onOpenRemote) { repository ->
         val sourceId by repository.sourceId.collectAsStateWithLifecycle()
         key(sourceId) { AzurPilotContent(repository, onNavigate, active) }
     }
@@ -95,6 +101,7 @@ fun AzurPilotPage(
 private fun AzurPilotRuntimeSurface(
     active: Boolean,
     modifier: Modifier = Modifier,
+    onOpenRemote: () -> Unit,
     repository: AzurPilotRepository = koinInject(),
     hostState: HostState = koinInject(),
     prootHost: ProotHost = koinInject(),
@@ -103,6 +110,8 @@ private fun AzurPilotRuntimeSurface(
 ) {
     val connected by repository.connected.collectAsStateWithLifecycle()
     val remoteName by repository.remoteName.collectAsStateWithLifecycle()
+    val settings: AppSettingsManager = koinInject()
+    val remoteClientMode by settings.remoteClientMode.collectAsStateWithLifecycle()
     val authRequired by repository.authRequired.collectAsStateWithLifecycle()
     val hostSnapshot by hostState.snapshot.collectAsStateWithLifecycle()
     val prootState by prootHost.state.collectAsStateWithLifecycle()
@@ -111,8 +120,8 @@ private fun AzurPilotRuntimeSurface(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // 仅在设备不存在时补拉，平级页切换不应重复探测已有的虚拟屏。
-    LaunchedEffect(active, hostSnapshot.privilegedConnected, remoteName) {
-        if (remoteName == null && active && hostSnapshot.privilegedConnected &&
+    LaunchedEffect(active, hostSnapshot.privilegedConnected, remoteName, remoteClientMode) {
+        if (!remoteClientMode && remoteName == null && active && hostSnapshot.privilegedConnected &&
             hostState.snapshot.value.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE
         ) {
             hostState.ensureEnvironmentStarted()
@@ -136,16 +145,25 @@ private fun AzurPilotRuntimeSurface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background,
             ) {
-                if (remoteName != null) Column(
-                    modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    ExpressiveLoadingIndicator()
-                    Text(stringResource(if (authRequired) R.string.remote_pair_auth_failed else R.string.remote_pair_open_failed))
+                if (remoteClientMode || remoteName != null) AppPageScaffold(
+                    title = stringResource(R.string.remote_pair_title),
+                ) { insets ->
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(insets)
+                            .verticalScroll(rememberScrollState()).padding(AppTokens.Spacing.lg),
+                        verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.lg),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(stringResource(R.string.remote_client_hint))
+                        if (remoteName != null) Text(stringResource(
+                            if (authRequired) R.string.remote_pair_auth_failed else R.string.remote_pair_open_failed))
+                        RemotePairingCard()
+                    }
                 } else RuntimeGate(
                     reachable = runState.reachable,
                     phase = prootState.phase,
                     detail = prootState.detail,
+                    onOpenRemote = onOpenRemote,
                 )
             }
         }
@@ -172,7 +190,7 @@ private fun AzurPilotRuntimeSurface(
  * @param detail 失败阶段的详情文案 / the failure-phase detail text
  */
 @Composable
-private fun RuntimeGate(reachable: Boolean, phase: ProotPhase, detail: String) {
+private fun RuntimeGate(reachable: Boolean, phase: ProotPhase, detail: String, onOpenRemote: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(AppTokens.Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -194,6 +212,9 @@ private fun RuntimeGate(reachable: Boolean, phase: ProotPhase, detail: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = AppTokens.Spacing.lg),
         )
+        Button(onClick = onOpenRemote, modifier = Modifier.padding(top = AppTokens.Spacing.lg)) {
+            Text(stringResource(R.string.remote_pair_title))
+        }
     }
 }
 
@@ -359,8 +380,8 @@ private fun AzurPilotContent(
  * Renders runtime details in the host stack, with a dedicated title bar and task search action.
  */
 @Composable
-fun AzurPilotDetailPage(route: AppRoute.Console, onBack: () -> Unit) {
-    AzurPilotRuntimeSurface(active = true) { repository ->
+fun AzurPilotDetailPage(route: AppRoute.Console, onBack: () -> Unit, onOpenRemote: () -> Unit = onBack) {
+    AzurPilotRuntimeSurface(active = true, onOpenRemote = onOpenRemote) { repository ->
         val topBarAction = remember { ApTopBarAction() }
         val titleRes =
             when (route) {

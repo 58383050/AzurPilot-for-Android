@@ -6,6 +6,7 @@
     <string name="remote_pair_auth_failed">認証が無効です。設定からペアリングし直してください。</string>
     <string name="remote_pair_try_tunnel">Quick Tunnel を試す（再起動が必要）</string>
     <string name="remote_pair_title">リモート AP に接続</string>
+    <string name="remote_client_hint">スキャンまたはペアリングコードでリモート AP に接続できます。端末内の Runtime のインストール・起動や Shizuku の権限は不要です。</string>
     <string name="remote_pair_hint">AP のリモートアクセス画面でペアリングを押し、画像をスキャンするか6桁のコードを入力してください。</string>
     <string name="remote_pair_scan">ペアリング画像をスキャン</string>
     <string name="remote_pair_scan_hint">AP のペアリング画像を枠内に合わせてください</string>

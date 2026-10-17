@@ -187,6 +187,11 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
     /** 开箱即用体验（OOBE / 首次启动引导）是否已完成 / Whether the out-of-box experience (OOBE) has been completed. */
     val oobeCompleted: StateFlow<Boolean> = _oobeCompleted.asStateFlow()
 
+    private val _remoteClientMode = MutableStateFlow(defaults.remoteClientMode.toBoolean())
+
+    /** 远程客户端模式，不依赖本机 Runtime。 / Remote client mode, independent of local Runtime. */
+    val remoteClientMode: StateFlow<Boolean> = _remoteClientMode.asStateFlow()
+
     private val _legalNoticeVersion = MutableStateFlow(defaults.legalNoticeVersion)
 
     /** 已确认的协议版本。 / The acknowledged legal-document version. */
@@ -251,6 +256,8 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
                 _appLockEnabled.value = s.appLockEnabled.toBoolean()
                 _compatNoticeShown.value = s.compatNoticeShown.toBoolean()
                 _communityNoticeAcknowledged.value = s.communityNoticeAcknowledged.toBoolean()
+                // 先发布模式再打开向导完成门，避免远程首启短暂触发本机部署。
+                _remoteClientMode.value = s.remoteClientMode.toBoolean()
                 _oobeCompleted.value = s.oobeCompleted.toBoolean()
                 _legalNoticeVersion.value = s.legalNoticeVersion
                 _hotUpdateEnabled.value = s.hotUpdateEnabled.toBoolean()
@@ -401,12 +408,18 @@ class AppSettingsManager(private val context: Context) : AppSettingsGateway {
      * Persists setup completion, legal version and legacy acknowledgement in one transaction, avoiding
      * inconsistent first-run state after a restart.
      */
-    suspend fun completeOobe() = with(AppSettingsSchema) {
+    suspend fun completeOobe(remoteClient: Boolean = false) = with(AppSettingsSchema) {
         context.dataStore.edit {
             it[communityNoticeAcknowledged] = "true"
             it[oobeCompleted] = "true"
             it[legalNoticeVersion] = CURRENT_LEGAL_NOTICE_VERSION
+            it[remoteClientMode] = remoteClient.toString()
         }
+    }
+
+    /** 保存客户端模式；切回本机时恢复原有部署流程。 / Persists client mode; local mode restores provisioning. */
+    suspend fun setRemoteClientMode(enabled: Boolean) = with(AppSettingsSchema) {
+        context.dataStore.edit { it[remoteClientMode] = enabled.toString() }
     }
 
     /** 写入「允许运行时热更新」 / Writes the "runtime hot updates allowed" flag. */

@@ -31,6 +31,8 @@
   崩溃退避重拉、stdin 保活约定、清理残留锁。
 - **AzurPilotGateway**（`proot/`）：对 Runtime 的 WebSocket 富接口订阅方，
   全局唯一订阅，承载配置、日志、统计的实时推送。
+- **远程客户端**（`remoteaccess/`）：从欢迎页、主页及本机部署页独立进入配对，复用原生控制台；
+  `remoteClientMode` 将本机部署、自动启动与权限引导限制在本机模式，见 [remote-access.md](remote-access.md)。
 - **OCR 工作进程**（`ocr/`）：私有绑定服务在 `:ocr` 进程托管推理库，
   AP 和 App 测试通过带口令的 `127.0.0.1:22302` 张量 API 调用。
   原生退出后主进程重新绑定并禁用失败模型的 NPU，见 [ocr-acceleration.md](ocr-acceleration.md)。
@@ -48,6 +50,8 @@
   「App 不得 execve 私有目录文件」的限制（Spike A 实证结论）。
 - 会话约定：**stdin 管道保持敞开**。App 进程退出导致 EOF 时，wrapper
   自行杀掉进程组，防孤儿链路。
+- 取消 `ProotHost` 的守望协程只停止等待，必须继续抛出 `CancellationException`；
+  不能把它当作进程退出并清空 `session`。停机链仍需要该句柄关闭 stdin、等待并回收进程。
 
 ### 网关协议
 
@@ -104,6 +108,9 @@ Runtime 在 `127.0.0.1:25548` 同时暴露三类接口：
   cleans stale locks.
 - **AzurPilotGateway** (`proot/`): the single WebSocket subscriber to the
   runtime's rich API; carries live config, log, and statistics pushes.
+- **Remote client** (`remoteaccess/`): pairing opens from welcome, home and local provisioning,
+  sharing the native console. `remoteClientMode` scopes local provisioning, automatic startup and
+  permission guidance to local mode. See [remote-access.md](remote-access.md).
 - **OCR worker** (`ocr/`): a private bound service hosts inference libraries in
   `:ocr`. AP and in-app tests use the authenticated `127.0.0.1:22302` tensor API.
   After a native exit, the main process rebinds and gates the failed model's NPU.
@@ -127,6 +134,9 @@ Runtime 在 `127.0.0.1:25548` 同时暴露三类接口：
   (verified in Spike A).
 - Session contract: **keep the stdin pipe open**. When the app process dies,
   the wrapper sees EOF and kills its own process group to avoid orphans.
+- Cancelling the `ProotHost` supervisor only stops waiting and must propagate `CancellationException`.
+  It must not clear `session` as if the process exited; shutdown still needs the handle to close stdin,
+  wait for completion, and reclaim the process.
 
 ### Gateway protocol
 

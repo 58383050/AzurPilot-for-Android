@@ -12,6 +12,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size as ComposeSize
 import androidx.compose.ui.graphics.Color
@@ -35,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.view.doOnLayout
 import com.azurpilot.ghio.R
 import com.azurpilot.ghio.theme.AzurPilotTheme
 import com.azurpilot.ghio.ui.ksu.AppPageScaffold
@@ -75,11 +78,11 @@ class ParticleScanActivity : ComponentActivity() {
                         AppText(stringResource(if (!allowed) R.string.remote_pair_camera_permission
                             else if (failed) R.string.remote_pair_failed else R.string.remote_pair_scan_hint),
                             style = MaterialTheme.typography.bodyLarge)
-                        if (allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
+                        if (allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f).clipToBounds()) {
                             AndroidView(factory = { context -> PreviewView(context).apply {
                                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                                 scaleType = PreviewView.ScaleType.FILL_CENTER
-                                bindCamera(this)
+                                doOnLayout { bindCamera(this) }
                             } }, modifier = Modifier.fillMaxSize())
                             Canvas(Modifier.fillMaxSize()) {
                                 val margin = size.width * .11f
@@ -107,7 +110,10 @@ class ParticleScanActivity : ComponentActivity() {
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888).build()
                 preview = output; analysis = reader
                 reader.setAnalyzer(executor, ::analyze)
-                camera.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, output, reader)
+                // 预览与分析共用正方形视口，取景框才能对应 ImageProxy 的有效裁剪区。
+                val group = UseCaseGroup.Builder().addUseCase(output).addUseCase(reader)
+                    .setViewPort(requireNotNull(view.viewPort)).build()
+                camera.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, group)
             }.onFailure { failed = true }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -115,12 +121,13 @@ class ParticleScanActivity : ComponentActivity() {
     private fun sample(image: ImageProxy): List<FloatArray> {
         val plane = image.planes[0]
         val bytes = plane.buffer
-        val shortSide = min(image.width, image.height).toFloat()
+        val crop = image.cropRect
+        val shortSide = min(crop.width(), crop.height()).toFloat()
         val offsets = listOf(0f to 0f, -.04f to 0f, .04f to 0f, 0f to -.04f, 0f to .04f)
         return listOf(.84f, .92f, 1f, 1.08f, 1.16f).flatMap { scale -> offsets.map { (dx, dy) ->
             val side = shortSide * .78f * scale
-            val left = (image.width - side) / 2 + dx * shortSide
-            val top = (image.height - side) / 2 + dy * shortSide
+            val left = crop.left + (crop.width() - side) / 2 + dx * shortSide
+            val top = crop.top + (crop.height() - side) / 2 + dy * shortSide
             FloatArray(324) { index ->
                 val x = (left + (index % 18 + .5f) * side / 18).toInt().coerceIn(1, image.width - 2)
                 val y = (top + (index / 18 + .5f) * side / 18).toInt().coerceIn(1, image.height - 2)

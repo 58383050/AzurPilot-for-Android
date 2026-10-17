@@ -20,6 +20,9 @@ android {
             if (providers.gradleProperty("oobeTestsOnly").orNull == "true") {
                 kotlin.directories.clear()
                 kotlin.directories.add("src/oobeTest/kotlin")
+            } else if (providers.gradleProperty("remoteAccessTestsOnly").orNull == "true") {
+                kotlin.directories.clear()
+                kotlin.directories.add("src/remoteAccessTest/kotlin")
             } else if (providers.gradleProperty("azurpilot.downloadBenchmark").orNull == "true") {
                 kotlin.directories.clear()
                 kotlin.directories.add("src/downloadTest/kotlin")

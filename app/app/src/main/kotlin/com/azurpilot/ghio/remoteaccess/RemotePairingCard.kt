@@ -30,6 +30,7 @@ import com.azurpilot.ghio.ui.ksu.AppTextButton
 import com.azurpilot.ghio.ui.ksu.AppTextField
 import kotlinx.coroutines.launch
 import com.azurpilot.ghio.proot.AzurPilotRepository
+import com.azurpilot.ghio.settings.AppSettingsManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
 
@@ -39,11 +40,13 @@ import org.koin.compose.koinInject
  * Provides scanning, six-digit pairing and saved AP entries independently of local runtime state.
  */
 @Composable
-fun RemotePairingCard(onConnected: () -> Unit = {}, repository: AzurPilotRepository = koinInject()) {
+fun RemotePairingCard(onConnected: () -> Unit = {}, repository: AzurPilotRepository = koinInject(),
+    onLocalSelected: () -> Unit = {}, settings: AppSettingsManager = koinInject()) {
     val context = LocalContext.current
     val store = remember { RemotePairings(context.applicationContext) }
     val scope = rememberCoroutineScope()
     val remoteName by repository.remoteName.collectAsStateWithLifecycle()
+    val remoteClientMode by settings.remoteClientMode.collectAsStateWithLifecycle()
     var devices by remember { mutableStateOf<List<RemotePairing>>(emptyList()) }
     var code by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -54,6 +57,7 @@ fun RemotePairingCard(onConnected: () -> Unit = {}, repository: AzurPilotReposit
         scope.launch {
             runCatching {
                 val paired = store.pair(value)
+                settings.setRemoteClientMode(true)
                 devices = store.list(); code = ""
                 paired
             }.onSuccess { paired ->
@@ -71,9 +75,14 @@ fun RemotePairingCard(onConnected: () -> Unit = {}, repository: AzurPilotReposit
             AppText(stringResource(R.string.remote_pair_hint), style = MaterialTheme.typography.bodySmall)
             if (remoteName != null) {
                 AppText(stringResource(R.string.remote_pair_current, remoteName.orEmpty()))
+            }
+            if (remoteName != null || remoteClientMode) {
                 AppTextButton(enabled = !busy, onClick = {
-                    busy = true
-                    repository.connectTarget(null) { ok -> busy = false; error = !ok; if (ok) onConnected() }
+                    scope.launch {
+                        settings.setRemoteClientMode(false)
+                        repository.connectTarget(null) { }
+                        onLocalSelected()
+                    }
                 }) { AppText(stringResource(R.string.remote_pair_local)) }
             }
             AppButton(enabled = !busy, onClick = {
@@ -92,7 +101,10 @@ fun RemotePairingCard(onConnected: () -> Unit = {}, repository: AzurPilotReposit
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AppTextButton(enabled = !busy, onClick = {
                         busy = true
-                        repository.connectTarget(device) { ok -> busy = false; error = !ok; if (ok) onConnected() }
+                        scope.launch {
+                            settings.setRemoteClientMode(true)
+                            repository.connectTarget(device) { ok -> busy = false; error = !ok; if (ok) onConnected() }
+                        }
                     }, modifier = Modifier.weight(1f)) { AppText(device.name.ifBlank { device.deviceId.take(8) }) }
                     AppTextButton(enabled = !busy && repository.sourceId.value != device.deviceId, onClick = {
                         scope.launch { runCatching { store.remove(device.deviceId); devices = store.list() }

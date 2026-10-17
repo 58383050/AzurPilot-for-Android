@@ -6,6 +6,7 @@
     <string name="remote_pair_auth_failed">配對授權已失效，請返回設定重新配對。</string>
     <string name="remote_pair_try_tunnel">試用 Quick Tunnel（重新啟動後生效）</string>
     <string name="remote_pair_title">連線至遠端 AP</string>
+    <string name="remote_client_hint">掃描或輸入配對碼，即可使用遠端 AP。無須安裝、啟動本機 Runtime 或授權 Shizuku。</string>
     <string name="remote_pair_hint">在 AP 的遠端存取頁點選配對，然後掃描圖形或輸入六位配對碼。</string>
     <string name="remote_pair_scan">掃描配對圖形</string>
     <string name="remote_pair_scan_hint">將 AP 顯示的配對圖形放入取景框</string>

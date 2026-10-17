@@ -6,6 +6,7 @@
     <string name="remote_pair_auth_failed">Pairing authorization expired. Pair again in settings.</string>
     <string name="remote_pair_try_tunnel">Try Quick Tunnel (restart required)</string>
     <string name="remote_pair_title">Connect to remote AP</string>
+    <string name="remote_client_hint">Scan or enter a pairing code to use a remote AP. No local Runtime installation, startup, or Shizuku permission is required.</string>
     <string name="remote_pair_hint">Click Pair on the AP remote access page, then scan the image or enter its six-digit code.</string>
     <string name="remote_pair_scan">Scan pairing image</string>
     <string name="remote_pair_scan_hint">Place the pairing image shown by AP inside the frame</string>

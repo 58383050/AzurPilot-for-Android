@@ -27,15 +27,13 @@ import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
 import com.azurpilot.ghio.ui.ksu.AppText as Text
 
 /**
- * 渲染首启 rootfs 部署页：未完成时整屏接管（AppRoot 的门）
+ * 渲染本机 rootfs 部署页；远程入口始终可用，无需等待部署。
  *
- * 「等」之外只有两件事：下载源可选（直连 / 镜像，切换即重下），失败给重试； 跳过只留给开发包
+ * 本机下载支持换源与重试；本机跳过仅留给开发包，远程连接适用于所有构建。
  *
- * Renders the first-run rootfs provisioning page: takes over the whole screen until done (AppRoot's
- * gate).
+ * Renders local rootfs provisioning with an independent remote entry available immediately.
  *
- * Beyond waiting there are only two actions: the download source is selectable (direct / mirror,
- * switching restarts the download) and failures get a retry; skipping is reserved for dev builds.
+ * Local downloads support mirrors and retry. Local skip is debug-only; remote access works in all builds.
  *
  * @param state 部署进度；[ProvisionState.Ready] 时本页不再渲染 / provisioning progress; nothing renders once
  *   [ProvisionState.Ready]
@@ -51,6 +49,7 @@ fun ProvisionScreen(
     mirrorId: String,
     onMirrorChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenRemote: (() -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -83,6 +82,13 @@ fun ProvisionScreen(
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(AppTokens.Spacing.xl))
+
+            if (onOpenRemote != null) {
+                Button(onClick = onOpenRemote) { Text(stringResource(R.string.remote_pair_title)) }
+                Text(stringResource(R.string.remote_client_hint), textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(AppTokens.Spacing.lg))
+            }
 
             when (state) {
                 ProvisionState.Checking -> {

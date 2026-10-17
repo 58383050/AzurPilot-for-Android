@@ -235,6 +235,9 @@ data class AppSettings(
      */
     @PrefKey(default = "false") val oobeCompleted: String = "false",
 
+    /** 仅作为远程 AP 客户端使用，不自动部署或启动本机 Runtime。 / Remote client mode skips local Runtime provisioning and startup. */
+    @PrefKey(default = "false") val remoteClientMode: String = "false",
+
     /** 实际确认的协议版本；旧社区提示不能代替确认。 / Acknowledged legal version, independent of the old community notice. */
     @PrefKey(default = "") val legalNoticeVersion: String = "",
 )

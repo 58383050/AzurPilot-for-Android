@@ -46,7 +46,8 @@ import kotlin.math.sin
 @Composable
 internal fun OobeStepWelcome(modifier: Modifier, onNext: () -> Unit, nextLabel: String,
     enabled: Boolean, onDismiss: (() -> Unit)?, dismissLabel: String,
-    onNextBoundsChanged: (Rect) -> Unit = {}, exiting: Boolean = false) {
+    onNextBoundsChanged: (Rect) -> Unit = {}, exiting: Boolean = false,
+    onRemote: (() -> Unit)? = null) {
     val miuix = LocalUiMode.current == UiMode.Miuix
     val reduced = rememberOobeReducedMotion()
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
@@ -129,12 +130,17 @@ internal fun OobeStepWelcome(modifier: Modifier, onNext: () -> Unit, nextLabel: 
                             color = colors.onSurfaceVariant)
                     }
                 }
-                Row(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(28.dp),
+                Row(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(horizontal = 28.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.End) { OobeNextButton(nextLabel, enabled, onNext) }
+                if (onRemote != null) TextButton(onRemote, Modifier.padding(bottom = 16.dp).heightIn(min = 48.dp),
+                    enabled = enabled && !exiting) { Text(stringResource(R.string.remote_pair_title)) }
             }
         }
         if (onDismiss != null) TextButton(onDismiss, Modifier.align(Alignment.TopStart).padding(12.dp)
             .heightIn(min = 48.dp)) { Text(dismissLabel) }
+        if (miuix && onRemote != null) TextButton(onRemote,
+            Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp).heightIn(min = 48.dp),
+            enabled = enabled && !exiting) { Text(stringResource(R.string.remote_pair_title)) }
         }
     }
 }

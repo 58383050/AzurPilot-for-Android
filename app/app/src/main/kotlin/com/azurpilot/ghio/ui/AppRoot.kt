@@ -56,6 +56,7 @@ import com.azurpilot.ghio.proot.ProotHost
 import com.azurpilot.ghio.proot.ProotPhase
 import com.azurpilot.ghio.provision.ProvisionState
 import com.azurpilot.ghio.provision.RootfsProvisioner
+import com.azurpilot.ghio.remoteaccess.RemoteConnectionPage
 import com.azurpilot.ghio.service.HostState
 import com.azurpilot.ghio.settings.AppSettingsManager
 import com.azurpilot.ghio.settings.CURRENT_LEGAL_NOTICE_VERSION
@@ -136,8 +137,17 @@ fun AppRoot(
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val readiness by permissionManager.readiness.collectAsStateWithLifecycle()
     val isGranting by permissionManager.isGranting.collectAsStateWithLifecycle()
+    val settingsLoaded by appSettings.loaded.collectAsStateWithLifecycle()
+    val oobeCompleted by appSettings.oobeCompleted.collectAsStateWithLifecycle()
+    val remoteClientMode by appSettings.remoteClientMode.collectAsStateWithLifecycle()
+    val repository: AzurPilotRepository = koinInject()
+    val remoteName by repository.remoteName.collectAsStateWithLifecycle()
+    val navigator = rememberAppNavigator()
+    val remotePageOpen = navigator.current == AppRoute.RemoteAccess
+    val localRuntimeEnabled = settingsLoaded && oobeCompleted &&
+        !remoteClientMode && remoteName == null && !remotePageOpen
 
-    // 首启 rootfs 部署的门：未 Ready 时整屏接管，tab/二级页都在门内
+    // 部署只约束本机模式；远程入口必须位于这道门外。
     val provisionState by provisioner.state.collectAsStateWithLifecycle()
     val runtimeCheck by provisioner.updateCheck.collectAsStateWithLifecycle()
     val githubMirror by appSettings.githubMirror.collectAsStateWithLifecycle()
@@ -146,8 +156,8 @@ fun AppRoot(
     var applyingRuntimeUpdate by remember { mutableStateOf(false) }
     val prootHost: ProotHost = koinInject()
     var prootStarted by remember { mutableStateOf(prootHost.state.value.phase != ProotPhase.IDLE) }
-    LaunchedEffect(Unit) {
-        if (provisioner.state.value !is ProvisionState.Ready) provisioner.start()
+    LaunchedEffect(localRuntimeEnabled) {
+        if (localRuntimeEnabled && provisioner.state.value !is ProvisionState.Ready) provisioner.start()
     }
     val appUpdateState by appUpdateManager.state.collectAsStateWithLifecycle()
     var appUpdateChecked by rememberSaveable { mutableStateOf(false) }
@@ -157,7 +167,7 @@ fun AppRoot(
             appUpdateManager.check()
         }
     }
-    val showProvision = provisionState !is ProvisionState.Ready && !provisionSkipped
+    val showProvision = localRuntimeEnabled && provisionState !is ProvisionState.Ready && !provisionSkipped
 
     // 启动时只查版本，先等用户决定是否更新，再启动 proot。
     val installedRuntime = runtimeCheck.installedVersion
@@ -172,9 +182,10 @@ fun AppRoot(
         runtimePromptDismissed,
         applyingRuntimeUpdate,
         hotUpdateOn,
+        localRuntimeEnabled,
     ) {
         if (
-            !prootStarted &&
+            localRuntimeEnabled && !prootStarted &&
                 provisionState is ProvisionState.Ready &&
                 runtimeCheck.checked &&
                 !runtimeCheck.checking &&
@@ -219,7 +230,6 @@ fun AppRoot(
     }
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
     val appLockEnabled by appSettings.appLockEnabled.collectAsStateWithLifecycle()
-    val settingsLoaded by appSettings.loaded.collectAsStateWithLifecycle()
     LaunchedEffect(settingsLoaded) {
         if (settingsLoaded)
             com.azurpilot.ghio.ui.ksu.setEnableOnBackInvokedCallback(
@@ -238,7 +248,6 @@ fun AppRoot(
     // 必须等设置读盘完成，否则老用户会先看到默认 false 闪一下
     val communityNoticeAcknowledged by
         appSettings.communityNoticeAcknowledged.collectAsStateWithLifecycle()
-    val oobeCompleted by appSettings.oobeCompleted.collectAsStateWithLifecycle()
     val legalNoticeVersion by appSettings.legalNoticeVersion.collectAsStateWithLifecycle()
     var showOobePreview by rememberSaveable { mutableStateOf(false) }
     // 应用锁会移除向导；会话状态需由锁屏分支外的持有者保留。
@@ -297,6 +306,7 @@ fun AppRoot(
 
             if (
                 !isAppLocked &&
+                    localRuntimeEnabled &&
                     !oobeVisible &&
                     communityNoticeAcknowledged &&
                     provisionState is ProvisionState.Ready &&
@@ -436,7 +446,6 @@ fun AppRoot(
                         )
                     }
             }
-            val navigator = rememberAppNavigator()
             // Record the actual toolbar gear center; both directions use the same origin.
             var settingsAnchor by remember { mutableStateOf(Offset.Unspecified) }
             val settingsTransition = remember {
@@ -448,7 +457,9 @@ fun AppRoot(
                 else MaterialTheme.colorScheme.surface
             val onSubPage = navigator.current != AppRoute.Main
             // AppCompat 切换语言会重建 Activity；显式保存目标页，避免恢复到中途页。
-            var selectedPage by rememberSaveable { mutableStateOf(TopDestination.Hangar.ordinal) }
+            var selectedPage by rememberSaveable { mutableStateOf(
+                if (remoteClientMode) TopDestination.AzurPilot.ordinal else TopDestination.Hangar.ordinal
+            ) }
             // 旧版四个 Tab 的第 4 页是虚拟屏；升级到三个 Tab 后恢复到有效索引。
             val restoredPage = selectedPage.coerceIn(0, TopDestination.entries.lastIndex)
             val tabStateHolder = rememberSaveableStateHolder()
@@ -474,7 +485,6 @@ fun AppRoot(
                     else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
 
-            val repository: AzurPilotRepository = koinInject()
             val runtimeVisible =
                 navigator.current is AppRoute.Console ||
                     (!onSubPage && selectedPage == TopDestination.AzurPilot.ordinal)
@@ -508,9 +518,10 @@ fun AppRoot(
                 runtimeCheck,
                 fullUpdatePending,
                 runtimePromptDismissed,
+                localRuntimeEnabled,
             ) {
                 if (
-                    hangarActive &&
+                    localRuntimeEnabled && hangarActive &&
                         !onSubPage &&
                         !showProvision &&
                         !isAppLocked &&
@@ -611,6 +622,11 @@ fun AppRoot(
                 mainPagerState.animateToPage(index)
             }
 
+            fun openRemote() {
+                navigator.push(AppRoute.RemoteAccess)
+                scope.launch { appSettings.setRemoteClientMode(true) }
+            }
+
             // 桌面快捷方式的跳转请求：MainActivity 收到后登记到总线，这里消费。
             // 部署或应用锁挡住时保留请求，就绪后再跳转，避免在遮罩背后切换页面。
             val shortcutRequests: ShortcutRequests = koinInject()
@@ -626,7 +642,7 @@ fun AppRoot(
             }
 
             // 内置启动或外部授权未就绪时显示引导（仅在完成 OOBE 且非预览模式下）。
-            if (!isAppLocked && settingsLoaded && !oobeVisible) {
+            if (!isAppLocked && localRuntimeEnabled && !showProvision && !oobeVisible) {
                 ShizukuReadinessDialog(
                     readiness = readiness,
                     onOpenApp = { permissionManager.openShizuku(context) },
@@ -647,6 +663,13 @@ fun AppRoot(
                         onComplete = {
                             scope.launch {
                                 appSettings.completeOobe()
+                            }
+                        },
+                        onRemoteComplete = {
+                            scope.launch {
+                                appSettings.completeOobe(remoteClient = true)
+                                goToPage(TopDestination.AzurPilot.ordinal)
+                                navigator.push(AppRoute.RemoteAccess)
                             }
                         },
                         modifier = Modifier.fillMaxSize(),
@@ -673,6 +696,7 @@ fun AppRoot(
                         scope.launch { appSettings.setGithubMirror(mirror) }
                     },
                     modifier = Modifier.fillMaxSize(),
+                    onOpenRemote = ::openRemote,
                 )
             } else {
                 com.azurpilot.ghio.ui.ksu.AppRootScaffold {
@@ -696,6 +720,7 @@ fun AppRoot(
                                                 onOpenSettings = { navigator.push(AppRoute.Settings) },
                                                 onSettingsAnchorChanged = { settingsAnchor = it },
                                                 onOpenTasks = { goToPage(TopDestination.AzurPilot.ordinal) },
+                                                onOpenRemote = ::openRemote,
                                             )
                                         TopDestination.Screen ->
                                             ScreenPage(
@@ -710,6 +735,7 @@ fun AppRoot(
                                                 active =
                                                     page == pagerState.settledPage && !onSubPage,
                                                 onNavigate = navigator::push,
+                                                onOpenRemote = ::openRemote,
                                                 modifier =
                                                     Modifier.fillMaxSize()
                                                         .padding(bottom = bottomInnerPadding),
@@ -820,6 +846,13 @@ fun AppRoot(
                             RuntimeSettingsPage(onBack = { navigator.pop() },
                                 onRemoteConnected = { goToPage(TopDestination.AzurPilot.ordinal) })
                         }
+                        entry<AppRoute.RemoteAccess>(swipeDismiss = swipeDismiss) {
+                            RemoteConnectionPage(
+                                onBack = { navigator.pop() },
+                                onConnected = { goToPage(TopDestination.AzurPilot.ordinal) },
+                                onLocalSelected = { goToPage(TopDestination.Hangar.ordinal) },
+                            )
+                        }
                         entry<AppRoute.Ocr>(swipeDismiss = swipeDismiss) {
                             OcrSettingsPage(onBack = { navigator.pop() })
                         }
@@ -852,22 +885,22 @@ fun AppRoot(
                             )
                         }
                         entry<AppRoute.Task>(swipeDismiss = swipeDismiss) { route ->
-                            AzurPilotDetailPage(route = route, onBack = navigator::pop)
+                            AzurPilotDetailPage(route = route, onBack = navigator::pop, onOpenRemote = ::openRemote)
                         }
                         entry<AppRoute.Instances>(swipeDismiss = swipeDismiss) { route ->
-                            AzurPilotDetailPage(route = route, onBack = navigator::pop)
+                            AzurPilotDetailPage(route = route, onBack = navigator::pop, onOpenRemote = ::openRemote)
                         }
                         entry<AppRoute.Announcement>(swipeDismiss = swipeDismiss) { route ->
-                            AzurPilotDetailPage(route = route, onBack = navigator::pop)
+                            AzurPilotDetailPage(route = route, onBack = navigator::pop, onOpenRemote = ::openRemote)
                         }
                         entry<AppRoute.Meowfficer>(swipeDismiss = swipeDismiss) { route ->
-                            AzurPilotDetailPage(route = route, onBack = navigator::pop)
+                            AzurPilotDetailPage(route = route, onBack = navigator::pop, onOpenRemote = ::openRemote)
                         }
                         entry<AppRoute.Updater>(swipeDismiss = swipeDismiss) { route ->
-                            AzurPilotDetailPage(route = route, onBack = navigator::pop)
+                            AzurPilotDetailPage(route = route, onBack = navigator::pop, onOpenRemote = ::openRemote)
                         }
                         entry<AppRoute.Deploy>(swipeDismiss = swipeDismiss) { route ->
-                            AzurPilotDetailPage(route = route, onBack = navigator::pop)
+                            AzurPilotDetailPage(route = route, onBack = navigator::pop, onOpenRemote = ::openRemote)
                         }
                     }
                 }

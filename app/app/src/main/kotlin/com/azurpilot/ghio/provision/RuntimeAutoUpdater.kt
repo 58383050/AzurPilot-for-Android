@@ -138,6 +138,7 @@ class RuntimeAutoUpdater(
      * day, and never fires before the hour.
      */
     private suspend fun scheduledTick() {
+        if (!settings.oobeCompleted.value || settings.remoteClientMode.value) return
         if (!settings.hotUpdateEnabled.value) return
         // 首次部署由前台显示进度，尚未在位时不消耗当天的自动检查机会。
         if (!provisioner.isInstalled()) return
