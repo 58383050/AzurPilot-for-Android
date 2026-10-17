@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_pair_camera_permission">カメラを許可するか、戻って6桁のコードを使ってください。</string>
+    <string name="remote_pair_current">接続先：%1$s</string>
+    <string name="remote_pair_local">ローカル AP に戻る</string>
+    <string name="remote_pair_auth_failed">認証が無効です。設定からペアリングし直してください。</string>
+    <string name="remote_pair_try_tunnel">Quick Tunnel を試す（再起動が必要）</string>
+    <string name="remote_pair_title">リモート AP に接続</string>
+    <string name="remote_pair_hint">AP のリモートアクセス画面でペアリングを押し、画像をスキャンするか6桁のコードを入力してください。</string>
+    <string name="remote_pair_scan">ペアリング画像をスキャン</string>
+    <string name="remote_pair_scan_hint">AP のペアリング画像を枠内に合わせてください</string>
+    <string name="remote_pair_code">6桁のペアリングコード</string>
+    <string name="remote_pair_connect">ペアリング</string>
+    <string name="remote_pair_busy">ペアリング中…</string>
+    <string name="remote_pair_failed">ペアリングできません。ネットワークとコードを確認してください。</string>
+    <string name="remote_pair_open_failed">リモート AP はオフラインです。後でもう一度開いてください。</string>
+    <string name="remote_pair_remove">削除</string>
+</resources>

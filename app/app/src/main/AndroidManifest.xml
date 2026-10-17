@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Shizuku 后端：由 Shizuku 服务校验，未装时无副作用 -->
@@ -61,6 +63,9 @@
         android:theme="@style/Theme.AzurPilotApp"
         android:localeConfig="@xml/locales_config"
         tools:targetApi="33">
+
+        <activity android:name=".remoteaccess.ParticleScanActivity" android:exported="false" />
+
 
         <activity android:name=".privileged.AdbActivationActivity" android:exported="false" />
         <service

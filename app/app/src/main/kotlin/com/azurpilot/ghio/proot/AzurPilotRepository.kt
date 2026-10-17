@@ -3,6 +3,8 @@ package com.azurpilot.ghio.proot
 import android.graphics.BitmapFactory
 import android.util.Base64
 import com.azurpilot.ghio.AppDispatchers
+import com.azurpilot.ghio.remoteaccess.RemotePairing
+import kotlinx.coroutines.cancelAndJoin
 import com.azurpilot.ghio.i18n.AppLocales
 import com.azurpilot.ghio.settings.AppSettingsManager
 import kotlinx.coroutines.CoroutineScope
@@ -67,7 +69,54 @@ class AzurPilotRepository(
     val authRequired: StateFlow<Boolean> = _authRequired.asStateFlow()
 
     /** 当前浏览的实例名；null 表示未选（此时只订与实例无关的主题） / The instance being browsed; null means none selected (only instance-independent topics are subscribed then). */
-    private val _selectedInstance = MutableStateFlow(AzurPilotRunState.DEFAULT_CONFIG)
+    private val _selectedInstance = MutableStateFlow<String?>(AzurPilotRunState.DEFAULT_CONFIG)
+    /** 原生控制台当前连接的 AP 名称。 / AP connected to the native console. */
+    val remoteName = gateway.remoteName
+    /** 原生页面的来源缓存键。 / Source key for native page state. */
+    val sourceId = gateway.sourceId
+    /** 当前是否连接远程 AP。 / Whether the console connects to a remote AP. */
+    val isRemote: Boolean get() = gateway.isRemote
+
+    /**
+     * 保存编辑后切换 AP，清理旧来源的缓存和订阅；本机 PRoot 及悬浮窗保持原连接。
+     *
+     * Settles edits and switches AP sources, clearing cached data without retargeting local PRoot.
+     */
+    fun connectTarget(pairing: RemotePairing?, onDone: (Boolean) -> Unit) {
+        scope.launch(AppDispatchers.IO) {
+            if (!configEditor.settle()) {
+                withContext(Dispatchers.Main) { onDone(false) }
+                return@launch
+            }
+            gateway.stop()
+            schemaJob?.cancelAndJoin()
+            updaterJob?.cancelAndJoin()
+            updaterJob = null
+            refreshMutex.withLock {
+                configEditor.reset()
+                _connected.value = false
+                _authRequired.value = false
+                _schema.value = null
+                schemaLanguage = null
+                _schemaError.value = null
+                _selectedInstance.value = if (pairing == null) AzurPilotRunState.DEFAULT_CONFIG else null
+                _instances.value = emptyList()
+                _overview.value = null
+                _startup.value = null
+                _logs.value = emptyList()
+                _preview.value = null
+                _deploy.value = null
+                _updater.value = null
+                _announcement.value = null
+                _meowfficer.value = null
+                logCursor = 0
+                lastSubscription = null
+                _schedulerBusy.value = false
+                gateway.selectTarget(pairing)
+            }
+            withContext(Dispatchers.Main) { onDone(true) }
+        }
+    }
     val selectedInstance: StateFlow<String?> = _selectedInstance.asStateFlow()
 
     private val _schema = MutableStateFlow<AzurPilotSchema?>(null)
@@ -82,6 +131,7 @@ class AzurPilotRepository(
 
     /** schema 当前语言；语言没变时不重复拉取 / The schema's current language; no refetch until it changes. */
     private var schemaLanguage: String? = null
+    private var schemaJob: Job? = null
 
     private val _instances = MutableStateFlow<List<AzurPilotInstance>>(emptyList())
 
@@ -268,10 +318,11 @@ class AzurPilotRepository(
      */
     fun selectInstance(name: String?) {
         // Android 只呈现默认实例；保留后台兼容接口但不再允许切换到其他实例。
-        if (name != AzurPilotRunState.DEFAULT_CONFIG) return
+        if (!gateway.isRemote && name != AzurPilotRunState.DEFAULT_CONFIG) return
+        if (gateway.isRemote && name != null && _instances.value.none { it.name == name }) return
         if (_selectedInstance.value == name) return
         _selectedInstance.value = name
-        store.selectedInstance = name
+        if (!gateway.isRemote) store.selectedInstance = name
         _overview.value = null
         _startup.value = null
         _logs.value = emptyList()
@@ -308,7 +359,8 @@ class AzurPilotRepository(
     fun ensureSchema(force: Boolean = false) {
         val language = currentSchemaLanguage()
         if (!force && schemaLanguage == language && _schema.value != null) return
-        scope.launch(AppDispatchers.IO) {
+        if (!force && schemaJob?.isActive == true) return
+        schemaJob = scope.launch(AppDispatchers.IO) {
             when (val reply = gateway.call("schema.get", JSONObject().put("language", language))) {
                 is AzurPilotGateway.Reply.Ok -> {
                     schemaLanguage = language
@@ -324,10 +376,14 @@ class AzurPilotRepository(
 
     /** 按主题分发事件；实例相关主题先过滤，别的数据直接落对应流 / Dispatches events by topic; instance-bound topics filter first, the rest land directly in their flows. */
     private fun onEvent(event: JSONObject) {
+        if (event.optString("_gatewaySourceId") != gateway.sourceId.value) return
         when (event.optString("topic")) {
             "instances" -> {
                 val list = event.optJSONArray("data")
                 _instances.value = parseInstances(list)
+                if (gateway.isRemote && _instances.value.none { it.name == _selectedInstance.value }) {
+                    selectInstance(_instances.value.firstOrNull()?.name)
+                }
             }
 
             "overview" -> applyOverview(event.optJSONObject("data"))
@@ -513,6 +569,9 @@ class AzurPilotRepository(
             // 协议里这是个裸数组，不是 {"instances": [...]}
             (gateway.call("instances.list") as? AzurPilotGateway.Reply.Ok)?.let { reply ->
                 _instances.value = parseInstances(reply.array)
+                if (gateway.isRemote && _selectedInstance.value == null) {
+                    selectInstance(_instances.value.firstOrNull()?.name)
+                }
             }
         }
         // 订阅可能因重连丢失：每次刷新补订一次（相同订阅会被 syncSubscription 短路）
@@ -972,14 +1031,14 @@ class AzurPilotRepository(
             )
         }
         // 同步运行时的远程访问与局域网控制状态到 App 偏好，防止外部或 WebUI 的配置在下次重启时被还原
-        remote?.let {
+        remote?.takeUnless { gateway.isRemote }?.let {
             if (settings.remoteAccessEnabled.value != it.enabled) {
                 settings.setRemoteAccessEnabled(it.enabled)
             }
         }
         val webuiGroup = groups.firstOrNull { it.key == "Webui" }
         val webuiHost = webuiGroup?.fields?.firstOrNull { it.key == "WebuiHost" }?.value as? String
-        if (webuiHost != null) {
+        if (webuiHost != null && !gateway.isRemote) {
             val lanEnabled = webuiHost == "0.0.0.0" || webuiHost == "::"
             if (settings.lanControlEnabled.value != lanEnabled) {
                 settings.setLanControlEnabled(lanEnabled)
@@ -1009,12 +1068,12 @@ class AzurPilotRepository(
             val params = JSONObject().put("values", payload)
             when (val reply = gateway.call("settings.patch", params)) {
                 is AzurPilotGateway.Reply.Ok -> {
-                    (values["WebuiHost"] as? String)?.let {
+                    (values["WebuiHost"] as? String)?.takeUnless { gateway.isRemote }?.let {
                         val lanEnabled = it == "0.0.0.0" || it == "::"
                         settings.setLanControlEnabled(lanEnabled)
                         settings.lanControlEnabled.first { saved -> saved == lanEnabled }
                     }
-                    (values["EnableRemoteAccess"] as? Boolean)?.let {
+                    (values["EnableRemoteAccess"] as? Boolean)?.takeUnless { gateway.isRemote }?.let {
                         settings.setRemoteAccessEnabled(it)
                         settings.remoteAccessEnabled.first { saved -> saved == it }
                     }

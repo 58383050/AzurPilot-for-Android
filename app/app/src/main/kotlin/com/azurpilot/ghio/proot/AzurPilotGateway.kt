@@ -1,6 +1,12 @@
 package com.azurpilot.ghio.proot
 
 import com.azurpilot.ghio.AppDispatchers
+import com.azurpilot.ghio.remoteaccess.RemotePairing
+import com.azurpilot.ghio.remoteaccess.RemotePairings
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -35,9 +41,10 @@ import kotlin.coroutines.resume
  * 原生界面不碰 HTTP 静态资源，但业务能力全部来自这里——所以这个类要能表达协议的全部语义，
  * 而不只是「拿到没有」。
  *
- * **鉴权靠「本机直连免密」**：网关的 `is_local_client()` 只要求来源地址与 Host 头都是回环，
+ * **本机直连免密**：网关的 `is_local_client()` 只要求来源地址与 Host 头都是回环，
  * 且**没有 Origin 头**——OkHttp 的 WebSocket 天然不带 Origin，因此直接放行，无需 WebUI 密码。
- * 收到 `session` 事件时若 `authRequired` 为真（网关收紧了策略），登录入口由 [login] 补。
+ * 远程来源每次连接重新解析固定入口，用独立配对凭据登录，鉴权成功后才发布就绪与恢复订阅。
+ * 本机收到 `authRequired` 时，登录入口由 [login] 提供。
  *
  * 信封（`module/api/protocol.py`）：
  * - 请求 `{"v":1,"type":"request","id":..,"method":..,"params":{..}}`
@@ -52,12 +59,13 @@ import kotlin.coroutines.resume
  * so this class has to express the protocol's full semantics, not just "did it
  * arrive".
  *
- * **Authentication rides on "local direct connections are password-free"**:
+ * **Local direct connections are password-free**:
  * the gateway's `is_local_client()` only requires the source address and the
  * Host header to be loopback with **no Origin header** — OkHttp's WebSocket
  * naturally sends none, so it is admitted directly, without the WebUI
- * password. If a `session` event reports `authRequired` (the gateway has
- * tightened its policy), [login] provides the sign-in path.
+ * password. Remote sources resolve the stable URL on each connection and log in with their
+ * independent pairing credential before publishing readiness or restoring subscriptions.
+ * If a local session reports `authRequired`, [login] provides the sign-in path.
  *
  * Envelope (`module/api/protocol.py`):
  * - request `{"v":1,"type":"request","id":..,"method":..,"params":{..}}`
@@ -65,7 +73,34 @@ import kotlin.coroutines.resume
  *   `ok:false` + `error{code,message}`
  * - event `{"v":1,"type":"event","topic":"overview|instances|logs|preview|statistics|session","seq":n,"data":{..}}`
  */
-class AzurPilotGateway(private val scope: CoroutineScope) {
+class AzurPilotGateway(private val scope: CoroutineScope, private val remoteStore: RemotePairings? = null) {
+    private val targetMutex = Mutex()
+    @Volatile private var remoteTarget: RemotePairing? = null
+    private val _remoteName = MutableStateFlow<String?>(null)
+    /** 当前原生控制台连接的远程 AP；null 表示本机。 / Remote AP name; null means local. */
+    val remoteName: StateFlow<String?> = _remoteName.asStateFlow()
+    private val _sourceId = MutableStateFlow("local")
+    /** 页面缓存的来源标识。 / Source identity for native page caches. */
+    val sourceId: StateFlow<String> = _sourceId.asStateFlow()
+    /** 当前是否使用远程网关。 / Whether the gateway uses a remote AP. */
+    val isRemote: Boolean get() = remoteTarget != null
+    @Volatile private var generation = 0L
+
+    /**
+     * 切换网关来源，等待旧连接退出后重新解析固定入口；不修改本机 Runtime 地址。
+     *
+     * Switches gateway sources after closing the previous session, without changing local runtime URLs.
+     */
+    suspend fun selectTarget(pairing: RemotePairing?) = targetMutex.withLock {
+        val previous = loop
+        stop()
+        previous?.cancelAndJoin()
+        remoteTarget = pairing
+        _sourceId.value = pairing?.deviceId ?: "local"
+        _remoteName.value = pairing?.name?.ifBlank { pairing.deviceId.take(8) }
+        subscription = null to emptyList()
+        start()
+    }
 
     /**
      * 一次调用的结果。`Offline` 与 `Err` 分开：前者可以重试，后者重试也是同一个错
@@ -168,6 +203,7 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
                 // awaitSession 要挂到这条连接**结束**才返回；只在 onOpen 就返回会让循环
                 // 每 2 秒另开一条，旧连接一直挂着，直到撞上网关的连接数上限被踢
                 val opened = runCatching { awaitSession() }.getOrElse {
+                    if (it is CancellationException) throw it
                     Timber.d(it, "azurpilot gateway connect failed")
                     false
                 }
@@ -186,11 +222,13 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
      * request is dropped at once.
      */
     fun stop() {
+        generation++
         loop?.cancel()
         loop = null
         socket?.close(NORMAL_CLOSE, null)
         socket = null
         _connected.value = false
+        _authRequired.value = false
         failAllPending()
     }
 
@@ -214,8 +252,14 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
         return call("events.subscribe", params)
     }
 
-    /** 供网关收紧免密策略时使用：本机直连当前不需要 / For when the gateway tightens its password-free policy; not needed for local direct connections today. */
-    suspend fun login(password: String): Reply = call("auth.login", JSONObject().put("password", password))
+    /** 登录成功后发布当前会话就绪。 / Publishes readiness after the current session authenticates. */
+    suspend fun login(password: String): Reply {
+        val current = socket ?: return Reply.Offline
+        val sessionGeneration = generation
+        val reply = call("auth.login", JSONObject().put("password", password))
+        if (reply is Reply.Ok) sessionReady(current, sessionGeneration)
+        return reply
+    }
 
     /**
      * 发一次请求并等它的响应
@@ -241,7 +285,7 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
         timeoutMs: Long = REQUEST_TIMEOUT_MS,
     ): Reply {
         val ws = socket
-        if (ws == null || !_connected.value) return Reply.Offline
+        if (ws == null || (!_connected.value && method != "auth.login")) return Reply.Offline
         val id = UUID.randomUUID().toString()
         val deferred = CompletableDeferred<Reply>()
         pending[id] = deferred
@@ -280,59 +324,70 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
      * For as long as the connection lives this suspension is the "stay" —
      * `_connected` is the single source of connection state.
      */
-    private suspend fun awaitSession(): Boolean = suspendCancellableCoroutine { cont ->
-        var opened = false
-        var resumed = false
-
-        fun finish() {
-            if (resumed) return
-            resumed = true
-            if (cont.isActive) cont.resume(opened)
+    private suspend fun awaitSession(): Boolean {
+        val sessionGeneration = generation
+        val target = remoteTarget
+        val endpoint = if (target == null) RuntimeConnection.endpoint.wsUrl else {
+            requireNotNull(remoteStore).resolve(target).replaceFirst("https://", "wss://") + "api/v1/ws"
         }
+        return suspendCancellableCoroutine { cont ->
+            var opened = false
+            var resumed = false
 
-        val listener = object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                socket = webSocket
-                opened = true
-                _connected.value = true
-                Timber.d("azurpilot gateway connected")
-                // 重连后把订阅恢复回来：网关不保存会话状态，不重订就没有推送
-                val (instance, topics) = subscription
-                if (topics.isNotEmpty()) {
-                    scope.launch(AppDispatchers.IO) { subscribe(instance, topics) }
+            fun finish() {
+                if (resumed) return
+                resumed = true
+                if (cont.isActive) cont.resume(opened)
+            }
+
+            val listener = object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    if (sessionGeneration != generation) { webSocket.cancel(); return }
+                    socket = webSocket
+                    opened = true
+                    Timber.d("azurpilot gateway connected")
+                }
+
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    if (sessionGeneration == generation) handleMessage(text, webSocket, target, sessionGeneration)
+                }
+
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                    // 对端先发起：回一个正常关闭，让 onClosed 走完
+                    webSocket.close(NORMAL_CLOSE, null)
+                }
+
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    if (socket === webSocket) socket = null
+                    finish()
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    if (socket === webSocket) socket = null
+                    Timber.d(t, "azurpilot gateway socket failure")
+                    finish()
                 }
             }
-
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                handleMessage(text)
+            val request = Request.Builder().url(endpoint).build()
+            val boundSocket = client.newWebSocket(request, listener)
+            socket = boundSocket
+            cont.invokeOnCancellation {
+                boundSocket.cancel()
+                if (socket === boundSocket) socket = null
             }
-
-            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                // 对端先发起：回一个正常关闭，让 onClosed 走完
-                webSocket.close(NORMAL_CLOSE, null)
-            }
-
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                if (socket === webSocket) socket = null
-                finish()
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                if (socket === webSocket) socket = null
-                Timber.d(t, "azurpilot gateway socket failure")
-                finish()
-            }
-        }
-        val request = Request.Builder().url(RuntimeConnection.endpoint.wsUrl).build()
-        socket = client.newWebSocket(request, listener)
-        cont.invokeOnCancellation {
-            socket?.cancel()
-            socket = null
         }
     }
 
+    private fun sessionReady(webSocket: WebSocket, sessionGeneration: Long) {
+        if (sessionGeneration != generation || socket !== webSocket) return
+        _authRequired.value = false
+        _connected.value = true
+        val (instance, topics) = subscription
+        if (topics.isNotEmpty()) scope.launch(AppDispatchers.IO) { subscribe(instance, topics) }
+    }
+
     /** 按信封 `type` 分发：响应唤醒等待者，事件进流；session 主题就地消费 / Dispatches by envelope `type`: responses wake waiters, events enter the stream; the session topic is consumed in place. */
-    private fun handleMessage(text: String) {
+    private fun handleMessage(text: String, webSocket: WebSocket, target: RemotePairing?, sessionGeneration: Long) {
         val json = runCatching { JSONObject(text) }.getOrNull() ?: return
         when (json.optString("type")) {
             "response" -> {
@@ -348,6 +403,11 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
                     val message = error?.optString("message").orEmpty()
                     Timber.w("azurpilot gateway %s: %s", code, message)
                     deferred.complete(Reply.Err(code, message))
+                    if (target != null && code == "UNAUTHORIZED") {
+                        _authRequired.value = true
+                        _connected.value = false
+                        webSocket.close(NORMAL_CLOSE, null)
+                    }
                 }
             }
 
@@ -355,10 +415,16 @@ class AzurPilotGateway(private val scope: CoroutineScope) {
                 // 连接建立时网关先发一条 session：本机直连 authRequired=false，无需登录
                 if (json.optString("topic") == "session") {
                     _authRequired.value = json.optJSONObject("data")?.optBoolean("authRequired") ?: false
+                    if (_authRequired.value && target != null) {
+                        scope.launch(AppDispatchers.IO) {
+                            if (sessionGeneration != generation) return@launch
+                            if (login(target.accessToken) !is Reply.Ok) webSocket.close(NORMAL_CLOSE, null)
+                        }
+                    } else if (!_authRequired.value) sessionReady(webSocket, sessionGeneration)
                     return
                 }
                 // 事件不阻塞读取循环：满了丢最旧（过期总览没有价值）
-                _events.tryEmit(json)
+                _events.tryEmit(json.put("_gatewaySourceId", target?.deviceId ?: "local"))
             }
         }
     }

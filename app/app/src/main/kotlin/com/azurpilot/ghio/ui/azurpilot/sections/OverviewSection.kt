@@ -59,6 +59,7 @@ import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
 import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
 import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
 import com.azurpilot.ghio.ui.ksu.AppText as Text
+import com.azurpilot.ghio.ui.ksu.AppFilterChip
 
 /**
  * 总览：调度器状态、资源、实时画面、任务计划
@@ -76,9 +77,21 @@ fun OverviewSection(
 ) {
     val overview by repository.overview.collectAsStateWithLifecycle()
     val selected by repository.selectedInstance.collectAsStateWithLifecycle()
+    val remoteName by repository.remoteName.collectAsStateWithLifecycle()
+    val instances by repository.instances.collectAsStateWithLifecycle()
     val data = overview
 
     ApSectionColumn {
+        if (remoteName != null) AppCard {
+            Text(stringResource(R.string.remote_pair_current, remoteName.orEmpty()))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm)) {
+                instances.forEach { instance ->
+                    AppFilterChip(selected = instance.name == selected,
+                        onClick = { repository.selectInstance(instance.name) },
+                        label = { Text(instance.name) })
+                }
+            }
+        }
         if (selected == null) {
             AppCard {
                 ApEmptyState(

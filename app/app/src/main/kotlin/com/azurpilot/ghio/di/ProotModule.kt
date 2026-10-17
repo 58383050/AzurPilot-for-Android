@@ -36,7 +36,8 @@ val prootModule = module {
     }
     // /api/v1/ws 富接口：原生界面（总览 / 配置 / 统计 / 设置）的全部数据来源
     // 订阅只有 repository 一处发出——events.subscribe 是整体替换语义，两处各订一次会互相顶掉
-    single { AzurPilotGateway(get(named<AppCoroutineScope>())) }
+    single { com.azurpilot.ghio.remoteaccess.RemotePairings(androidContext()) }
+    single { AzurPilotGateway(get(named<AppCoroutineScope>()), get()) }
     single<AzurPilotPreferenceStore> { AzurPilotPreferences(androidContext()) }
     single { AzurPilotRepository(get(named<AppCoroutineScope>()), get(), get(), get()) }
 }

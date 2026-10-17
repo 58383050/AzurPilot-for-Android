@@ -45,6 +45,8 @@ Deploy:
     DiscordRichPresence: false
   RemoteAccess:
     EnableRemoteAccess: false
+    RemoteAccessMode: cloudflare
+    CloudflareRegistry: https://ap-remote.108-186-180-52.sslip.io:8443
   Webui:
     # 回环地址与 25548 端口是 app 壳与运行时的对接约定，不可改动。
     # The loopback address and port 25548 are the handshake contract between the

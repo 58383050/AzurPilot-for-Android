@@ -101,6 +101,7 @@ import java.util.Collections
 import java.util.Locale
 import kotlin.math.round
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
@@ -1136,6 +1137,7 @@ private data class RemoteAccessUiState(
 @Composable
 fun RuntimeSettingsPage(
     onBack: () -> Unit,
+    onRemoteConnected: () -> Unit = {},
     modifier: Modifier = Modifier,
     repository: AzurPilotRepository = koinInject(),
     provisioner: RootfsProvisioner = koinInject(),
@@ -1145,6 +1147,13 @@ fun RuntimeSettingsPage(
     prootHost: ProotHost = koinInject(),
     gateway: AzurPilotGateway = koinInject(),
 ) {
+    val remoteName by repository.remoteName.collectAsStateWithLifecycle()
+    if (remoteName != null) {
+        SettingsSubPage(titleRes = R.string.settings_cat_runtime, onBack = onBack, modifier = modifier) {
+            com.azurpilot.ghio.remoteaccess.RemotePairingCard(onConnected = onRemoteConnected)
+        }
+        return
+    }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val updater by repository.updater.collectAsStateWithLifecycle()
@@ -1198,23 +1207,24 @@ fun RuntimeSettingsPage(
     LaunchedEffect(connected, prootState.phase) {
         if (connected) repository.loadDeploySettings()
     }
-    // 重启完成（phase 变化）后 gateway 重连与隧道注册都要一拍，稍候再取状态
-    LaunchedEffect(remoteAccessEnabled, prootState.phase) {
+    // 注册晚于网关连接，持续刷新才能展示 Tunnel 换址和恢复后的状态。
+    LaunchedEffect(remoteAccessEnabled, prootState.phase, connected) {
         if (!remoteAccessEnabled) {
             remoteStatus = null
             return@LaunchedEffect
         }
-        kotlinx.coroutines.delay(2_000)
-        val remote = runCatching {
-            gateway.request("settings.get")?.optJSONObject("remote")
-        }
-            .getOrNull()
-        remoteStatus = remote?.let {
-            RemoteAccessUiState(
-                state = it.optString("state"),
-                address = it.optString("address"),
-                error = it.optString("error"),
-            )
+        while (isActive) {
+            val remote = runCatching {
+                gateway.request("settings.get")?.optJSONObject("remote")
+            }.getOrNull()
+            remoteStatus = remote?.let {
+                RemoteAccessUiState(
+                    state = it.optString("state"),
+                    address = it.optString("address"),
+                    error = it.optString("error"),
+                )
+            }
+            kotlinx.coroutines.delay(if (remoteStatus?.address?.isNotEmpty() == true) 15_000 else 3_000)
         }
     }
     SettingsSubPage(
@@ -1450,9 +1460,9 @@ fun RuntimeSettingsPage(
                 }
             }
         }
+        com.azurpilot.ghio.remoteaccess.RemotePairingCard(onConnected = onRemoteConnected)
         // 远程访问卡片：与局域网控制同为网络暴露面开关，相邻放置。
-        // 隧道由上游 localshare 中转（SSH 兜底、P2P 升级），改动要重启 Runtime 生效；
-        // 口令与 WebUI 同一份，拿到地址+口令即可从公网控制，务必保管好
+        // 模式与开关保存后由 Runtime 重启应用；Quick Tunnel 复用 WebUI 的远程鉴权。
         AppCard {
             AppLabeledControlRow(
                 label = stringResource(R.string.settings_remote_access),
@@ -1472,6 +1482,16 @@ fun RuntimeSettingsPage(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            TextButton(enabled = connected && !sessionBusy, onClick = {
+                repository.patchDeploySettings(mapOf(
+                    "RemoteAccessMode" to "cloudflare",
+                    "CloudflareRegistry" to com.azurpilot.ghio.remoteaccess.RemotePairings.REGISTRY,
+                    "EnableRemoteAccess" to true,
+                )) { ok, _ ->
+                    if (ok) showRestartConfirm = true
+                    else Toast.makeText(context, R.string.remote_pair_failed, Toast.LENGTH_LONG).show()
+                }
+            }) { Text(stringResource(R.string.remote_pair_try_tunnel)) }
             if (remoteAccessEnabled) {
                 val status = remoteStatus
                 AppInfoRow(

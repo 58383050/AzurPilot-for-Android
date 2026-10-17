@@ -23,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,7 +80,8 @@ fun AzurPilotPage(
     modifier: Modifier = Modifier,
 ) {
     AzurPilotRuntimeSurface(active = active, modifier = modifier) { repository ->
-        AzurPilotContent(repository, onNavigate, active)
+        val sourceId by repository.sourceId.collectAsStateWithLifecycle()
+        key(sourceId) { AzurPilotContent(repository, onNavigate, active) }
     }
 }
 
@@ -100,6 +102,8 @@ private fun AzurPilotRuntimeSurface(
     content: @Composable (AzurPilotRepository) -> Unit,
 ) {
     val connected by repository.connected.collectAsStateWithLifecycle()
+    val remoteName by repository.remoteName.collectAsStateWithLifecycle()
+    val authRequired by repository.authRequired.collectAsStateWithLifecycle()
     val hostSnapshot by hostState.snapshot.collectAsStateWithLifecycle()
     val prootState by prootHost.state.collectAsStateWithLifecycle()
     val runState by runController.state.collectAsStateWithLifecycle()
@@ -107,8 +111,8 @@ private fun AzurPilotRuntimeSurface(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // 仅在设备不存在时补拉，平级页切换不应重复探测已有的虚拟屏。
-    LaunchedEffect(active, hostSnapshot.privilegedConnected) {
-        if (active && hostSnapshot.privilegedConnected &&
+    LaunchedEffect(active, hostSnapshot.privilegedConnected, remoteName) {
+        if (remoteName == null && active && hostSnapshot.privilegedConnected &&
             hostState.snapshot.value.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE
         ) {
             hostState.ensureEnvironmentStarted()
@@ -132,7 +136,13 @@ private fun AzurPilotRuntimeSurface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background,
             ) {
-                RuntimeGate(
+                if (remoteName != null) Column(
+                    modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    ExpressiveLoadingIndicator()
+                    Text(stringResource(if (authRequired) R.string.remote_pair_auth_failed else R.string.remote_pair_open_failed))
+                } else RuntimeGate(
                     reachable = runState.reachable,
                     phase = prootState.phase,
                     detail = prootState.detail,

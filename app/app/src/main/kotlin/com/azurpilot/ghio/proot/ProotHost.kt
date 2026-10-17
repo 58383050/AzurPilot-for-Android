@@ -603,19 +603,18 @@ class ProotHost(
     /**
      * 把 App 的局域网与远程访问开关同步进 deploy.yaml，保留已保存的口令与端口。
      *
-     * 上游的 RemoteAccess 段（localshare SSH 中转 + P2P 信令）由 rootfs 出厂预填，
-     * 这里只做行级改写：翻转 `EnableRemoteAccess`；开启时再补三件事——
-     * LAN 或远程入口开启且 WebUI 口令为空时生成 32 位强随机、
-     * `SSHServer`/`SSHExecutable` 缺失或为 null 时落出厂默认。运行时进程此刻
+     * 仅做行级改写，保留已有模式；缺省模式为 Quick Tunnel，注册服务和设备安装标识仅补空值。
+     * LAN 或远程入口开启且 WebUI 口令为空时生成 32 位强随机，SSH 缺省值仍保留兼容。
+     * 设备标识加入随机安装因子，避免卸载后丢失密钥却与旧设备身份冲突。运行时进程此刻
      * 尚未拉起，无并发写者；失败仅记日志（沿用盘上现状，不阻塞启动链）。
      *
      * Syncs LAN and remote-access toggles into deploy.yaml, preserving saved passwords and ports.
      *
-     * The upstream RemoteAccess section (localshare SSH relay + P2P signaling)
-     * ships pre-filled in the rootfs, so only line-level edits are needed:
-     * sync the bind host and `EnableRemoteAccess`, generate a 32-char password if empty while
-     * LAN or remote access is enabled, and fill factory defaults for `SSHServer` /
-     * `SSHExecutable` when missing or null. The runtime process is not up yet,
+     * Line edits preserve existing modes; missing modes default to Quick Tunnel, and registry
+     * and installation IDs are filled only when absent. LAN or remote exposure generates a
+     * 32-character password when empty; SSH defaults remain for compatibility. Installation IDs
+     * include a random nonce to avoid identity collisions after uninstall loses the secret.
+     * The runtime process is not up yet,
      * so there is no concurrent writer; failures only log and keep the on-disk
      * state rather than wedging the start chain.
      */
@@ -673,7 +672,19 @@ class ProotHost(
                 lines = setYamlKey(lines, "SSHExecutable", DEFAULT_SSH_EXECUTABLE)
             }
             if (yamlValue(lines, "RemoteAccessMode").isNullOrEmpty()) {
-                lines = setYamlKey(lines, "RemoteAccessMode", "auto")
+                lines = setYamlKey(lines, "RemoteAccessMode", "cloudflare")
+            }
+            if (yamlValue(lines, "CloudflareRegistry").isNullOrEmpty()) {
+                lines = setYamlKey(lines, "CloudflareRegistry",
+                    com.azurpilot.ghio.remoteaccess.RemotePairings.REGISTRY)
+            }
+            if (yamlValue(lines, "CloudflareDeviceId").isNullOrEmpty()) {
+                val androidId = android.provider.Settings.Secure.getString(
+                    app.contentResolver, android.provider.Settings.Secure.ANDROID_ID)
+                val id = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest((androidId.orEmpty() + ":" + java.util.UUID.randomUUID()).toByteArray())
+                    .joinToString("") { "%02x".format(it) }.take(32)
+                lines = setYamlKey(lines, "CloudflareDeviceId", id)
             }
         }
         return lines.joinToString("\n")
@@ -753,7 +764,7 @@ class ProotHost(
         }
         // 键不存在：定位所属段（RemoteAccess 键归 RemoteAccess 段，其余归 Webui 段）
         val section = if (key == "EnableRemoteAccess" || key == "SSHServer" ||
-            key == "SSHExecutable" || key == "RemoteAccessMode"
+            key == "SSHExecutable" || key == "RemoteAccessMode" || key.startsWith("Cloudflare")
         ) {
             "RemoteAccess"
         } else {

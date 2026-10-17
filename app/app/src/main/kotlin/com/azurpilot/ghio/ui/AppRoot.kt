@@ -817,7 +817,8 @@ fun AppRoot(
                             WidgetSettingsPage(onBack = { navigator.pop() })
                         }
                         entry<AppRoute.Runtime>(swipeDismiss = swipeDismiss) {
-                            RuntimeSettingsPage(onBack = { navigator.pop() })
+                            RuntimeSettingsPage(onBack = { navigator.pop() },
+                                onRemoteConnected = { goToPage(TopDestination.AzurPilot.ordinal) })
                         }
                         entry<AppRoute.Ocr>(swipeDismiss = swipeDismiss) {
                             OcrSettingsPage(onBack = { navigator.pop() })
