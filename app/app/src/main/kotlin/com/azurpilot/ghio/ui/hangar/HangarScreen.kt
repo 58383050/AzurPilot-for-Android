@@ -45,7 +45,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.boundsInRoot
@@ -74,7 +78,8 @@ import com.azurpilot.ghio.proot.AzurPilotOverview
 import com.azurpilot.ghio.proot.AzurPilotRepository
 import com.azurpilot.ghio.proot.AzurPilotRunController
 import com.azurpilot.ghio.proot.AzurPilotRunState
-import com.azurpilot.ghio.proot.AzurPilotTaskState
+import com.azurpilot.ghio.proot.AzurPilotStatus
+import com.azurpilot.ghio.proot.AzurPilotSchema
 import com.azurpilot.ghio.proot.ProotHost
 import com.azurpilot.ghio.proot.ProotPhase
 import com.azurpilot.ghio.proot.ProotSnapshot
@@ -87,6 +92,7 @@ import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AnimatedTransferIcon
 import com.azurpilot.ghio.ui.components.TransferStage
 import com.azurpilot.ghio.ui.components.ScreenSaverButton
+import com.azurpilot.ghio.ui.azurpilot.AzurPilotTaskPlan
 import com.azurpilot.ghio.ui.ksu.AppButton
 import com.azurpilot.ghio.ui.ksu.AppIcon
 import com.azurpilot.ghio.ui.ksu.AppIconButton
@@ -94,6 +100,7 @@ import com.azurpilot.ghio.ui.ksu.AppLinearProgressIndicator
 import com.azurpilot.ghio.ui.ksu.AppPageScaffold
 import com.azurpilot.ghio.ui.ksu.AppText
 import com.azurpilot.ghio.ui.ksu.AppTextButton
+import com.azurpilot.ghio.ui.ksu.AppTonalButton
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import kotlin.math.cos
@@ -127,16 +134,23 @@ fun HangarScreen(
     val proot by prootHost.state.collectAsStateWithLifecycle()
     val connected by repository.connected.collectAsStateWithLifecycle()
     val overview by repository.overview.collectAsStateWithLifecycle()
+    val selectedInstance by repository.selectedInstance.collectAsStateWithLifecycle()
+    val remoteName by repository.remoteName.collectAsStateWithLifecycle()
+    val sourceId by repository.sourceId.collectAsStateWithLifecycle()
+    val schedulerBusy by repository.schedulerBusy.collectAsStateWithLifecycle()
+    val schema by repository.schema.collectAsStateWithLifecycle()
+    val message by repository.messages.collectAsStateWithLifecycle()
     val access by permissionManager.state.collectAsStateWithLifecycle()
     val settings: com.azurpilot.ghio.settings.AppSettingsManager = koinInject()
     val remoteClientMode by settings.remoteClientMode.collectAsStateWithLifecycle()
+    val remoteMode = remoteClientMode || sourceId != "local"
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     // 仅在虚拟屏确实不存在时补拉环境。返回主页不能再次主动探测桥接，
     // 否则探测的短暂失败会把已就绪的页面闪成「正在准备设备」。
-    LaunchedEffect(active, host.privilegedConnected, remoteClientMode, provisionState) {
-        if (!remoteClientMode && provisionState is ProvisionState.Ready &&
+    LaunchedEffect(active, host.privilegedConnected, remoteMode, provisionState) {
+        if (!remoteMode && provisionState is ProvisionState.Ready &&
             active && host.privilegedConnected &&
             hostState.snapshot.value.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE
         ) {
@@ -144,12 +158,23 @@ fun HangarScreen(
         }
     }
 
-    val mode = homeMode(run, proot, host, access)
     // 网关可能残留上次浏览的实例，不能将其他实例的任务误显示在主页。
     val currentConfig = if (run.runnerAlive) run.runningConfig ?: run.selectedConfig
         else run.selectedConfig
     val activeOverview = overview?.takeIf {
-        connected && it.instance == currentConfig
+        connected && it.instance == (if (remoteMode) selectedInstance else currentConfig) &&
+            remoteMode == (sourceId != "local")
+    }
+    val mode = when {
+        remoteMode -> remoteHomeMode(
+            hasTarget = sourceId != "local",
+            connected = connected,
+            selectedInstance = selectedInstance,
+            overview = activeOverview,
+            busy = schedulerBusy,
+        )
+        provisionState !is ProvisionState.Ready -> HomeMode.RUNTIME_MISSING
+        else -> homeMode(run, proot, host, access)
     }
 
     val gearAnchor = Modifier.onGloballyPositioned { coordinates ->
@@ -198,53 +223,60 @@ fun HangarScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            if (remoteClientMode) AppCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    AppText(stringResource(R.string.remote_pair_title), style = MaterialTheme.typography.titleMedium)
-                    AppText(stringResource(R.string.remote_client_hint), style = MaterialTheme.typography.bodyMedium)
-                    AppButton(onClick = onOpenRemote) { AppText(stringResource(R.string.remote_pair_title)) }
-                    if (remoteClientMode) AppButton(onClick = onOpenTasks) {
-                        AppText(stringResource(R.string.nav_azurpilot))
+            HomeRunCard(
+                mode = mode,
+                targetName = if (remoteMode) remoteName else null,
+                onStart = {
+                    if (remoteMode) repository.dismissMessage()
+                    if (remoteMode) repository.setSchedulerRunning(true) else runController.startRunner()
+                },
+                onStop = {
+                    if (remoteMode) repository.dismissMessage()
+                    if (remoteMode) repository.setSchedulerRunning(false) else runController.stopRunner()
+                },
+                onRetry = {
+                    if (remoteMode) repository.dismissMessage()
+                    if (remoteMode) repository.setSchedulerRunning(true) else prootHost.ensureStarted()
+                },
+                onResolve = {
+                    when (mode) {
+                        HomeMode.NEEDS_SHIZUKU -> permissionManager.openShizuku(context)
+                        HomeMode.NEEDS_AUTH -> scope.launch {
+                            permissionManager.requestRemoteAccess()
+                            permissionManager.bindService()
+                        }
+                        HomeMode.NEEDS_CONNECTION -> scope.launch { permissionManager.bindService() }
+                        HomeMode.NEEDS_ACTION -> onOpenSettings()
+                        HomeMode.NO_INSTANCE -> onOpenTasks()
+                        else -> Unit
                     }
-                }
+                },
+            )
+
+            // 远程命令失败要留在操作旁；本机与远程控制不能交叉调用。
+            if (remoteMode && connected && message != null) {
+                AppText(
+                    text = message.orEmpty(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
+            if (!remoteMode && provisionState is ProvisionState.Ready) {
+                // 息屏运行是独立的手动操作，不能依赖调度器已经启动。
+                // 是否支持由 ScreenSaverButton 按真实运行模式判断。
+                ScreenSaverButton(modifier = Modifier.fillMaxWidth())
+            }
+
+            key(sourceId, selectedInstance) {
+                HomeTasks(overview = activeOverview, schema = schema)
             }
 
             if (provisionState !is ProvisionState.Ready) {
                 HomeRuntimeDownloadCard(
                     checking = provisionState is ProvisionState.Checking,
+                    secondary = remoteMode,
                     onDownload = onDownloadRuntime,
-                )
-            }
-
-            if (!remoteClientMode && provisionState is ProvisionState.Ready) {
-                HomeRunCard(
-                    mode = mode,
-                    onStart = runController::startRunner,
-                    onStop = runController::stopRunner,
-                    onRetry = prootHost::ensureStarted,
-                    onResolve = {
-                        when (mode) {
-                            HomeMode.NEEDS_SHIZUKU -> permissionManager.openShizuku(context)
-                            HomeMode.NEEDS_AUTH -> scope.launch {
-                                permissionManager.requestRemoteAccess()
-                                permissionManager.bindService()
-                            }
-                            HomeMode.NEEDS_CONNECTION -> scope.launch { permissionManager.bindService() }
-                            HomeMode.NEEDS_ACTION -> onOpenSettings()
-                            else -> Unit
-                        }
-                    },
-                )
-
-                // 息屏运行是独立的手动操作，不能依赖调度器已经启动。
-                // 是否支持由 ScreenSaverButton 按真实运行模式判断。
-                ScreenSaverButton(modifier = Modifier.fillMaxWidth())
-
-                HomeTasks(
-                    overview = activeOverview,
-                    loading = !connected || activeOverview == null,
-                    running = run.runnerAlive && run.reachable && run.statusKnown,
-                    onOpenTasks = onOpenTasks,
                 )
             }
             Spacer(Modifier.height(bottomInnerPadding + 16.dp))
@@ -259,7 +291,7 @@ fun HangarScreen(
  * toolbar. Spacing and typography reuse the app theme.
  */
 @Composable
-private fun HomeRuntimeDownloadCard(checking: Boolean, onDownload: () -> Unit) {
+private fun HomeRuntimeDownloadCard(checking: Boolean, secondary: Boolean, onDownload: () -> Unit) {
     AppCard {
         Column(verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md)) {
             AppText(
@@ -271,12 +303,19 @@ private fun HomeRuntimeDownloadCard(checking: Boolean, onDownload: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            AppButton(onClick = onDownload, enabled = !checking, modifier = Modifier.fillMaxWidth()) {
+            val buttonContent: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
                 AppActionLabel(
                     AppSymbol.Download,
                     stringResource(if (checking) R.string.provision_checking else R.string.home_runtime_download),
                 )
             }
+            if (secondary) AppTonalButton(
+                onClick = onDownload, enabled = !checking, modifier = Modifier.fillMaxWidth(),
+                content = buttonContent,
+            ) else AppButton(
+                onClick = onDownload, enabled = !checking, modifier = Modifier.fillMaxWidth(),
+                content = buttonContent,
+            )
         }
     }
 }
@@ -285,7 +324,26 @@ private fun HomeRuntimeDownloadCard(checking: Boolean, onDownload: () -> Unit) {
 private enum class HomeMode {
     READY, RUNNING, RUNNING_INTERRUPTED, STARTING, STOPPING, PREPARING, PREPARING_DEVICE,
     UPDATING, FAILED, CONNECTING, NEEDS_SHIZUKU,
-    NEEDS_AUTH, NEEDS_CONNECTION, NEEDS_ACTION, TOOL_ACTIVE
+    NEEDS_AUTH, NEEDS_CONNECTION, NEEDS_ACTION, TOOL_ACTIVE,
+    NEEDS_BINDING, REMOTE_OFFLINE, NO_INSTANCE, RUNTIME_MISSING,
+}
+
+/** 远程主页只认当前来源的 WS 状态，不依赖手机授权。 / Uses the current WebSocket source, independent of phone permissions. */
+private fun remoteHomeMode(
+    hasTarget: Boolean,
+    connected: Boolean,
+    selectedInstance: String?,
+    overview: AzurPilotOverview?,
+    busy: Boolean,
+): HomeMode = when {
+    !hasTarget -> HomeMode.NEEDS_BINDING
+    !connected -> HomeMode.REMOTE_OFFLINE
+    selectedInstance == null -> HomeMode.NO_INSTANCE
+    overview == null -> HomeMode.CONNECTING
+    busy -> if (overview.status == AzurPilotStatus.Running) HomeMode.STOPPING else HomeMode.STARTING
+    overview.status == AzurPilotStatus.Running -> HomeMode.RUNNING
+    overview.status == AzurPilotStatus.Updating -> HomeMode.UPDATING
+    else -> HomeMode.READY
 }
 
 /** 同步状态模型，不启动额外轮询。 / Derive the home state without adding a new polling loop. */
@@ -334,6 +392,7 @@ private fun homeMode(
 @Composable
 private fun HomeRunCard(
     mode: HomeMode,
+    targetName: String?,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onRetry: () -> Unit,
@@ -355,6 +414,10 @@ private fun HomeRunCard(
         HomeMode.NEEDS_CONNECTION -> R.string.home_needs_connection_title
         HomeMode.NEEDS_ACTION -> R.string.home_attention_title
         HomeMode.TOOL_ACTIVE -> R.string.home_tool_active_title
+        HomeMode.NEEDS_BINDING -> R.string.home_needs_binding_title
+        HomeMode.REMOTE_OFFLINE -> R.string.home_remote_offline_title
+        HomeMode.NO_INSTANCE -> R.string.ap_overview_no_instance
+        HomeMode.RUNTIME_MISSING -> R.string.home_runtime_title
     }
     val description = when (mode) {
         HomeMode.READY -> R.string.home_ready_description
@@ -371,11 +434,15 @@ private fun HomeRunCard(
         HomeMode.NEEDS_CONNECTION -> R.string.home_needs_connection_description
         HomeMode.NEEDS_ACTION -> R.string.home_attention_description
         HomeMode.TOOL_ACTIVE -> R.string.home_tool_active_description
+        HomeMode.NEEDS_BINDING -> R.string.home_needs_binding_description
+        HomeMode.REMOTE_OFFLINE -> R.string.home_remote_offline_description
+        HomeMode.NO_INSTANCE -> R.string.home_remote_no_instance_description
+        HomeMode.RUNTIME_MISSING -> R.string.home_runtime_start_description
     }
     val isActive = mode == HomeMode.RUNNING || mode == HomeMode.RUNNING_INTERRUPTED
     val canResolve = mode == HomeMode.NEEDS_SHIZUKU ||
         mode == HomeMode.NEEDS_AUTH ||
-        mode == HomeMode.NEEDS_CONNECTION || mode == HomeMode.NEEDS_ACTION
+        mode == HomeMode.NEEDS_CONNECTION || mode == HomeMode.NEEDS_ACTION || mode == HomeMode.NO_INSTANCE
     val canStart = mode == HomeMode.READY
     val canRetry = mode == HomeMode.FAILED
     val primaryColor: Color = when (mode) {
@@ -404,7 +471,10 @@ private fun HomeRunCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 Box(Modifier.size(9.dp).background(animatedPrimaryColor, CircleShape))
                 AppText(
-                    stringResource(R.string.home_status_label),
+                    targetName ?: stringResource(R.string.home_status_label),
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                 )
@@ -504,6 +574,9 @@ private fun HomeRunCard(
                             mode == HomeMode.NEEDS_AUTH -> R.string.home_grant_access
                             mode == HomeMode.NEEDS_CONNECTION -> R.string.home_reconnect
                             mode == HomeMode.NEEDS_ACTION -> R.string.home_attention_settings
+                            mode == HomeMode.NO_INSTANCE -> R.string.nav_azurpilot
+                            mode == HomeMode.NEEDS_BINDING || mode == HomeMode.REMOTE_OFFLINE ||
+                                mode == HomeMode.RUNTIME_MISSING -> R.string.hangar_start
                             canStart -> R.string.hangar_start
                             else -> R.string.home_wait_button
                         }
@@ -609,14 +682,14 @@ private fun HomeAttention(onOpenSettings: () -> Unit) {
     }
 }
 
-/** 只呈现可确认的当前和下一项任务。 / Show only the confirmed active and upcoming tasks. */
+/** 最近三项保持主页简洁，按需展开 WS 返回的完整计划。 / Keeps home concise with three tasks, expanding the WebSocket plan on demand. */
 @Composable
 private fun HomeTasks(
     overview: AzurPilotOverview?,
-    loading: Boolean,
-    running: Boolean,
-    onOpenTasks: () -> Unit,
+    schema: AzurPilotSchema?,
 ) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val tasks = overview?.tasks.orEmpty()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -627,19 +700,14 @@ private fun HomeTasks(
                 stringResource(R.string.home_tasks_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             )
-            AppTextButton(onClick = onOpenTasks) {
-                AppActionLabel(AppSymbol.Clock, stringResource(R.string.home_tasks_view_all))
+            if (tasks.size > 3) AppTextButton(onClick = { expanded = !expanded }) {
+                AppText(stringResource(if (expanded) R.string.home_tasks_collapse else R.string.home_tasks_view_all))
             }
         }
 
-        val tasks = overview?.tasks.orEmpty()
-        val current = tasks.firstOrNull { it.state == AzurPilotTaskState.Running }
-        val next = tasks.firstOrNull { it.state == AzurPilotTaskState.Pending }
-            ?: tasks.firstOrNull { it.state == AzurPilotTaskState.Waiting }
-
         AppCard(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 15.dp)) {
             when {
-                loading -> AppText(
+                overview == null -> AppText(
                     stringResource(R.string.home_tasks_unavailable),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
@@ -649,44 +717,8 @@ private fun HomeTasks(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (running && current != null) {
-                        HomeTaskLine(stringResource(R.string.home_tasks_current), current.name)
-                    }
-                    if (next != null) {
-                        HomeTaskLine(stringResource(R.string.home_tasks_next), next.name)
-                    }
-                    HomeTaskLine(
-                        stringResource(R.string.home_tasks_count),
-                        stringResource(R.string.home_tasks_count_value, tasks.size),
-                    )
-                }
+                else -> AzurPilotTaskPlan(if (expanded) tasks else tasks.take(3), schema)
             }
         }
-    }
-}
-
-/** 简单的标签和值，减少多层嵌套与截断。 / Compact key/value layout without nested cards. */
-@Composable
-private fun HomeTaskLine(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        AppText(
-            label,
-            modifier = Modifier.weight(0.38f),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
-        AppText(
-            value,
-            modifier = Modifier.weight(0.62f),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }

@@ -43,19 +43,18 @@ import com.azurpilot.ghio.ui.azurpilot.ApEmptyState
 import com.azurpilot.ghio.ui.azurpilot.ApKeyValueRow
 import com.azurpilot.ghio.ui.azurpilot.ApSectionColumn
 import com.azurpilot.ghio.ui.azurpilot.ApStatusPill
+import com.azurpilot.ghio.ui.azurpilot.AzurPilotTaskPlan
 import com.azurpilot.ghio.ui.azurpilot.formatResource
 import com.azurpilot.ghio.ui.azurpilot.instanceStatusColor
 import com.azurpilot.ghio.ui.azurpilot.instanceStatusText
 import com.azurpilot.ghio.ui.azurpilot.isRecorded
 import com.azurpilot.ghio.ui.azurpilot.resourceLabel
-import com.azurpilot.ghio.ui.azurpilot.taskStateColor
 import com.azurpilot.ghio.ui.azurpilot.taskStateText
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AppLabeledControlRow
 import com.azurpilot.ghio.ui.ksu.AppButton as Button
 import com.azurpilot.ghio.ui.ksu.AppHorizontalDivider as HorizontalDivider
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
-import com.azurpilot.ghio.ui.ksu.AppIconButton as IconButton
 import com.azurpilot.ghio.ui.ksu.AppSurface as Surface
 import com.azurpilot.ghio.ui.ksu.AppSwitch as Switch
 import com.azurpilot.ghio.ui.ksu.AppText as Text
@@ -79,6 +78,7 @@ fun OverviewSection(
     val selected by repository.selectedInstance.collectAsStateWithLifecycle()
     val remoteName by repository.remoteName.collectAsStateWithLifecycle()
     val instances by repository.instances.collectAsStateWithLifecycle()
+    val schema by repository.schema.collectAsStateWithLifecycle()
     val data = overview
 
     ApSectionColumn {
@@ -156,6 +156,14 @@ fun OverviewSection(
                 onClick = onOpenStats,
             )
         }
+
+        AppCard(title = stringResource(R.string.ap_overview_tasks)) {
+            when {
+                data == null -> ApEmptyState(Icons.Filled.Schedule, stringResource(R.string.ap_waiting_data))
+                data.tasks.isEmpty() -> ApEmptyState(Icons.Filled.Schedule, stringResource(R.string.home_tasks_empty))
+                else -> AzurPilotTaskPlan(data.tasks, schema)
+            }
+        }
     }
 }
 
@@ -176,9 +184,11 @@ fun OverviewSection(
 @Composable
 private fun SchedulerButton(repository: AzurPilotRepository, running: Boolean) {
     val busy by repository.schedulerBusy.collectAsStateWithLifecycle()
+    val overview by repository.overview.collectAsStateWithLifecycle()
+    val connected by repository.connected.collectAsStateWithLifecycle()
     Button(
         onClick = { repository.setSchedulerRunning(!running) },
-        enabled = !busy,
+        enabled = connected && overview != null && overview?.status != AzurPilotStatus.Updating && !busy,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Icon(
@@ -326,52 +336,6 @@ private fun PreviewCard(repository: AzurPilotRepository, modifier: Modifier = Mo
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-    }
-}
-
-/**
- * 任务计划：顺序沿用网关的排序（运行中 → 待运行 → 等待）
- *
- * The task plan: the order follows the gateway's (running → pending → waiting).
- *
- * @param tasks 任务列表 / the task list
- * @param onRunNow 立刻运行某任务 / runs one task immediately
- */
-@Composable
-private fun TaskPlan(tasks: List<AzurPilotTask>, onRunNow: (String) -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        tasks.forEachIndexed { index, task ->
-            if (index > 0) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = AppTokens.Spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppTokens.Spacing.sm),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Schedule,
-                    contentDescription = null,
-                    tint = taskStateColor(task.state),
-                    modifier = Modifier.size(AppTokens.IconSize.md),
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = task.name, style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        text = "${taskStateText(task.state)} · ${task.nextRun}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = { onRunNow(task.name) }) {
-                    Icon(
-                        imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "${stringResource(R.string.ap_run_now)} ${task.name}",
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
         }
     }
 }

@@ -9,6 +9,12 @@
 本机 Runtime 不会自动下载；未安装时，主页显示「下载 Runtime」，由用户主动开始部署。
 绑定成功后切换到内置原生控制台；控制台断连页也保留绑定与已保存设备入口。
 
+主页通过当前来源的 WS 总览显示启动、停止和最近三项任务，可展开查看全部。
+任务沿用调度器返回的顺序、状态和下次执行时间；「最近任务」表示当前与即将执行的计划，
+不是从日志推断的历史记录。远程启停使用 `scheduler.start` / `scheduler.stop`，
+不触发本机 Runtime 或手机运行权限。未绑定或断连时禁用启动，不显示旧任务。
+本机 Runtime 与远程 AzurPilot 的总览都提供完整「任务计划」，部署后即可查看。
+
 绑定页以扫码为主要操作，配对码输入为次要操作，已绑定设备单独分组。六码输入只接受数字，
 键盘确认和按钮共用提交条件；忙碌时禁止重复提交。设备列表区分实际连接状态与当前选择，
 不会把等待连接显示成已连接。打开绑定页本身不切换运行模式。
@@ -98,6 +104,13 @@ The runtime-permission step offers a blue Skip action at the top right. Welcome 
 After setup, Bind next to Settings on home opens QR scanning and six-digit pairing. Missing local Runtime
 is never downloaded automatically; Download Runtime on home starts deployment explicitly. Successful
 binding opens the native console, which retains binding and saved-device controls while disconnected.
+
+Home uses the current source's WebSocket overview for start/stop controls and the first three tasks,
+with an action to expand the full list. Tasks retain scheduler order, state and next-run time;
+Recent tasks means current and upcoming plans rather than history inferred from logs. Remote control
+calls `scheduler.start` / `scheduler.stop` without starting local Runtime or requesting phone permissions.
+Unbound and offline sources disable starting and hide stale tasks. Both local Runtime and remote
+AzurPilot overview pages show the complete Task plan.
 
 Binding prioritizes scanning, offers code entry second, and groups saved devices separately. Only six
 digits enable submission, including the keyboard action; busy state blocks duplicate submissions. Saved

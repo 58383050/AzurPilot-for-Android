@@ -128,8 +128,8 @@ private fun AzurPilotRuntimeSurface(
         }
     }
 
-    LaunchedEffect(message) {
-        message?.let {
+    LaunchedEffect(active, message) {
+        message?.takeIf { active }?.let {
             snackbarHostState.showSnackbar(it)
             repository.dismissMessage()
         }
