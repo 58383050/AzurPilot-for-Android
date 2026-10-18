@@ -280,7 +280,12 @@
     <!-- 推播失敗原因；由各管道產出，顯示在測試回饋裡 -->
     <!-- 首啟 rootfs 部署 -->
     <string name="provision_title">部署 Runtime</string>
-    <string name="provision_subtitle">首次啟動需要部署約 1GB 的 Runtime：完整版直接解壓縮內建套件，輕量版從所選下載來源取得，只需一次</string>
+    <string name="provision_subtitle">在本機執行需要安裝約 1GB 的 Runtime：完整版解壓縮內建套件，輕量版從所選下載來源取得，只需一次。</string>
+    <string name="provision_back_home">返回首頁</string>
+    <string name="home_runtime_title">尚未安裝本機 Runtime</string>
+    <string name="home_runtime_description">在本機執行前，請先下載 Runtime。連線遠端 AzurPilot 可點選右上角綁定，無需下載。</string>
+    <string name="home_runtime_download">下載 Runtime</string>
+    <string name="remote_pair_bind">綁定</string>
     <string name="provision_checking">正在檢查 Runtime…</string>
     <string name="provision_extracting">解壓縮中 %1$d%%（%2$d / %3$d MB）</string>
     <string name="provision_downloading">正在下載 Runtime %1$d%%…</string>
@@ -900,7 +905,7 @@
     <string name="oobe_step_ready">完成</string>
     <string name="oobe_action_next">下一步</string>
     <string name="oobe_action_prev">上一步</string>
-    <string name="oobe_action_skip">稍後配置</string>
+    <string name="oobe_action_skip">略過</string>
     <string name="oobe_action_start">開始使用</string>
     <string name="oobe_progress_format">第 %1$d 步，共 %2$d 步</string>
     <string name="settings_reopen_oobe">首次啟動向導</string>

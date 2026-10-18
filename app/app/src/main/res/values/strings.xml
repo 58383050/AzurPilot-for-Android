@@ -287,7 +287,12 @@
     <!-- 推送失败原因；由各渠道产出，展示在测试反馈里 -->
     <!-- 首启 rootfs 部署 -->
     <string name="provision_title">部署 Runtime</string>
-    <string name="provision_subtitle">首次启动需要部署约 1GB Runtime：完整版直接解压内置包，轻量版从所选下载源获取，只需一次</string>
+    <string name="provision_subtitle">本机运行需要安装约 1GB Runtime：完整版解压内置包，轻量版从所选下载源获取，只需一次。</string>
+    <string name="provision_back_home">返回主页</string>
+    <string name="home_runtime_title">本机 Runtime 尚未安装</string>
+    <string name="home_runtime_description">在本机运行前，请先下载 Runtime。连接远程 AzurPilot 可点击右上角绑定，无需下载。</string>
+    <string name="home_runtime_download">下载 Runtime</string>
+    <string name="remote_pair_bind">绑定</string>
     <string name="provision_checking">正在检查 Runtime…</string>
     <string name="provision_extracting">解压中 %1$d%%（%2$d / %3$d MB）</string>
     <string name="provision_downloading">正在下载 Runtime %1$d%%…</string>
@@ -911,7 +916,7 @@
     <string name="oobe_step_ready">完成</string>
     <string name="oobe_action_next">下一步</string>
     <string name="oobe_action_prev">上一步</string>
-    <string name="oobe_action_skip">稍后配置</string>
+    <string name="oobe_action_skip">跳过</string>
     <string name="oobe_action_start">开始使用</string>
     <string name="oobe_progress_format">第 %1$d 步，共 %2$d 步</string>
     <string name="settings_reopen_oobe">首次启动向导</string>

@@ -43,6 +43,13 @@ sealed interface ProvisionState {
     data object Checking : ProvisionState
 
     /**
+     * 本机尚未部署，等待用户从主页开始安装。
+     *
+     * The local Runtime is missing; waits for the user to start installation from home.
+     */
+    data object NotInstalled : ProvisionState
+
+    /**
      * 未内置 rootfs.tar.xz（或架构不符），且 Release 清单也没有可部署的 Runtime
      *
      * No bundled rootfs.tar.xz (or arch mismatch), and the release manifest
@@ -85,7 +92,7 @@ sealed interface ProvisionState {
  *   Release 按 `latest.json.runtimes[abi]` 取对应架构的包。
  * - 版本闸门：assets 侧 `rootfs/BUILD_MANIFEST` 与 marker `files/rootfs/.provisioned`
  *   对版本号；不一致（或 python3 sanity 不过）就重解。升级=换新包重解，不做增量。
- * - 安装包未内置 rootfs（轻量 APK）时从 Release 拉 `rootfs-<abi>.tar.xz` 自动部署；
+ * - 用户主动安装时，轻量 APK 从 Release 拉 `rootfs-<abi>.tar.xz` 部署；
  *   两者共用同一条解压流水线。
  * - 落盘走 `rootfs.tmp` 解完再换名，半途失败不留半拉子正式目录。
  * - busybox tar 解 ubuntu-base 硬链接前向引用必炸（M1-d 坑②），故用纯 Java
@@ -105,8 +112,8 @@ sealed interface ProvisionState {
  *   marker `files/rootfs/.provisioned`; on mismatch (or a failed python3
  *   sanity check) the tree is re-extracted. Upgrades replace the whole package
  *   and re-extract — no incremental deltas.
- * - When the APK ships without a bundled rootfs (slim builds), the release's
- *   `rootfs-<abi>.tar.xz` is fetched and deployed automatically; both paths
+ * - On explicit installation, slim APKs fetch and deploy the release's
+ *   `rootfs-<abi>.tar.xz`; both paths
  *   share the same extraction pipeline.
  * - Extraction lands in `rootfs.tmp` and renames only after success, so a
  *   failed run never leaves a half-deployed directory.
@@ -300,18 +307,21 @@ class RootfsProvisioner(
     private val markerFile: File get() = File(rootDir, MARKER_NAME)
 
     /**
-     * 启动首次部署流水线；幂等，在跑时忽略
+     * 检查已装 Runtime；仅用户主动请求时允许首次部署。在跑时忽略重复请求。
      *
-     * Starts the first-deploy pipeline; idempotent, ignored while running.
+     * Checks the installed Runtime, allowing initial deployment only on explicit user request.
+     * Ignores duplicate requests while running.
+     *
+     * @param installIfMissing 是否允许下载或解压缺失的 Runtime。 / Allows downloading or extracting a missing Runtime.
      */
-    fun start() {
+    fun start(installIfMissing: Boolean = false) {
         if (running.compareAndSet(false, true)) {
-            scope.launch { run() }
+            scope.launch { run(installIfMissing) }
         }
     }
 
     /** 失败/低磁盘/版本过期后手动重跑 / Manual rerun after a failure, low disk or a stale version. */
-    fun retry() = start()
+    fun retry() = start(installIfMissing = true)
 
     /**
      * 返回当前源码与已部署镜像组成的版本，用于展示和更新检查；在 IO 线程读取。
@@ -363,12 +373,12 @@ class RootfsProvisioner(
     }
 
     /**
-     * 首启流水线主体：恢复上次中断的部署、按需解压、最后查更新
+     * 恢复上次中断的部署；仅主动安装时部署缺失的 Runtime，在位后检查更新。
      *
-     * The first-boot pipeline body: restore an interrupted deployment, extract
-     * when needed, then check for updates. IO 调度器上执行 / Runs on the IO dispatcher.
+     * Restores interrupted deployments, installs missing Runtime only on request, and checks
+     * updates once installed. Runs on the IO dispatcher.
      */
-    private suspend fun run() = withContext(Dispatchers.IO) {
+    private suspend fun run(installIfMissing: Boolean) = withContext(Dispatchers.IO) {
         _state.value = ProvisionState.Checking
         try {
             val previous = File(app.filesDir, "rootfs.previous")
@@ -376,6 +386,10 @@ class RootfsProvisioner(
                 check(previous.renameTo(rootDir)) { "cannot restore previous rootfs" }
             }
             if (!isInstalled()) {
+                if (!installIfMissing) {
+                    _state.value = ProvisionState.NotInstalled
+                    return@withContext
+                }
                 val deviceAbi = RuntimeArch.deviceAbi()
                 val bundled = deviceAbi?.let { bundledRuntime() }?.takeIf { it.arch == deviceAbi }
                 if (bundled != null) {

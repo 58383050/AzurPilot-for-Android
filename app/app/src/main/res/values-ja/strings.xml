@@ -280,7 +280,12 @@
     <!-- プッシュ失敗の理由；各プッシュ先が生成し、テスト結果に表示される -->
     <!-- 初回起動時の rootfs 展開 -->
     <string name="provision_title">Runtime のセットアップ</string>
-    <string name="provision_subtitle">初回起動時に約 1GB の Runtime をセットアップします。フル版は内蔵パッケージを展開し、軽量版は選択した配信元からダウンロードします。必要なのは一度だけです</string>
+    <string name="provision_subtitle">端末での実行には約 1GB の Runtime が必要です。フル版は内蔵パッケージを展開し、軽量版は選択した配信元から取得します。インストールは一度だけです。</string>
+    <string name="provision_back_home">ホームに戻る</string>
+    <string name="home_runtime_title">端末の Runtime は未インストールです</string>
+    <string name="home_runtime_description">端末で実行するには Runtime をダウンロードしてください。リモート AzurPilot は右上の「連携」から接続でき、ダウンロードは不要です。</string>
+    <string name="home_runtime_download">Runtime をダウンロード</string>
+    <string name="remote_pair_bind">連携</string>
     <string name="provision_checking">Runtime を確認中…</string>
     <string name="provision_extracting">展開中 %1$d%%（%2$d / %3$d MB）</string>
     <string name="provision_downloading">Runtime をダウンロード中 %1$d%%…</string>
@@ -900,7 +905,7 @@
     <string name="oobe_step_ready">完了</string>
     <string name="oobe_action_next">次へ</string>
     <string name="oobe_action_prev">戻る</string>
-    <string name="oobe_action_skip">後で設定</string>
+    <string name="oobe_action_skip">スキップ</string>
     <string name="oobe_action_start">使い始める</string>
     <string name="oobe_progress_format">全 %2$d ステップ中 %1$d</string>
     <string name="settings_reopen_oobe">初期設定ガイド</string>

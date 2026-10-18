@@ -29,15 +29,15 @@ import com.azurpilot.ghio.ui.ksu.AppText as Text
 /**
  * 渲染本机 rootfs 部署页；远程入口始终可用，无需等待部署。
  *
- * 本机下载支持换源与重试；本机跳过仅留给开发包，远程连接适用于所有构建。
+ * 本机下载由主页主动发起，支持换源、重试及返回主页，远程连接适用于所有构建。
  *
  * Renders local rootfs provisioning with an independent remote entry available immediately.
  *
- * Local downloads support mirrors and retry. Local skip is debug-only; remote access works in all builds.
+ * Home starts local downloads explicitly, with mirrors, retry and return-home actions in all builds.
  *
  * @param state 部署进度；[ProvisionState.Ready] 时本页不再渲染 / provisioning progress; nothing renders once
  *   [ProvisionState.Ready]
- * @param onSkip 跳过回调；null 不显示逃生门（正式包）/ skip callback; null hides the escape hatch (release builds)
+ * @param onSkip 返回主页回调；null 时隐藏。 / Return-home callback; hidden when null.
  * @param mirrorId 当前下载源 / current download source
  * @param onMirrorChange 换源回调，切源即重下 / source-change callback; switching restarts the download
  */
@@ -154,14 +154,13 @@ fun ProvisionScreen(
                     RetryButton(onRetry)
                 }
 
-                ProvisionState.Ready -> Unit // 门已开，本页不再渲染
+                ProvisionState.NotInstalled, ProvisionState.Ready -> Unit
             }
 
-            // 开发包（未内置资产）的逃生门：下载不下来也得能进外壳
             if (onSkip != null) {
                 Spacer(Modifier.height(AppTokens.Spacing.sm))
                 Button(onClick = onSkip) {
-                    AppActionLabel(AppSymbol.Play, stringResource(R.string.provision_skip))
+                    AppActionLabel(AppSymbol.Home, stringResource(R.string.provision_back_home))
                 }
             }
 

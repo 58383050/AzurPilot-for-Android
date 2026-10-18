@@ -4,10 +4,14 @@
 
 ### 用户入口
 
-首次启动欢迎页、主页和本机部署页均提供「连接远程 AP」。首次使用只需确认协议，随后可扫描
-AP 配对页的动态图形，或输入服务器生成的六位码；不经过本机权限、下载或 Runtime 启动流程。
-配对成功后直接切换 AFA 内置原生控制台；以后点击保存的 AP 名称即可重新连接。
-控制台断连页也保留配对与保存入口，不会退回本机 Runtime 的等待页。
+首次引导在「设置运行权限」页右上角提供蓝色「跳过」，欢迎页不再提供远程快捷入口。
+完成引导后，点击主页右上角设置旁的「绑定」，即可扫描 AzurPilot 配对二维码或输入六位配对码。
+本机 Runtime 不会自动下载；未安装时，主页显示「下载 Runtime」，由用户主动开始部署。
+绑定成功后切换到内置原生控制台；控制台断连页也保留绑定与已保存设备入口。
+
+绑定页以扫码为主要操作，配对码输入为次要操作，已绑定设备单独分组。六码输入只接受数字，
+键盘确认和按钮共用提交条件；忙碌时禁止重复提交。设备列表区分实际连接状态与当前选择，
+不会把等待连接显示成已连接。打开绑定页本身不切换运行模式。
 
 `AppSettings.remoteClientMode` 保存客户端模式。该模式屏蔽本机自动部署、启动、定时 Runtime 更新、
 Shizuku 引导与机型支持提示，应用锁和协议确认仍生效。「返回本机 AP」恢复原来的本机流程；
@@ -31,9 +35,9 @@ AFA 每次打开都请求固定入口，读取禁止缓存的 301 跳转，校�
 然后执行 `rootfs/build/build-azurpilot.sh`；架构须与设备一致。构建步骤见
 [runtime-provisioning.md](runtime-provisioning.md) 和 [multi-arch.md](multi-arch.md)。
 
-只连接远程 AP 时不需要更新本机 Runtime。远端 AP 必须已启用 Quick Tunnel，并在其远程访问页
-生成配对码。图形采用 ParticlePair 公布的 Particle Code v1 帧格式：128 位密钥、CRC-16、
-Hamming(12,8) 与 18×18 绿色差分载波。协议、渲染和原生识别均独立实现，未打包上游源码。
+只连接远程 AzurPilot 时不需要更新本机 Runtime。远端必须已启用 Quick Tunnel，并在远程访问页
+生成配对码。使用普通二维码，载荷固定为 `azurpilot://pair?secret=<32 位小写十六进制密钥>`；
+解码器校验完整格式后才允许领取配对。
 
 ### 存储与安全边界
 
@@ -42,9 +46,11 @@ Hamming(12,8) 与 18×18 绿色差分载波。协议、渲染和原生识别均�
   旧试验地址的已保存配对与本机注册配置会迁移到新域名，继续使用原设备 ID 和独立授权。
 - 设备列表和独立凭据通过 Android Keystore AES-GCM 加密，保存到 `noBackupFilesDir`。
   长期凭据不进入 DataStore 明文偏好、Android 备份、日志或 Intent。扫描 Activity 仅返回本次配对的一次性密钥。
-- `ParticleScanActivity` 用原生 CameraX 采集绿色通道，搜索中心裁剪、缩放、旋转与镜像。
-  预览和分析通过 `UseCaseGroup` 共用正方形视口，采样使用 `ImageProxy.cropRect`，取景框与解码区域保持一致。
-  差分同步、纠错和 CRC 成功后还需重复识别相同密钥；相机帧只在内存中使用。
+- `QrScanActivity` 用 CameraX 提供全屏预览，ZXing 解码亮度平面；预览和分析共用全屏视口，
+  按 `ImageProxy.cropRect`、行填充和像素步长读取全部可见区域。
+  CameraX 坐标变换将二维码边界映射到预览。识别后白框以 120ms 显现，再以 280ms 平移和缩放到
+  中央，短暂停留后只返回一次密钥；系统关闭动画时省去位移。关闭或后台状态不会提交结果。
+  相机帧和识别截图只保存在内存中。
 - `AzurPilotGateway` 每次连接重新解析固定入口，以 WSS 完成鉴权后才发布就绪并恢复订阅。
   内置原生总览、配置、日志和统计复用同一个 `AzurPilotRepository`，远程 AP 支持实例选择。
 - 切换来源前等待编辑保存，关闭旧连接并清空缓存。原生总览显示来源，设置可返回本机 AP。
@@ -62,7 +68,7 @@ Go + SQLite 服务见 [../server/remote-access/README.md](../server/remote-acces
 Kotlin 使用 `compileDebugKotlin`；`app/gradlew -p tools/remote-gateway-check test` 直接验证
 生产网关和光学协议，不运行本仓库已知孤立测试桩的 `testDebugUnitTest`。
 Android 15 x86_64 独立模拟器已验证实际 Keystore 加密保存、六码配对、原生控制台读取配置、
-Tunnel 换址后重连与活动凭据撤销。相机验收使用生产 TypeScript 编码器生成视频，送入模拟器
+Tunnel 换址后重连与活动凭据撤销。当前相机验收应使用包含普通配对二维码的视频，送入模拟器
 `videofile` 摄像头，由实际 CameraX 采集并调用生产解码器，最后通过扫描密钥向真实服务领取配对。
 物理手机的相机成像与厂商后台限制仍需单独评估。
 
@@ -72,13 +78,9 @@ Tunnel 换址后重连与活动凭据撤销。相机验收使用生产 TypeScrip
 .\app\gradlew.bat -p app :app:assembleDebugAndroidTest -PremoteAccessTestsOnly=true '-Pazurpilot.slimApk=true'
 ```
 
-`RemoteEntryInstrumentedTest` 从真实 `MainActivity` 的全新安装路径验收欢迎页、协议确认、配对页、
-原生控制台及 Activity 重建；以独立 `oobeTestApplicationId` 构建不含 rootfs 的 APK，传入
-`freshRemoteEntry=true` 和一次性 `pairingCode`，断言全过程不安装或启动本机 Runtime。
-这与只渲染配对卡的组件用例不同，覆盖应用最外层的部署门。
-只验收入口时省略 `pairingCode`；传入后才执行公网配对与原生控制台断言。
-完成入口验收后杀死测试应用进程，再以 `resumeRemoteEntry=true` 单独运行
-`coldStartRetainsRemoteModeWithoutLocalRuntime`，验证冷启动保留远程模式与配对入口。
+`RemoteEntryInstrumentedTest` 的历史新安装用例仍假定欢迎页存在远程快捷入口；更新步骤断言前，
+不应启用 `freshRemoteEntry=true`。当前新安装验收需经过协议、跳过运行权限、完成引导，再从
+主页打开绑定，同时断言全过程不自动安装或启动本机 Runtime。
 
 其他测试类为 `com.azurpilot.ghio.remoteaccess.RemoteAccessInstrumentedTest`。先确认测试设备
 `sys.boot_completed=1` 且外部存储已挂载；通过 instrumentation 参数 `pairingCode` 执行原生
@@ -92,19 +94,22 @@ Quick Tunnel 处于试验范围，不能据此承诺生产环境可用性。
 
 ### User entry
 
-Connect to remote AP is available on the first-launch welcome screen, home page and local provisioning page.
-First use only requires legal acknowledgement before scanning or entering a server-generated six-digit code;
-local permissions, downloads and Runtime startup are unnecessary. Pairing opens the native console, and saved
-entries reconnect it. Disconnected console pages retain pairing and saved-device controls.
+The runtime-permission step offers a blue Skip action at the top right. Welcome has no remote shortcut.
+After setup, Bind next to Settings on home opens QR scanning and six-digit pairing. Missing local Runtime
+is never downloaded automatically; Download Runtime on home starts deployment explicitly. Successful
+binding opens the native console, which retains binding and saved-device controls while disconnected.
+
+Binding prioritizes scanning, offers code entry second, and groups saved devices separately. Only six
+digits enable submission, including the keyboard action; busy state blocks duplicate submissions. Saved
+devices distinguish actual connectivity from selection. Opening the page alone does not switch modes.
 
 `AppSettings.remoteClientMode` persists client mode and suppresses local automatic provisioning, startup,
 scheduled Runtime updates, Shizuku guidance and device-support prompts. App lock and legal acknowledgement
 remain effective. Return to local AP restores the existing local flow without stopping running local tasks.
 Hosting a local Quick Tunnel is separate from controlling another AP.
 
-The animation uses the published Particle Code v1 format: a 128-bit secret,
-CRC-16, Hamming(12,8), and an 18×18 differential green carrier. Protocol, rendering and native decoding
-are independently implemented; upstream source code is not bundled.
+Standard QR codes carry `azurpilot://pair?secret=<32 lowercase hexadecimal characters>`. The decoder
+validates this exact payload before allowing a pairing claim.
 
 Every open resolves the stable entry again, checks the non-cacheable 301 response, and validates its
 `https://<name>.trycloudflare.com/` destination. AP restarts therefore do not require pairing again.
@@ -133,9 +138,12 @@ Quick Tunnel enabled and generate a code on its remote access page.
   Saved pairings and local registration settings from the old trial host migrate while retaining device IDs and credentials.
 - Android Keystore AES-GCM encrypts entries and independent credentials in `noBackupFilesDir`.
   Long-term credentials are excluded from plaintext DataStore, backups, logs, and Intents. The scanner activity returns only a one-time pairing secret.
-- Native `ParticleScanActivity` samples green-channel CameraX frames, searching centered crops, scales,
-  rotations and mirrors. Repeated matching sync, error correction and CRC are required. Frames stay in memory.
-  Preview and analysis share a square `UseCaseGroup` viewport; sampling follows `ImageProxy.cropRect`.
+- `QrScanActivity` presents full-screen CameraX preview and decodes luminance with ZXing. Preview and
+  analysis share the full-screen viewport; sampling respects `ImageProxy.cropRect`, row and pixel strides.
+  CameraX transforms map detected bounds into preview coordinates. A white frame appears over 120ms,
+  then translates and scales to center over 280ms before returning the secret once after a short hold.
+  Reduced motion omits movement. Close and background state never submit a result. Frames and captured
+  crops stay in memory.
 - `AzurPilotGateway` resolves the stable entry on each connection, authenticates over WSS before publishing
   readiness, and restores subscriptions. Native overview, configuration, logs and statistics use the existing
   repository; remote APs support instance selection.
@@ -156,17 +164,14 @@ without starting game tasks. Kotlin is checked with `compileDebugKotlin`; the kn
 test source set is not run. `app/gradlew -p tools/remote-gateway-check test` verifies the production gateway
 and optical decoder on JVM. An isolated Android 15 x86_64 emulator also verifies Keystore encryption,
 six-digit pairing, native configuration reads, reconnection after tunnel changes, and active credential revocation.
-The camera test feeds a video from the production TypeScript encoder through the emulator's `videofile` camera,
-actual CameraX analysis, and production decoder, then claims the pairing from the real registry.
+Current camera acceptance requires a video containing standard pairing QR codes through the emulator's
+`videofile` camera, actual CameraX analysis and the production decoder, followed by a real registry claim.
 Physical camera characteristics and vendor background restrictions still need separate assessment.
 
-`RemoteEntryInstrumentedTest` starts the actual `MainActivity` in a fresh isolated installation built
-without rootfs, using `oobeTestApplicationId`, `freshRemoteEntry=true` and a one-time `pairingCode`.
-It covers welcome, legal acknowledgement, pairing, the native console and activity recreation,
-asserting that no local Runtime is installed or started throughout.
-Omit `pairingCode` for entry-only acceptance; public pairing and native-console assertions require it.
-After entry acceptance, force-stop the isolated app and run `coldStartRetainsRemoteModeWithoutLocalRuntime`
-with `resumeRemoteEntry=true` to verify persisted client mode after a cold start.
+The historical fresh-install case in `RemoteEntryInstrumentedTest` assumes a remote welcome shortcut.
+Do not enable `freshRemoteEntry=true` until its step assertions are updated. Current entry acceptance
+must acknowledge legal notices, skip runtime permissions, finish setup, and open Bind from home while
+asserting no automatic local Runtime installation or startup.
 
 Build instrumented tests with `app/gradlew -p app :app:assembleDebugAndroidTest -PremoteAccessTestsOnly=true
 -Pazurpilot.slimApk=true`. Run `RemoteAccessInstrumentedTest` only after Android boot and storage mount complete.

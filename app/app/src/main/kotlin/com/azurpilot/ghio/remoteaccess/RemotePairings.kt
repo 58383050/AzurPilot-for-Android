@@ -77,7 +77,7 @@ class RemotePairings(context: Context) {
         client.newCall(Request.Builder().url("$REGISTRY/api/v1/pairings/claim")
             .post(json.encodeToString(request).toRequestBody("application/json".toMediaType())).build())
             .execute().use { response ->
-                check(response.isSuccessful) { "HTTP ${response.code}" }
+                if (!response.isSuccessful) throw registryFailure(response.code, response.body.string())
                 val pairing = json.decodeFromString<RemotePairing>(response.body.string())
                 require(pairing.deviceId.matches(Regex("[a-zA-Z0-9_-]{16,80}")))
                 require(pairing.url == "$REGISTRY/d/${pairing.deviceId}/")

@@ -287,7 +287,12 @@
     <!-- Push failure reasons, produced by each channel and shown in the test feedback -->
     <!-- First-launch rootfs provisioning -->
     <string name="provision_title">Setting up Runtime</string>
-    <string name="provision_subtitle">The first launch installs about 1 GB of Runtime: the full APK unpacks it locally, the slim APK uses your selected download source. It happens only once</string>
+    <string name="provision_subtitle">Local use requires about 1 GB of Runtime: the full APK unpacks it locally, and the slim APK uses your selected download source. Installation is needed only once.</string>
+    <string name="provision_back_home">Back to home</string>
+    <string name="home_runtime_title">Local Runtime is not installed</string>
+    <string name="home_runtime_description">Download Runtime to run locally. To connect to a remote AzurPilot, tap Bind at the top right. No download is needed.</string>
+    <string name="home_runtime_download">Download Runtime</string>
+    <string name="remote_pair_bind">Bind</string>
     <string name="provision_checking">Checking Runtime…</string>
     <string name="provision_extracting">Extracting %1$d%% (%2$d / %3$d MB)</string>
     <string name="provision_downloading">Downloading Runtime %1$d%%…</string>
@@ -912,7 +917,7 @@
     <string name="oobe_step_ready">Complete</string>
     <string name="oobe_action_next">Next</string>
     <string name="oobe_action_prev">Previous</string>
-    <string name="oobe_action_skip">Configure later</string>
+    <string name="oobe_action_skip">Skip</string>
     <string name="oobe_action_start">Get started</string>
     <string name="oobe_progress_format">Step %1$d of %2$d</string>
     <string name="settings_reopen_oobe">Setup wizard</string>

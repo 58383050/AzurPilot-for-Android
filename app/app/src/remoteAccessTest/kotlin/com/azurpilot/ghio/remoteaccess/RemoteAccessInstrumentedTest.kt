@@ -105,20 +105,20 @@ class RemoteAccessInstrumentedTest {
         val expected = arguments.getString("scanSecret").orEmpty()
         assumeTrue("需要相机视频中的一次性扫描密钥", expected.matches(Regex("[a-f0-9]{32}")))
         val executor = Executors.newFixedThreadPool(2)
-        val scenario = ActivityScenario.launchActivityForResult<ParticleScanActivity>(
-            Intent(context, ParticleScanActivity::class.java),
+        val scenario = ActivityScenario.launchActivityForResult<QrScanActivity>(
+            Intent(context, QrScanActivity::class.java),
         )
         try {
             if (arguments.getString("cameraDiagnostics") == "true") {
                 var reader: ImageAnalysis? = null
-                var activity: ParticleScanActivity? = null
-                val field = ParticleScanActivity::class.java.getDeclaredField("analysis").apply { isAccessible = true }
+                var activity: QrScanActivity? = null
+                val field = QrScanActivity::class.java.getDeclaredField("analysis").apply { isAccessible = true }
                 val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
                 while (reader == null && System.nanoTime() < deadline) {
                     scenario.onActivity { activity = it; reader = field.get(it) as? ImageAnalysis }
                     if (reader == null) Thread.sleep(50)
                 }
-                val analyze = ParticleScanActivity::class.java.getDeclaredMethod("analyze", ImageProxy::class.java)
+                val analyze = QrScanActivity::class.java.getDeclaredMethod("analyze", ImageProxy::class.java)
                     .apply { isAccessible = true }
                 var captured = 0
                 reader?.setAnalyzer(executor) { image ->
@@ -137,7 +137,7 @@ class RemoteAccessInstrumentedTest {
             }
             val result = executor.submit<android.app.Instrumentation.ActivityResult> { scenario.result }.get(60, TimeUnit.SECONDS)
             assertEquals(android.app.Activity.RESULT_OK, result.resultCode)
-            assertEquals(expected, result.resultData.getStringExtra("particle_secret"))
+            assertEquals(expected, result.resultData.getStringExtra(QrScanActivity.EXTRA_PAIRING_SECRET))
             runBlocking { assertNotNull(RemotePairings(context).pair(expected)) }
             phase("camera-paired")
         } finally {
@@ -160,7 +160,7 @@ class RemoteAccessInstrumentedTest {
                 else androidx.compose.material3.Text("Quick Tunnel runtime acceptance")
             }
         }
-        provisioner.start()
+        provisioner.start(installIfMissing = true)
         val provisioned = withTimeout(600_000) {
             provisioner.state.first { it is ProvisionState.Ready || it is ProvisionState.Failed || it is ProvisionState.NotBundled }
         }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -55,21 +56,19 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /**
- * 保存本机激活流程；远程入口只需确认协议，随后直接配对，不经过本机权限步骤。
+ * 保存首次引导流程；运行权限允许显式跳过，完成后由主页选择下载或绑定。
  * 预览允许关闭，首次激活只通过完成回调持久化。
  *
- * Retains local activation steps; remote access proceeds from legal acknowledgement to pairing.
+ * Retains setup steps with an explicit permission skip; home offers downloading and binding afterward.
  * Preview can dismiss; initial activation persists only through the completion callback.
  */
 @Composable
 fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
-    modifier: Modifier = Modifier, onDismiss: (() -> Unit)? = null,
-    onRemoteComplete: (() -> Unit)? = null) {
+    modifier: Modifier = Modifier, onDismiss: (() -> Unit)? = null) {
     OobeSystemBars()
     val steps = OobeStep.entries
     var currentIndex by rememberSaveable { mutableIntStateOf(0) }
     var acknowledged by rememberSaveable { mutableStateOf(alreadyAcknowledged) }
-    var remoteClient by rememberSaveable { mutableStateOf(false) }
     var navigating by remember { mutableStateOf(false) }
     val savedSteps = rememberSaveableStateHolder()
     val permissions: PermissionManager = koinInject()
@@ -105,10 +104,7 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
     val previous: () -> Unit = {
         if (!navigating) {
             if (currentIndex == 0) onDismiss?.invoke()
-            else if (remoteClient && currentIndex == OobeStep.AGREEMENT.ordinal) {
-                currentIndex = 0
-                remoteClient = false
-            } else currentIndex--
+            else currentIndex--
         }
     }
     BackHandler(enabled = currentIndex > 0 || onDismiss != null, onBack = previous)
@@ -141,22 +137,18 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                 val step = steps[index]
                 val canProceed = !navigating && (step != OobeStep.AGREEMENT || acknowledged) &&
                     (step != OobeStep.PRIVILEGED || !granting)
+                val needsPermission = step == OobeStep.PRIVILEGED &&
+                    !access.isGranted(access.configuredBackend)
                 val primary = stringResource(when {
-                    remoteClient && step == OobeStep.AGREEMENT -> R.string.remote_pair_title
                     step == OobeStep.READY -> R.string.oobe_action_start
-                    step == OobeStep.PRIVILEGED && !access.isGranted(access.configuredBackend) -> R.string.oobe_action_skip
                     else -> R.string.oobe_action_next
                 })
                 val secondary = stringResource(if (index == 0) R.string.dialog_cancel else R.string.oobe_action_prev)
                 val next: () -> Unit = {
                     // 离场页与同一帧重复点击不能改变新页面的步骤。
                     if (canProceed && index == currentIndex) {
-                        if (remoteClient && step == OobeStep.AGREEMENT) {
-                            navigating = true
-                            onRemoteComplete?.invoke()
-                        }
-                        else if (step == OobeStep.READY) onComplete()
-                        else if (step == OobeStep.PRIVILEGED && !access.isGranted(access.configuredBackend)) {
+                        if (step == OobeStep.READY) onComplete()
+                        else if (needsPermission) {
                             navigating = true
                             scope.launch {
                                 try { permissions.skipShizukuCheck(); currentIndex++ }
@@ -192,16 +184,10 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                     .then(if (index == 0) Modifier else Modifier.safeDrawingPadding()),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     if (index == 0) {
-                        OobeStepWelcome(Modifier.weight(1f).fillMaxWidth(), { remoteClient = false; next() }, primary,
+                        OobeStepWelcome(Modifier.weight(1f).fillMaxWidth(), next, primary,
                             canProceed, if (onDismiss != null) back else null, secondary,
                             onNextBoundsChanged = { welcomeButton = it },
-                            exiting = pageTransition.targetState != 0,
-                            onRemote = onRemoteComplete?.let { {
-                                if (canProceed && index == currentIndex) {
-                                    remoteClient = true
-                                    currentIndex = OobeStep.AGREEMENT.ordinal
-                                }
-                            } })
+                            exiting = pageTransition.targetState != 0)
                     } else {
                         Row(Modifier.widthIn(max = 600.dp).fillMaxWidth().height(56.dp)
                             .padding(horizontal = if (miuix) 12.dp else 20.dp),
@@ -212,6 +198,19 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                                     Modifier.size(22.dp, 16.dp).graphicsLayer { if (rtl) scaleX = -1f },
                                     tint = MaterialTheme.colorScheme.onSurface)
                                 else Icon(Icons.AutoMirrored.Outlined.ArrowBack, null)
+                            }
+                            Spacer(Modifier.weight(1f))
+                            if (needsPermission) TextButton(
+                                onClick = next,
+                                enabled = canProceed,
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) {
+                                Text(
+                                    stringResource(R.string.oobe_action_skip),
+                                    color = if (canProceed) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = .38f),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
                             }
                         }
                         Column(Modifier.weight(1f).widthIn(max = 600.dp).fillMaxWidth()
@@ -231,8 +230,9 @@ fun OobeScreen(alreadyAcknowledged: Boolean, onComplete: () -> Unit,
                         }
                         Row(Modifier.widthIn(max = 600.dp).fillMaxWidth()
                             .padding(horizontal = 28.dp, vertical = if (miuix) 28.dp else 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = if (miuix) Arrangement.Center else Arrangement.End) {
-                            OobeNextButton(primary, canProceed, next)
+                            OobeNextButton(primary, canProceed && !needsPermission, next)
                         }
                     }
                 }

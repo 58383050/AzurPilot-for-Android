@@ -64,7 +64,7 @@
         android:localeConfig="@xml/locales_config"
         tools:targetApi="33">
 
-        <activity android:name=".remoteaccess.ParticleScanActivity" android:exported="false" />
+        <activity android:name=".remoteaccess.QrScanActivity" android:exported="false" />
 
 
         <activity android:name=".privileged.AdbActivationActivity" android:exported="false" />

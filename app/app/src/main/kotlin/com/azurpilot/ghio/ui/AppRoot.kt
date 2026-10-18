@@ -43,7 +43,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.azurpilot.ghio.BuildConfig
 import com.azurpilot.ghio.R
 import com.azurpilot.ghio.auth.AppLockManager
 import com.azurpilot.ghio.constant.ProjectLinks
@@ -151,13 +150,18 @@ fun AppRoot(
     val provisionState by provisioner.state.collectAsStateWithLifecycle()
     val runtimeCheck by provisioner.updateCheck.collectAsStateWithLifecycle()
     val githubMirror by appSettings.githubMirror.collectAsStateWithLifecycle()
-    var provisionSkipped by remember { mutableStateOf(false) }
+    var provisionRequested by rememberSaveable { mutableStateOf(false) }
     var runtimePromptDismissed by rememberSaveable { mutableStateOf(false) }
     var applyingRuntimeUpdate by remember { mutableStateOf(false) }
     val prootHost: ProotHost = koinInject()
     var prootStarted by remember { mutableStateOf(prootHost.state.value.phase != ProotPhase.IDLE) }
-    LaunchedEffect(localRuntimeEnabled) {
-        if (localRuntimeEnabled && provisioner.state.value !is ProvisionState.Ready) provisioner.start()
+    LaunchedEffect(settingsLoaded, oobeCompleted, localRuntimeEnabled) {
+        if (settingsLoaded && oobeCompleted && provisioner.state.value !is ProvisionState.Ready) {
+            provisioner.start(installIfMissing = localRuntimeEnabled && provisionRequested)
+        }
+    }
+    LaunchedEffect(provisionState) {
+        if (provisionState is ProvisionState.Ready) provisionRequested = false
     }
     val appUpdateState by appUpdateManager.state.collectAsStateWithLifecycle()
     var appUpdateChecked by rememberSaveable { mutableStateOf(false) }
@@ -167,7 +171,7 @@ fun AppRoot(
             appUpdateManager.check()
         }
     }
-    val showProvision = localRuntimeEnabled && provisionState !is ProvisionState.Ready && !provisionSkipped
+    val showProvision = localRuntimeEnabled && provisionRequested && provisionState !is ProvisionState.Ready
 
     // 启动时只查版本，先等用户决定是否更新，再启动 proot。
     val installedRuntime = runtimeCheck.installedVersion
@@ -624,7 +628,6 @@ fun AppRoot(
 
             fun openRemote() {
                 navigator.push(AppRoute.RemoteAccess)
-                scope.launch { appSettings.setRemoteClientMode(true) }
             }
 
             // 桌面快捷方式的跳转请求：MainActivity 收到后登记到总线，这里消费。
@@ -665,13 +668,6 @@ fun AppRoot(
                                 appSettings.completeOobe()
                             }
                         },
-                        onRemoteComplete = {
-                            scope.launch {
-                                appSettings.completeOobe(remoteClient = true)
-                                goToPage(TopDestination.AzurPilot.ordinal)
-                                navigator.push(AppRoute.RemoteAccess)
-                            }
-                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -679,17 +675,7 @@ fun AppRoot(
                 ProvisionScreen(
                     state = provisionState,
                     onRetry = { provisioner.retry() },
-                    // 跳过只留给开发包：跳过只能调外壳，AzurPilot 起不来
-                    onSkip =
-                        if (
-                            BuildConfig.DEBUG &&
-                                (provisionState is ProvisionState.NotBundled ||
-                                    provisionState is ProvisionState.Failed)
-                        ) {
-                            { provisionSkipped = true }
-                        } else {
-                            null
-                        },
+                    onSkip = { provisionRequested = false },
                     // 首启就得选源：直连不通的用户不该先撞一次超时
                     mirrorId = githubMirror,
                     onMirrorChange = { mirror ->
@@ -721,6 +707,16 @@ fun AppRoot(
                                                 onSettingsAnchorChanged = { settingsAnchor = it },
                                                 onOpenTasks = { goToPage(TopDestination.AzurPilot.ordinal) },
                                                 onOpenRemote = ::openRemote,
+                                                provisionState = provisionState,
+                                                onDownloadRuntime = {
+                                                    repository.connectTarget(null) { switched ->
+                                                        if (switched) {
+                                                            provisionRequested = true
+                                                            provisioner.retry()
+                                                            scope.launch { appSettings.setRemoteClientMode(false) }
+                                                        }
+                                                    }
+                                                },
                                             )
                                         TopDestination.Screen ->
                                             ScreenPage(

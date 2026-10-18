@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -77,15 +78,18 @@ import com.azurpilot.ghio.proot.AzurPilotTaskState
 import com.azurpilot.ghio.proot.ProotHost
 import com.azurpilot.ghio.proot.ProotPhase
 import com.azurpilot.ghio.proot.ProotSnapshot
+import com.azurpilot.ghio.provision.ProvisionState
 import com.azurpilot.ghio.service.HostSnapshot
 import com.azurpilot.ghio.service.HostState
 import com.azurpilot.ghio.theme.AzurPilotTheme
+import com.azurpilot.ghio.theme.AppTokens
 import com.azurpilot.ghio.ui.components.AppCard
 import com.azurpilot.ghio.ui.components.AnimatedTransferIcon
 import com.azurpilot.ghio.ui.components.TransferStage
 import com.azurpilot.ghio.ui.components.ScreenSaverButton
 import com.azurpilot.ghio.ui.ksu.AppButton
 import com.azurpilot.ghio.ui.ksu.AppIcon
+import com.azurpilot.ghio.ui.ksu.AppIconButton
 import com.azurpilot.ghio.ui.ksu.AppLinearProgressIndicator
 import com.azurpilot.ghio.ui.ksu.AppPageScaffold
 import com.azurpilot.ghio.ui.ksu.AppText
@@ -104,12 +108,14 @@ import kotlin.math.sin
 @Composable
 fun HangarScreen(
     active: Boolean,
+    provisionState: ProvisionState,
     modifier: Modifier = Modifier,
     bottomInnerPadding: Dp = 0.dp,
     onOpenSettings: () -> Unit = {},
     onSettingsAnchorChanged: (Offset) -> Unit = {},
     onOpenTasks: () -> Unit = {},
     onOpenRemote: () -> Unit = {},
+    onDownloadRuntime: () -> Unit = {},
     hostState: HostState = koinInject(),
     runController: AzurPilotRunController = koinInject(),
     prootHost: ProotHost = koinInject(),
@@ -129,8 +135,9 @@ fun HangarScreen(
 
     // 仅在虚拟屏确实不存在时补拉环境。返回主页不能再次主动探测桥接，
     // 否则探测的短暂失败会把已就绪的页面闪成「正在准备设备」。
-    LaunchedEffect(active, host.privilegedConnected, remoteClientMode) {
-        if (!remoteClientMode && active && host.privilegedConnected &&
+    LaunchedEffect(active, host.privilegedConnected, remoteClientMode, provisionState) {
+        if (!remoteClientMode && provisionState is ProvisionState.Ready &&
+            active && host.privilegedConnected &&
             hostState.snapshot.value.vdDisplayId == DefaultDisplayConfig.DISPLAY_NONE
         ) {
             hostState.ensureEnvironmentStarted()
@@ -153,6 +160,12 @@ fun HangarScreen(
         title = stringResource(R.string.nav_hangar),
         modifier = modifier,
         actions = {
+            AppIconButton(onClick = onOpenRemote) {
+                AppIcon(
+                    imageVector = Icons.Outlined.Link,
+                    contentDescription = stringResource(R.string.remote_pair_bind),
+                )
+            }
             if (com.azurpilot.ghio.theme.ksu.LocalUiMode.current ==
                 com.azurpilot.ghio.theme.ksu.UiMode.Miuix
             ) {
@@ -185,7 +198,7 @@ fun HangarScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            AppCard {
+            if (remoteClientMode) AppCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     AppText(stringResource(R.string.remote_pair_title), style = MaterialTheme.typography.titleMedium)
                     AppText(stringResource(R.string.remote_client_hint), style = MaterialTheme.typography.bodyMedium)
@@ -196,7 +209,14 @@ fun HangarScreen(
                 }
             }
 
-            if (!remoteClientMode) {
+            if (provisionState !is ProvisionState.Ready) {
+                HomeRuntimeDownloadCard(
+                    checking = provisionState is ProvisionState.Checking,
+                    onDownload = onDownloadRuntime,
+                )
+            }
+
+            if (!remoteClientMode && provisionState is ProvisionState.Ready) {
                 HomeRunCard(
                     mode = mode,
                     onStart = runController::startRunner,
@@ -228,6 +248,35 @@ fun HangarScreen(
                 )
             }
             Spacer(Modifier.height(bottomInnerPadding + 16.dp))
+        }
+    }
+}
+
+/**
+ * 未部署时突出下载操作，说明文字次要，绑定入口保留在顶栏；间距与字阶沿用应用主题。
+ *
+ * Prioritizes downloading when Runtime is missing, with secondary guidance and binding in the
+ * toolbar. Spacing and typography reuse the app theme.
+ */
+@Composable
+private fun HomeRuntimeDownloadCard(checking: Boolean, onDownload: () -> Unit) {
+    AppCard {
+        Column(verticalArrangement = Arrangement.spacedBy(AppTokens.Spacing.md)) {
+            AppText(
+                stringResource(R.string.home_runtime_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            AppText(
+                stringResource(R.string.home_runtime_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            AppButton(onClick = onDownload, enabled = !checking, modifier = Modifier.fillMaxWidth()) {
+                AppActionLabel(
+                    AppSymbol.Download,
+                    stringResource(if (checking) R.string.provision_checking else R.string.home_runtime_download),
+                )
+            }
         }
     }
 }
