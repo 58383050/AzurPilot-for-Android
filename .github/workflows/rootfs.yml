@@ -437,6 +437,9 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          # CNB release tag sync pushes this commit; shallow checkout is rejected.
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         if: ${{ needs.apk.result == 'success' }}
         with:
