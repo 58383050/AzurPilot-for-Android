@@ -27,10 +27,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - id: core
         run: echo "ref=$(cat .github/azurpilot-upstream.txt)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           repository: wess09/AzurPilot
           ref: ${{ steps.core.outputs.ref }}
           path: upstream-core
