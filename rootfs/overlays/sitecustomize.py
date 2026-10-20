@@ -40,9 +40,17 @@ if os.environ.get("AZURPILOT_ANDROID") == "1":
 
     install_capture()
 
-    from android_ntp import install as install_ntp
+    try:
+        from android_ntp import install as install_ntp
 
-    install_ntp()
+        install_ntp()
+    except ImportError as error:
+        # 老 rootfs 升级场景可能没有 android_ntp.py：NTP 缺失时跳过，
+        # 不中止其余启动设置（更新层与 OCR 仍会安装）。
+        import sys as _sys
+
+        print(f'[azurpilot] android_ntp overlay unavailable, skipped: {error}',
+              file=_sys.stderr)
 
     from android_update import install as install_update
 

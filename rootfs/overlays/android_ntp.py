@@ -80,7 +80,10 @@ class BackgroundTime:
             for server in self.servers:
                 try:
                     offset = self._query_server(server)
-                except OSError as e:
+                except Exception as e:
+                    # OSError 以外的异常（协议解析失败、上游签名变化等）同样按
+                    # 服务器故障处理：继续尝试后续服务器，全部失败时统一设置
+                    # 重试间隔，避免 worker 静默退出导致无退避的反复重试。
                     errors.append(f'{server}: {e}')
                     continue
 
