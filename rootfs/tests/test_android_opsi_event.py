@@ -239,6 +239,16 @@ class CoreTransitionTest(unittest.TestCase):
         handler.device.click.assert_called_once_with(grid)
         self.assertEqual(handler.map_updates_during_story, [])
 
+    def test_story_frames_cannot_bypass_guard_deadline(self):
+        """剧情帧持续出现时，独立 deadline 必须兜底并走既有 MapWalkError 路径。
+
+        Repeated story frames must not bypass the independent guard deadline."""
+        with patch.object(adapter, 'GUARD_DEADLINE', 5):
+            handler = Harness(story=range(100))
+            with self.assertRaises(Stuck):
+                self.walk()(handler, confirm_timer=Timer(3), allow_event_finish=True)
+            self.assertGreaterEqual(Timer.now, 5)
+
 
 class ShopTest(unittest.TestCase):
     """验证单次接近、过渡重检、进展预算及未知页面不盲点。

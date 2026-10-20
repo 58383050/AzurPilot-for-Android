@@ -12,6 +12,10 @@ import textwrap
 
 TARGETS = ('module.os.fleet', 'module.os_shop.shop')
 
+# 事件过渡独立兜底超时（秒）：正常过渡远小于该值；异常时避免剧情帧无限重置
+# 确认计时器导致移动永不结束，超时走既有 MapWalkError 路径。
+GUARD_DEADLINE = 180
+
 
 def guard_walk(original, story_button):
     """在原移动循环中保留剧情确认帧，复用原战斗、奖励和超时处理。
@@ -31,14 +35,23 @@ def guard_walk(original, story_button):
     if len(anchors) != 1 or 'allow_event_finish' not in inspect.signature(original).parameters:
         raise ValueError('unsupported OS event handler ordering')
     # 剧情处理器在确认选项或点击冷却时会返回 False，不能把透出的地图当作可定位页面。
+    # 剧情帧每帧重置 confirm_timer 后 continue，稳定性检查可能永远不到达，且上层
+    # loop 无总超时；因此加一个不被 guard 重置的独立 deadline，超时走既有
+    # MapWalkError 路径（与 walk_out_of_step 同一套上层处理）。Timer 与
+    # MapWalkError 取自被包装方法的全局命名空间，缺任一即按不兼容保留原实现。
+    deadline = original.__globals__['Timer'](GUARD_DEADLINE).start()
     guard = ast.parse('''
 if allow_event_finish and self.appear(_android_opsi_story_button, offset=(20, 20)):
     completed_event = False
     confirm_timer.reset()
+    if _android_opsi_deadline.reached():
+        raise _android_opsi_deadline_error('Android 大世界事件过渡超时')
     continue
 ''').body[0]
     loop.body.insert(anchors[0], guard)
-    namespace = dict(original.__globals__, _android_opsi_story_button=story_button)
+    namespace = dict(original.__globals__, _android_opsi_story_button=story_button,
+                     _android_opsi_deadline=deadline,
+                     _android_opsi_deadline_error=original.__globals__['MapWalkError'])
     exec(compile(ast.fix_missing_locations(tree), inspect.getsourcefile(original), 'exec'), namespace)
     guarded = namespace[original.__name__]
     guarded.__module__ = original.__module__
@@ -86,10 +99,14 @@ def shop_entry(original):
                 current = self.view.backend.homo_loca
                 if current is not None:
                     current = tuple(current)
-                    if position is not None and sum((a - b) ** 2
-                                                    for a, b in zip(current, position)) > 5.5 ** 2:
+                    if position is None:
+                        position = current
+                    elif sum((a - b) ** 2
+                             for a, b in zip(current, position)) > 5.5 ** 2:
+                        # 以稳定基准累计位移：持续慢速移动也能刷新进度，
+                        # 只有长时间无位移才判定卡住。
                         no_progress.reset()
-                    position = current
+                        position = current
             # 商店已出现后才调用原购买流程；移动中、选项确认中和未知页面均不补点。
             if (not clicked and in_map and not story
                     and not self.fleet_selector.bar_opened()):
@@ -107,16 +124,27 @@ def patch_module(module):
     if getattr(module, '_android_opsi_event_adapter', False):
         return
     if module.__name__ == TARGETS[0]:
-        from module.handler.assets import STORY_SKIP_3
-
         try:
+            from module.handler.assets import STORY_SKIP_3
+
             method = guard_walk(module.OSFleet.wait_until_walk_stable, STORY_SKIP_3)
-        except (OSError, TypeError, ValueError, SyntaxError) as error:
+        except Exception as error:
+            # 属性缺失（AttributeError）、资源挪位（ImportError）及接口变化一律按
+            # 不兼容处理：记录后保留上游实现，绝不让工作进程导入失败。
             module.logger.warning(f'[Android-大世界事件] 当前移动接口不兼容，保留原实现: {error}')
             return
         module.OSFleet.wait_until_walk_stable = method
     else:
-        module.OSShop.handle_akashi_supply_buy = shop_entry(module.OSShop.handle_akashi_supply_buy)
+        try:
+            original = module.OSShop.handle_akashi_supply_buy
+        except AttributeError as error:
+            module.logger.warning(f'[Android-大世界事件] 当前商店接口不兼容，保留原实现: {error}')
+            return
+        try:
+            module.OSShop.handle_akashi_supply_buy = shop_entry(original)
+        except Exception as error:
+            module.logger.warning(f'[Android-大世界事件] 商店入口适配失败，保留原实现: {error}')
+            return
     module._android_opsi_event_adapter = True
 
 
