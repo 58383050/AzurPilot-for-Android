@@ -135,6 +135,7 @@ install -m 0644 "$REPO_ROOT/rootfs/overlays/android_ocr.py" "$VENV_SITE_PACKAGES
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_equipment.py" "$VENV_SITE_PACKAGES/android_equipment.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_capture.py" "$VENV_SITE_PACKAGES/android_capture.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_opsi_event.py" "$VENV_SITE_PACKAGES/android_opsi_event.py"
+install -m 0644 "$REPO_ROOT/rootfs/overlays/android_ntp.py" "$VENV_SITE_PACKAGES/android_ntp.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_app_launch.py" "$VENV_SITE_PACKAGES/android_app_launch.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_device.py" "$VENV_SITE_PACKAGES/android_device.py"
 install -m 0644 "$REPO_ROOT/rootfs/overlays/android_update.py" "$VENV_SITE_PACKAGES/android_update.py"
@@ -159,6 +160,8 @@ rm -rf "$FRONTEND/node_modules"
 # 第三方 wheel 的调试信息不参与推理；保持符号及加载段页对齐，并在裁剪后真实导入和计算。
 python3 "$REPO_ROOT/rootfs/build/compact-runtime.py" "$ROOTFS_DIR" \
     --report "$ROOTFS_DIR/opt/azurpilot/RUNTIME_SIZE_REPORT.json"
+
+guest /bin/sh -c 'cd /opt/azurpilot && AZURPILOT_ANDROID=1 .venv/bin/python -c "import module.config.time_source as clock; assert clock._android_ntp_adapter; print(\"NTP_ADAPTER_OK\")"'
 
 # 冒烟验证：真实导入重依赖，并确认进程枚举与装备码已接到 Android 兼容层。
 guest /bin/sh -c 'cd /opt/azurpilot && AZURPILOT_ANDROID=1 .venv/bin/python -c "import module.device.method.azurpilot_android as device; assert device.AzurPilotAndroid._android_launch_adapter; print(\"LAUNCH_ADAPTER_OK\")"'
