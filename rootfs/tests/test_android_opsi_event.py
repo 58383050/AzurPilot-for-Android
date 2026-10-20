@@ -61,6 +61,7 @@ def core_method(relative, class_name, method):
                      STRATEGIC_SEARCH_MAP_OPTION_OFF=SEARCH_OFF,
                      AUTO_SEARCH_REWARD=object(), MapWalkError=Stuck,
                      effective_task=lambda config: config.task.command,
+                     location2node=lambda location: SimpleNamespace(),
                      FARMING_TASKS={'OpsiHazard1Leveling', 'OpsiMeowfficerFarming'},
                      np=SimpleNamespace(subtract=lambda a, b: [x-y for x, y in zip(a, b)],
                                         linalg=SimpleNamespace(norm=lambda a: math.hypot(*a))))
@@ -86,6 +87,7 @@ class Harness:
         self.is_siren_device_confirmed = False
         self.siren_device_mode = None
         self.map_updates_during_story = []
+        self.saved_map_events = []
         for name in ('handle_retirement', 'handle_walk_out_of_step', 'handle_popup_confirm',
                      'handle_manjuu', 'is_in_globe', 'is_in_storage', 'is_in_os_mission',
                      'handle_os_game_tips', 'is_in_map_order', 'combat_appear',
@@ -94,6 +96,25 @@ class Harness:
             setattr(self, name, Mock(return_value=False))
         self.match_template_color = Mock(return_value=True)
         self.handle_akashi_supply_buy = Mock()
+
+    # 上游 dev 新增的待办地图事件持久化钩子（module/os/map.py 调用，实现位于
+    # module/os 其他模块）：Harness 记录调用，供测试观察交互。
+    def _save_pending_map_event(self, kind, grid=None, **kwargs):
+        self.saved_map_events.append(('save', kind, grid))
+
+    def _update_pending_map_event(self, **kwargs):
+        self.saved_map_events.append(('update', kwargs))
+
+    def _finish_pending_map_event(self, kind, **kwargs):
+        self.saved_map_events.append(('finish', kind, kwargs))
+
+    def _open_akashi_store(self, grid, drop=None, attempts=3):
+        # 上游 dev 将"点击明石并完成购买"提取为该独立方法（有界点击 +
+        # wait_until_walk_stable，购买经 handle_akashi_supply_buy 完成）。
+        # 测试关注 shop_entry 包装行为：购买链路自带单次行军命令点击，
+        # 桩只触发购买，与上游"点击/购买分离"的新结构对齐。
+        self.handle_akashi_supply_buy(grid)
+        return True
 
     def loop(self, **kwargs):
         for self.frame in range(100):
@@ -153,7 +174,7 @@ class CoreTransitionTest(unittest.TestCase):
     def test_adjacent_akashi_enters_single_command_shop_adapter(self):
         method = core_method('module/os/map.py', 'OSMap', 'map_rescan_current')
         handler = Harness(shop={20})
-        grid = SimpleNamespace(is_akashi=True)
+        grid = SimpleNamespace(is_akashi=True, location=(2, 5))
         handler.view.select = lambda **flags: [grid] if flags.get('is_akashi') else []
         handler._solved_map_event = set()
         handler.convert_radar_to_local = lambda location: SimpleNamespace(distance_to=lambda g: 1)
@@ -215,7 +236,7 @@ class CoreTransitionTest(unittest.TestCase):
     def test_radar_question_uses_same_wait_without_reclicking(self):
         method = core_method('module/os/map.py', 'OSMap', 'clear_question')
         handler = Harness(events={11: 'story_skip', 15: 'map_get_items'}, story=range(4, 15))
-        grid = SimpleNamespace(is_logging_tower=False, is_scanning_device=True)
+        grid = SimpleNamespace(is_logging_tower=False, is_scanning_device=True, location=(2, 5))
         handler.zone = SimpleNamespace(is_port=False)
         handler.radar = SimpleNamespace(predict_question=lambda *a, **kw: (0, 2))
         handler.view.predict = Mock()
