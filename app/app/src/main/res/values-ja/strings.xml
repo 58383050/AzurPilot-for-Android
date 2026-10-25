@@ -348,6 +348,8 @@
     <string name="settings_remote_state_waiting">接続を確立中…</string>
     <string name="settings_remote_state_stopped">未接続</string>
     <string name="settings_remote_state_unreachable">Runtime が準備できていません</string>
+    <string name="settings_info_copy">コピー</string>
+    <string name="settings_info_copied">クリップボードにコピーしました</string>
     <!-- AzurPilot 原生界面（原 WebUI 的功能面） -->
     <string name="ap_section_overview">概要</string>
     <string name="ap_section_config">設定</string>

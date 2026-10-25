@@ -355,6 +355,8 @@
     <string name="settings_remote_state_waiting">Establishing connection…</string>
     <string name="settings_remote_state_stopped">Not connected</string>
     <string name="settings_remote_state_unreachable">Runtime not ready</string>
+    <string name="settings_info_copy">Copy</string>
+    <string name="settings_info_copied">Copied to clipboard</string>
     <!-- AzurPilot 原生界面（原 WebUI 的功能面） -->
     <string name="ap_section_overview">Overview</string>
     <string name="ap_section_config">Config</string>

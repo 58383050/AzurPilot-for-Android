@@ -1443,13 +1443,14 @@ fun RuntimeSettingsPage(
             )
             if (lanControlEnabled) {
                 lanAddress?.let {
-                    AppInfoRow(stringResource(R.string.settings_lan_control_address), it, icon = Icons.Outlined.Link)
+                    AppInfoRow(stringResource(R.string.settings_lan_control_address), it, icon = Icons.Outlined.Link, copyable = true)
                 }
                 if (webUiPassword != null) {
                     AppInfoRow(
                         stringResource(R.string.settings_lan_control_password),
                         webUiPassword,
                         icon = Icons.Outlined.VpnKey,
+                        copyable = true,
                     )
                 } else {
                     Text(
@@ -1514,6 +1515,7 @@ fun RuntimeSettingsPage(
                         stringResource(R.string.settings_remote_access_address),
                         status.address,
                         icon = Icons.Outlined.Link,
+                        copyable = true,
                     )
                 }
                 // error 只在没拿到地址时展示：上游 WebRTC provider 首轮等 SSH 回包
@@ -1531,6 +1533,7 @@ fun RuntimeSettingsPage(
                         stringResource(R.string.settings_remote_access_password),
                         remotePassword,
                         icon = Icons.Outlined.VpnKey,
+                        copyable = true,
                     )
                 }
             }

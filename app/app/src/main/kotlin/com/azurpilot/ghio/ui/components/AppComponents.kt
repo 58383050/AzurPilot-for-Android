@@ -1,5 +1,10 @@
 package com.azurpilot.ghio.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.os.Build
+import android.widget.Toast
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.getValue
@@ -27,6 +32,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
@@ -357,23 +366,60 @@ fun AppEditablePreference(
     }
 }
 
-/** 信息通过主题列表行展示。 / Displays information through themed list rows. */
+/**
+ * 信息通过主题列表行展示；[copyable] 为真时整行长按与尾部按钮均可复制值。
+ *
+ * Displays information through themed list rows; when [copyable] is true, both a long press on
+ * the row and the trailing button copy the value to the clipboard.
+ */
 @Composable
-fun AppInfoRow(label: String, value: String, icon: Any? = null) {
+fun AppInfoRow(label: String, value: String, icon: Any? = null, copyable: Boolean = false) {
+    val context = LocalContext.current
+    val copiedHint = stringResource(R.string.settings_info_copied)
+    val copyLabel = stringResource(R.string.settings_info_copy)
+    val haptics = LocalHapticFeedback.current
+    val copyToClipboard = {
+        context.getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText(label, value))
+        // Android 13+ 写入剪贴板时系统自带确认气泡，只有旧系统才需要自行提示
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(context, copiedHint, Toast.LENGTH_SHORT).show()
+        }
+    }
+    val longPressCopy: () -> Unit = {
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        copyToClipboard()
+    }
+    // 长按手势挂在行根容器上，两种主题的行组件都不暴露独立的长按入口
+    val copyModifier =
+        if (copyable)
+            Modifier.pointerInput(value) { detectTapGestures(onLongPress = { longPressCopy() }) }
+        else Modifier
+    val copyButton: @Composable () -> Unit = {
+        IconButton(onClick = copyToClipboard) {
+            AppSymbolIcon(AppSymbol.Copy, contentDescription = copyLabel)
+        }
+    }
     if (LocalUiMode.current == UiMode.Miuix)
         top.yukonga.miuix.kmp.basic.BasicComponent(
-            modifier = Modifier.semantics(mergeDescendants = true) {},
+            modifier = Modifier.semantics(mergeDescendants = true) {}.then(copyModifier),
             title = label,
             summary = value,
             startAction = icon?.let { { AppPreferenceIcon(it) } },
             insideMargin =
                 if (LocalInsideAppCard.current) PaddingValues(vertical = 12.dp)
                 else top.yukonga.miuix.kmp.basic.BasicComponentDefaults.InsideMargin,
+            endActions = if (copyable) {
+                { copyButton() }
+            } else null,
         )
     else SegmentedListItem(
-        modifier = Modifier.semantics(mergeDescendants = true) {},
+        modifier = Modifier.semantics(mergeDescendants = true) {}.then(copyModifier),
         headlineContent = { Text(label) },
         supportingContent = { Text(value) },
         leadingContent = icon?.let { { AppPreferenceIcon(it) } },
+        trailingContent = if (copyable) {
+            { copyButton() }
+        } else null,
     )
 }

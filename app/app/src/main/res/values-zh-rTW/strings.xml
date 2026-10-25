@@ -348,6 +348,8 @@
     <string name="settings_remote_state_waiting">正在建立連線…</string>
     <string name="settings_remote_state_stopped">未連線</string>
     <string name="settings_remote_state_unreachable">Runtime 未就緒</string>
+    <string name="settings_info_copy">複製</string>
+    <string name="settings_info_copied">已複製到剪貼簿</string>
     <!-- AzurPilot 原生界面（原 WebUI 的功能面） -->
     <string name="ap_section_overview">總覽</string>
     <string name="ap_section_config">設定</string>

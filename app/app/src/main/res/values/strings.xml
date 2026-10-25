@@ -355,6 +355,8 @@
     <string name="settings_remote_state_waiting">正在建立连接…</string>
     <string name="settings_remote_state_stopped">未连接</string>
     <string name="settings_remote_state_unreachable">运行时未就绪</string>
+    <string name="settings_info_copy">复制</string>
+    <string name="settings_info_copied">已复制到剪贴板</string>
     <!-- AzurPilot 原生界面（原 WebUI 的功能面） -->
     <string name="ap_section_overview">总览</string>
     <string name="ap_section_config">配置</string>
