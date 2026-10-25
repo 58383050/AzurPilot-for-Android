@@ -81,6 +81,7 @@ class ProotHost(
     private val startMutex = Mutex()
     private var session: Process? = null
     private var supervisorJob: kotlinx.coroutines.Job? = null
+    private val containerDns by lazy { ContainerDns() }
 
     /** 「要求会话运行」的意图位；stop() 撤掉后 supervisor 不再重拉 / The "session wanted" intent flag; once stop() clears it the supervisor respawns no more. */
     @Volatile
@@ -224,6 +225,13 @@ class ProotHost(
         // LAN 开关与镜像设置都经 baseEnv 注入会话环境：先等一拍读盘完成，
         // 否则设置刚改完立刻重启时拿到的还是旧值
         awaitSettingsLoaded()
+        // DoH 主路由要在 spawn 前落进容器 /etc/hosts（#31）：镜像与发布基址取自
+        // 刚加载完的设置，写晚了容器内解析就用不上
+        containerDns.provision(
+            rootfsDir,
+            ReleaseUrls.mirrorPrefix(settings.githubMirror.value, settings.githubMirrorCustom.value),
+            ReleaseUrls.distributionBase(settings.githubMirror.value, settings.githubMirrorCustom.value),
+        )
         syncHostOverlay()
         runCatching {
             ocrServer.start()
@@ -975,13 +983,19 @@ class ProotHost(
     }
 
     /**
-     * 写死 DNS：烘焙包里的 /etc/resolv.conf 是指向 /run/systemd 的悬空软链，
-     * 设备上解析必挂（热更新需要网络）。写普通文件， mainland 默认 AliDNS
+     * resolv.conf 只承担兜底（#31）：烘焙包里的 /etc/resolv.conf 是指向
+     * /run/systemd 的悬空软链，必须换成普通文件；默认阿里 DNS。关键域名（热更
+     * 源/NTP 等）的主路由是 DoH 预解析进 /etc/hosts（[ContainerDns]）——部分
+     * 网络丢弃发往公共 DNS 的 UDP 53，此兜底在这些网络不可用，DoH 走 443 不受
+     * 影响。
      *
-     * Hardwrites DNS: in the baked image /etc/resolv.conf is a dangling symlink
-     * to /run/systemd and resolution always fails on device (the hot update
-     * needs the network). A regular file is written; mainland defaults to
-     * AliDNS.
+     * resolv.conf serves as the fallback only (issue #31): the baked
+     * /etc/resolv.conf is a dangling symlink to /run/systemd and must become a
+     * regular file; AliDNS is the default. The primary route for critical
+     * hostnames (hot-update sources, NTP, …) is DoH pre-resolution into
+     * /etc/hosts ([ContainerDns]) — some networks drop UDP 53 toward public
+     * DNS servers, where this fallback is unreachable while DoH over 443 is
+     * unaffected.
      */
     private fun writeResolvConf() {
         runCatching {

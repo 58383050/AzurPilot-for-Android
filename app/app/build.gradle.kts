@@ -343,6 +343,8 @@ dependencies {
 
     // AzurPilot /api/v1/ws 网关：WebSocket 富接口（实例/总览/自启/热更新）
     implementation(libs.okhttp)
+    // 容器 DNS 的 DoH 主路由（#31）：热更新源/NTP 域名预解析进 /etc/hosts
+    implementation(libs.okhttp.dnsoverhttps)
     implementation("androidx.camera:camera-camera2:1.5.3")
     implementation("androidx.camera:camera-lifecycle:1.5.3")
     implementation("androidx.camera:camera-view:1.5.3")
