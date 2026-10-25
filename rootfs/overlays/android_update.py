@@ -181,6 +181,10 @@ def patch_service(module):
     class LocalUpdateService(original):
         """在正式源码外准备可回滚的更新。 / Prepares reversible updates outside the live tree."""
 
+        # 最近一次上游探测的失败原因；成功即清空，与 _ls_remote_cache 同步刷新。
+        # Last upstream probe failure; cleared on success and refreshed with _ls_remote_cache.
+        _ls_remote_error = ''
+
         def sources(self):
             """优先从 CNB 获取官方增量，失败时退回构建来源；自定义仓库保持原样。
 
@@ -198,6 +202,18 @@ def patch_service(module):
             return list(dict.fromkeys((primary, repository))), branch
 
         def upstream_head(self, force=False):
+            """探测上游 HEAD，并记录失败原因供 status() 透出。
+
+            裸吞异常会把「检查失败」伪装成「已是最新」（error 恒空、available 恒
+            false），与 _run() 向上传递的约定相悖；失败原因带 git stderr 尾部，
+            DNS/TLS 类故障可直接定位。
+            / Probes the upstream HEAD and records the failure reason for status().
+
+            Swallowed exceptions disguise "check failed" as "already up to date"
+            (empty error, false available), contrary to _run()'s propagation
+            convention; the reason carries the git stderr tail so DNS/TLS
+            failures are directly diagnosable.
+            """
             if not tools_ready(self.root):
                 return super().upstream_head(force)
             cached = self._ls_remote_cache
@@ -205,16 +221,21 @@ def patch_service(module):
                 return cached[1]
             repositories, branch = self.sources()
             head = ''
+            failure = ''
             for repository in repositories:
                 try:
                     output = git(self.root, 'ls-remote', repository, f'refs/heads/{branch}', timeout=15)
                     head = output.split()[0] if output else ''
-                except (OSError, subprocess.SubprocessError):
+                except (OSError, subprocess.SubprocessError) as error:
                     head = ''
+                    detail = (getattr(error, 'stderr', None) or str(error)).strip()
+                    failure = f'{repository}: {detail}'[-300:]
                 if re.fullmatch(r'[0-9a-f]{40}', head):
+                    failure = ''
                     break
                 head = ''
             self._ls_remote_cache = (time.monotonic(), head)
+            self._ls_remote_error = failure
             return head
 
         def dist_ready(self, commit, force=False):
@@ -229,10 +250,16 @@ def patch_service(module):
             upstream = state.get('target') if busy else self.upstream_head()
             full = bool(upstream and state.get('target') == upstream and
                         state.get('requiresRuntimeUpdate'))
+            # 任务自身的错误优先；仅空闲时透出探测失败——busy 期间不调
+            # upstream_head()，旧错误会失真（App 侧已有「热更失败+原因」渲染分支）。
+            # Task errors win; probe failures surface only while idle — upstream_head()
+            # isn't called while busy, so a stale error would mislead (the app already
+            # renders the "hot update failed + reason" branch).
+            error = state.get('error', '') or ('' if busy else self._ls_remote_error)
             return {'enabled': True, 'localHead': local, 'upstreamHead': upstream or None,
                     'available': bool(upstream and local and local != upstream and not full),
                     'distReady': True, 'busy': busy, 'phase': state.get('phase'),
-                    'target': state.get('target'), 'error': state.get('error', ''),
+                    'target': state.get('target'), 'error': error,
                     'updatedAt': state.get('updatedAt'), 'requiresRuntimeUpdate': full}
 
         def _run(self, target):
