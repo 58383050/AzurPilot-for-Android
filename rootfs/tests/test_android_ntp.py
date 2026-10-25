@@ -27,6 +27,21 @@ spec.loader.exec_module(core)
 adapter.patch_module(core)
 NetworkTimeSource = core.NetworkTimeSource
 
+# 钉住的上游核心存在三种形态，均需稳定覆盖：
+# - 旧阻塞核心（2026-10-19 前）：overlay 全量注入（_ntp_pid/_ensure_process，
+#   启动失败上抛）；
+# - 过渡核心（2026-10-19~24）：原生异步但无 fork 恢复（上游 47efb0f13 才补上）；
+# - 新核心（2026-10-24 起）：原生 _pid/_reset_process_state，启动失败被捕获并退避。
+# 用例按实例能力探测分支，而非钉死单一形态。
+# The pinned upstream core comes in three shapes, all of which must stay covered:
+# - pre-2026-10-19 blocking core: the overlay injects everything (_ntp_pid/
+#   _ensure_process, start failures re-raised);
+# - transitional 2026-10-19..24 core: natively async but no fork recovery
+#   (only added upstream by 47efb0f13);
+# - 2026-10-24+ core: native _pid/_reset_process_state, start failures caught
+#   with backoff.
+# Tests branch on per-instance capabilities instead of pinning one shape.
+
 
 
 class TestAsyncNtp(unittest.TestCase):
@@ -177,26 +192,50 @@ class TestAndroidNtpIntegration(unittest.TestCase):
 
     def test_process_change_releases_inherited_inflight_flag_and_lock(self):
         source = NetworkTimeSource()
+        if not (hasattr(source, '_pid') or hasattr(source, '_ntp_pid')):
+            # 过渡核心（2026-10-19~24）原生异步但无 fork 恢复，overlay 亦依约退位；
+            # 该缺口已由上游 47efb0f13 修复，此形态只在回滚钉版时出现。
+            self.skipTest('pinned core has no fork-recovery mechanism')
         previous_lock = source._lock
         source._refreshing = True
         source._refresh_thread = object()
         source._query_server = Mock(return_value=0)
         source._log_info = Mock()
-        with patch.dict(os.environ, {'AZURPILOT_NTP_DISABLE': '0', 'AZURPILOT_NTP_SERVERS': 'test.invalid'}), \
-                patch.object(adapter.os, 'getpid', return_value=source._ntp_pid + 1):
-            source.refresh(force=True)
+        with patch.dict(os.environ, {'AZURPILOT_NTP_DISABLE': '0', 'AZURPILOT_NTP_SERVERS': 'test.invalid'}):
+            if hasattr(source, '_pid'):
+                # 新核心：篡改 pid 标记模拟 fork 继承，验证上游 _reset_process_state 路径
+                source._pid = os.getpid() - 1
+                source.refresh(force=True)
+            else:
+                # 旧阻塞核心：overlay 的 _ensure_process 以 getpid 跨进程判定
+                with patch.object(adapter.os, 'getpid', return_value=source._ntp_pid + 1):
+                    source.refresh(force=True)
+            self.assertIsNot(source._lock, previous_lock)
+            self.assertIsInstance(source._refresh_thread, threading.Thread)
             source._refresh_thread.join(2)
-        self.assertIsNot(source._lock, previous_lock)
+            self.assertFalse(source._refresh_thread.is_alive())
         self.assertFalse(source._refreshing)
         source._query_server.assert_called_once()
 
     def test_thread_start_failure_does_not_leave_busy_flag(self):
         source = NetworkTimeSource()
+        source._log_warning = Mock()
+        raised = False
         with patch.dict(os.environ, {'AZURPILOT_NTP_DISABLE': '0'}), \
                 patch.object(adapter.threading.Thread, 'start', side_effect=RuntimeError('test start failure')):
-            with self.assertRaises(RuntimeError):
-                source.refresh()
+            try:
+                source.refresh(force=True)
+            except RuntimeError:
+                raised = True
         self.assertFalse(source._refreshing)
+        if raised:
+            # 旧阻塞核心（overlay）与过渡核心均向上传播启动失败：占用标记必须已清
+            self.assertEqual(source.retry_after_monotonic, 0.0)
+        else:
+            # 新核心（47efb0f13 起）捕获启动失败：清线程引用、置退避并告警一次
+            self.assertIsNone(source._refresh_thread)
+            self.assertGreaterEqual(source.retry_after_monotonic, time.monotonic())
+            source._log_warning.assert_called_once()
 
     def test_upstream_async_implementation_is_not_overridden(self):
         class Upstream:
