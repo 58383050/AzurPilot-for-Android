@@ -142,9 +142,9 @@ object PagerGestureNestedScrollConnection : NestedScrollConnection {
  */
 fun Modifier.horizontalPagerSwipeOverride(
     pagerState: PagerState,
+    isGestureExcluded: ((Offset) -> Boolean)?,
     enabled: Boolean = true,
     onIntercepted: (() -> Unit)? = null,
-    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = if (!enabled) this else then(
     PagerSwipeElement(pagerState, onIntercepted, isGestureExcluded),
 )
@@ -182,12 +182,16 @@ private class PagerSwipeNode(
     private var motionJob: Job? = null
     private var nonTouchEvents: Channel<PagerDragEvent>? = null
     private var wheelEndJob: Job? = null
+    private val panExclusion = PagerPanExclusion()
     private val pointerNode = delegate(
         SuspendingPointerInputModifierNode {
             val velocityTracker = VelocityTracker()
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                if (isGestureExcluded?.invoke(down.position) == true) return@awaitEachGesture
+                if (isGestureExcluded?.invoke(down.position) == true) {
+                    cancelMotion()
+                    return@awaitEachGesture
+                }
                 val state = pagerState
                 val scrollSign = scrollSign()
                 finishNonTouchInput()
@@ -302,12 +306,20 @@ private class PagerSwipeNode(
         // Handle wheel/trackpad input after children, since native pager input is disabled.
         val isWheel = pointerEvent.type == PointerEventType.Scroll
         val isPan = pointerEvent.type == PointerEventType.PanMove
+        val positionExcluded = {
+            pointerEvent.changes.any { isGestureExcluded?.invoke(it.position) == true }
+        }
+        if (pointerEvent.type == PointerEventType.PanStart) {
+            if (panExclusion.start(positionExcluded())) cancelMotion()
+            return
+        }
         if (pointerEvent.type == PointerEventType.PanEnd) {
-            finishNonTouchInput()
+            if (!panExclusion.end()) finishNonTouchInput()
             return
         }
         if (!isWheel && !isPan) return
-        if (pointerEvent.changes.any { isGestureExcluded?.invoke(it.position) == true }) return
+        if (isPan && panExclusion.move(positionExcluded)) return
+        if (isWheel && positionExcluded()) return
         var delta = Offset.Zero
         for (change in pointerEvent.changes) {
             if (change.isConsumed) return
@@ -330,6 +342,7 @@ private class PagerSwipeNode(
 
     override fun onCancelPointerInput() {
         pointerNode.onCancelPointerInput()
+        panExclusion.cancel()
         finishNonTouchInput()
     }
 
@@ -343,7 +356,17 @@ private class PagerSwipeNode(
         nonTouchEvents = null
     }
 
+    private fun cancelMotion() {
+        wheelEndJob?.cancel()
+        wheelEndJob = null
+        nonTouchEvents?.cancel()
+        nonTouchEvents = null
+        motionJob?.cancel()
+        motionJob = null
+    }
+
     override fun onDetach() {
+        panExclusion.cancel()
         finishNonTouchInput()
         motionJob?.cancel()
         motionJob = null
@@ -371,12 +394,31 @@ private class PagerSwipeNode(
         this.isGestureExcluded = isGestureExcluded
         this.onIntercepted = onIntercepted
         if (pagerState != state) {
+            panExclusion.cancel()
             finishNonTouchInput()
             motionJob?.cancel()
             pagerState = state
             pointerNode.resetPointerInputHandler()
         }
     }
+}
+
+/**
+ * 按平移起点锁定排除决定，直至结束或取消；兼容没有开始事件的平台。
+ *
+ * Latches pan exclusion until end or cancellation, including platforms without start events.
+ */
+internal class PagerPanExclusion {
+    private var excluded: Boolean? = null
+
+    fun start(atExcludedPosition: Boolean): Boolean = atExcludedPosition.also { excluded = it }
+
+    fun move(atExcludedPosition: () -> Boolean): Boolean =
+        excluded ?: start(atExcludedPosition())
+
+    fun end(): Boolean = (excluded == true).also { excluded = null }
+
+    fun cancel() { excluded = null }
 }
 
 /**
@@ -426,9 +468,9 @@ class PagerFlingTrackerConnection : NestedScrollConnection {
  */
 fun Modifier.iosStyleMomentumHalt(
     flingTracker: PagerFlingTrackerConnection,
+    isGestureExcluded: ((Offset) -> Boolean)?,
     enabled: Boolean = true,
     onHalted: (() -> Unit)? = null,
-    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = if (!enabled) {
     this
 } else {
@@ -481,11 +523,11 @@ fun Modifier.iosStyleMomentumHalt(
  */
 fun Modifier.pagerGestureOverride(
     pagerState: PagerState,
+    isGestureExcluded: ((Offset) -> Boolean)?,
     mode: PagerInterceptionMode = PagerInterceptionMode.CrossAxisInterceptor,
     enabled: Boolean = true,
     flingTracker: PagerFlingTrackerConnection? = null,
     onTriggered: (() -> Unit)? = null,
-    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = when (mode) {
     PagerInterceptionMode.CrossAxisInterceptor -> horizontalPagerSwipeOverride(
         pagerState = pagerState,
@@ -513,11 +555,11 @@ fun Modifier.pagerGestureOverride(
  */
 fun Modifier.pagerGestureOverride(
     pagerState: PagerState,
+    isGestureExcluded: ((Offset) -> Boolean)?,
     mode: Int,
     enabled: Boolean = true,
     flingTracker: PagerFlingTrackerConnection? = null,
     onTriggered: (() -> Unit)? = null,
-    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = pagerGestureOverride(
     pagerState = pagerState,
     mode = PagerInterceptionMode.entries.getOrElse(mode) { PagerInterceptionMode.Native },
@@ -534,10 +576,10 @@ fun Modifier.pagerGestureOverride(
 @Composable
 fun Modifier.pagerGestureOverride(
     pagerState: PagerState,
+    isGestureExcluded: ((Offset) -> Boolean)?,
     mode: PagerInterceptionMode = PagerInterceptionMode.CrossAxisInterceptor,
     enabled: Boolean = true,
     onTriggered: (() -> Unit)? = null,
-    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier {
     val flingTracker = remember { PagerFlingTrackerConnection() }
     return pagerGestureOverride(
@@ -556,14 +598,100 @@ fun Modifier.pagerGestureOverride(
 @Composable
 fun Modifier.pagerGestureOverride(
     pagerState: PagerState,
+    isGestureExcluded: ((Offset) -> Boolean)?,
     mode: Int,
     enabled: Boolean = true,
     onTriggered: (() -> Unit)? = null,
-    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = pagerGestureOverride(
     pagerState = pagerState,
     mode = PagerInterceptionMode.entries.getOrElse(mode) { PagerInterceptionMode.Native },
     enabled = enabled,
     onTriggered = onTriggered,
     isGestureExcluded = isGestureExcluded,
+)
+
+/** 保留既有调用及二进制入口。 / Preserves existing source and binary entry points. */
+fun Modifier.horizontalPagerSwipeOverride(
+    pagerState: PagerState,
+    enabled: Boolean = true,
+    onIntercepted: (() -> Unit)? = null,
+): Modifier = horizontalPagerSwipeOverride(
+    pagerState = pagerState,
+    enabled = enabled,
+    onIntercepted = onIntercepted,
+    isGestureExcluded = null,
+)
+
+/** 保留既有调用及二进制入口。 / Preserves existing source and binary entry points. */
+fun Modifier.iosStyleMomentumHalt(
+    flingTracker: PagerFlingTrackerConnection,
+    enabled: Boolean = true,
+    onHalted: (() -> Unit)? = null,
+): Modifier = iosStyleMomentumHalt(
+    flingTracker = flingTracker,
+    enabled = enabled,
+    onHalted = onHalted,
+    isGestureExcluded = null,
+)
+
+/** 保留既有调用及二进制入口。 / Preserves existing source and binary entry points. */
+fun Modifier.pagerGestureOverride(
+    pagerState: PagerState,
+    mode: PagerInterceptionMode = PagerInterceptionMode.CrossAxisInterceptor,
+    enabled: Boolean = true,
+    flingTracker: PagerFlingTrackerConnection? = null,
+    onTriggered: (() -> Unit)? = null,
+): Modifier = pagerGestureOverride(
+    pagerState = pagerState,
+    mode = mode,
+    enabled = enabled,
+    flingTracker = flingTracker,
+    onTriggered = onTriggered,
+    isGestureExcluded = null,
+)
+
+/** 保留既有调用及二进制入口。 / Preserves existing source and binary entry points. */
+fun Modifier.pagerGestureOverride(
+    pagerState: PagerState,
+    mode: Int,
+    enabled: Boolean = true,
+    flingTracker: PagerFlingTrackerConnection? = null,
+    onTriggered: (() -> Unit)? = null,
+): Modifier = pagerGestureOverride(
+    pagerState = pagerState,
+    mode = mode,
+    enabled = enabled,
+    flingTracker = flingTracker,
+    onTriggered = onTriggered,
+    isGestureExcluded = null,
+)
+
+/** 保留既有调用及二进制入口。 / Preserves existing source and binary entry points. */
+@Composable
+fun Modifier.pagerGestureOverride(
+    pagerState: PagerState,
+    mode: PagerInterceptionMode = PagerInterceptionMode.CrossAxisInterceptor,
+    enabled: Boolean = true,
+    onTriggered: (() -> Unit)? = null,
+): Modifier = pagerGestureOverride(
+    pagerState = pagerState,
+    mode = mode,
+    enabled = enabled,
+    onTriggered = onTriggered,
+    isGestureExcluded = null,
+)
+
+/** 保留既有调用及二进制入口。 / Preserves existing source and binary entry points. */
+@Composable
+fun Modifier.pagerGestureOverride(
+    pagerState: PagerState,
+    mode: Int,
+    enabled: Boolean = true,
+    onTriggered: (() -> Unit)? = null,
+): Modifier = pagerGestureOverride(
+    pagerState = pagerState,
+    mode = mode,
+    enabled = enabled,
+    onTriggered = onTriggered,
+    isGestureExcluded = null,
 )

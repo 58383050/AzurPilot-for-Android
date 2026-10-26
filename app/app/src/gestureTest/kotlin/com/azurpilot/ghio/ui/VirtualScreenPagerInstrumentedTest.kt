@@ -17,6 +17,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.ScrollWheel
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -54,8 +57,9 @@ class VirtualScreenPagerInstrumentedTest {
     @Test fun nativeModePreservesGameAndMarginGestures() = verifyGestures(0)
     @Test fun crossAxisModePreservesGameAndMarginGestures() = verifyGestures(1)
     @Test fun tapToHaltModePreservesGameAndMarginGestures() = verifyGestures(2)
+    @Test fun gameTouchCancelsPendingWheelMotion() = verifyGestures(1, checkPendingMotion = true)
 
-    private fun verifyGestures(mode: Int) {
+    private fun verifyGestures(mode: Int, checkPendingMotion: Boolean = false) {
         val manager = org.koin.core.context.GlobalContext.get().get<AppSettingsManager>()
         runBlocking { withTimeout(10000) { manager.loaded.first { it } } }
         val previous = manager.appearance.value.pagerInterceptionMode
@@ -105,9 +109,42 @@ class VirtualScreenPagerInstrumentedTest {
                     }
                 }
             }
+            if (checkPendingMotion) {
+                compose.mainClock.autoAdvance = false
+                compose.onNodeWithTag("page-2").performMouseInput {
+                    moveTo(Offset(width * .1f, height * .1f))
+                    scroll(.25f, ScrollWheel.Horizontal)
+                }
+                compose.mainClock.advanceTimeBy(32)
+                compose.runOnIdle { assertTrue(main.pagerState.isScrollInProgress) }
+                compose.onNodeWithTag("game").performTouchInput { down(center) }
+                compose.mainClock.advanceTimeBy(32)
+                var stoppedPosition = 0f
+                compose.runOnIdle {
+                    assertFalse(main.pagerState.isScrollInProgress)
+                    stoppedPosition = main.pagerState.currentPage + main.pagerState.currentPageOffsetFraction
+                }
+                compose.mainClock.advanceTimeBy(1000)
+                compose.runOnIdle {
+                    assertEquals(
+                        stoppedPosition,
+                        main.pagerState.currentPage + main.pagerState.currentPageOffsetFraction,
+                        .0001f,
+                    )
+                }
+                compose.onNodeWithTag("game").performTouchInput { up() }
+                return
+            }
             // 两个方向都只操作游戏；第二次手势也不能沿用第一次的分页状态。
             compose.onNodeWithTag("game").performTouchInput { swipeRight() }
             compose.onNodeWithTag("game").performTouchInput { swipeLeft() }
+            // 起点在游戏内时，移出画面边界也仍归游戏处理。
+            compose.onNodeWithTag("game").performTouchInput {
+                swipe(center, Offset(width * 1.2f, center.y))
+            }
+            compose.onNodeWithTag("game").performTouchInput {
+                swipe(center, Offset(-width * .2f, center.y))
+            }
             compose.runOnIdle {
                 assertEquals(TopDestination.Screen.ordinal, main.pagerState.settledPage)
                 assertTrue("Game must receive drag movement", gameMoves > 0)
@@ -120,10 +157,18 @@ class VirtualScreenPagerInstrumentedTest {
             // 从配置页正常进入虚拟屏；离开后禁区不会污染配置页。
             compose.onNodeWithTag("page-1").performTouchInput { swipeLeft() }
             compose.waitUntil(10000) { main.pagerState.settledPage == TopDestination.Screen.ordinal }
+            // 起点在侧边留白时，即使横穿游戏区域也保持翻页。
+            compose.onNodeWithTag("page-2").performTouchInput {
+                swipe(Offset(width * .05f, height * .5f), Offset(width * .95f, height * .5f))
+            }
+            compose.waitUntil(10000) { main.pagerState.settledPage == TopDestination.AzurPilot.ordinal }
+            compose.onNodeWithTag("page-1").performTouchInput { swipeLeft() }
+            compose.waitUntil(10000) { main.pagerState.settledPage == TopDestination.Screen.ordinal }
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             compose.onNodeWithText(context.getString(R.string.nav_azurpilot)).performClick()
             compose.waitUntil(10000) { main.pagerState.settledPage == TopDestination.AzurPilot.ordinal }
         } finally {
+            compose.mainClock.autoAdvance = true
             runBlocking { manager.setAppearance { it.copy(pagerInterceptionMode = previous) } }
         }
     }
