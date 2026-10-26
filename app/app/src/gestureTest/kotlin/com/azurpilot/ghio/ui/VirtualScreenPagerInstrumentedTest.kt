@@ -113,10 +113,13 @@ class VirtualScreenPagerInstrumentedTest {
                 compose.mainClock.autoAdvance = false
                 compose.onNodeWithTag("page-2").performMouseInput {
                     moveTo(Offset(width * .1f, height * .1f))
-                    scroll(.25f, ScrollWheel.Horizontal)
+                    scroll(-.25f, ScrollWheel.Horizontal)
                 }
                 compose.mainClock.advanceTimeBy(32)
-                compose.runOnIdle { assertTrue(main.pagerState.isScrollInProgress) }
+                compose.runOnIdle {
+                    assertTrue(main.pagerState.isScrollInProgress)
+                    assertTrue(kotlin.math.abs(main.pagerState.currentPageOffsetFraction) > 0f)
+                }
                 compose.onNodeWithTag("game").performTouchInput { down(center) }
                 compose.mainClock.advanceTimeBy(32)
                 var stoppedPosition = 0f

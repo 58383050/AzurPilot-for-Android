@@ -129,10 +129,10 @@ internal fun AppNavigationScaffold(
                     Modifier.fillMaxSize()
                         .clipToBounds()
                         .onGloballyPositioned { gestureExclusion.pagerOrigin = it.positionInRoot() }
-                        .pagerGestureOverride(
+                        .pagerGestureOverrideExcluding(
                             mainPagerState.pagerState,
                             mode = pagerMode,
-                            isGestureExcluded = gestureExclusion::contains,
+                            isTouchExcluded = gestureExclusion::contains,
                         )
                         .then(
                             if (
