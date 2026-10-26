@@ -137,21 +137,27 @@ object PagerGestureNestedScrollConnection : NestedScrollConnection {
  *
  * Set [HorizontalPager]'s userScrollEnabled to false and its pageNestedScrollConnection to
  * [PagerGestureNestedScrollConnection] while enabled to prevent competing gesture recognition.
+ * [isGestureExcluded] 在分页局部坐标中检查起点，命中时整段触摸不参与分页。
+ * [isGestureExcluded] checks the pager-local start; matching touch sequences do not drive paging.
  */
 fun Modifier.horizontalPagerSwipeOverride(
     pagerState: PagerState,
     enabled: Boolean = true,
     onIntercepted: (() -> Unit)? = null,
-): Modifier = if (!enabled) this else then(PagerSwipeElement(pagerState, onIntercepted))
+    isGestureExcluded: ((Offset) -> Boolean)? = null,
+): Modifier = if (!enabled) this else then(
+    PagerSwipeElement(pagerState, onIntercepted, isGestureExcluded),
+)
 
 private data class PagerSwipeElement(
     val pagerState: PagerState,
     val onIntercepted: (() -> Unit)?,
+    val isGestureExcluded: ((Offset) -> Boolean)?,
 ) : ModifierNodeElement<PagerSwipeNode>() {
-    override fun create(): PagerSwipeNode = PagerSwipeNode(pagerState, onIntercepted)
+    override fun create(): PagerSwipeNode = PagerSwipeNode(pagerState, onIntercepted, isGestureExcluded)
 
     override fun update(node: PagerSwipeNode) {
-        node.update(pagerState, onIntercepted)
+        node.update(pagerState, onIntercepted, isGestureExcluded)
     }
 
     override fun InspectorInfo.inspectableProperties() {
@@ -168,6 +174,7 @@ private sealed interface PagerDragEvent {
 private class PagerSwipeNode(
     var pagerState: PagerState,
     var onIntercepted: (() -> Unit)?,
+    var isGestureExcluded: ((Offset) -> Boolean)?,
 ) : DelegatingNode(),
     CompositionLocalConsumerModifierNode,
     SemanticsModifierNode,
@@ -180,6 +187,7 @@ private class PagerSwipeNode(
             val velocityTracker = VelocityTracker()
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                if (isGestureExcluded?.invoke(down.position) == true) return@awaitEachGesture
                 val state = pagerState
                 val scrollSign = scrollSign()
                 finishNonTouchInput()
@@ -299,6 +307,7 @@ private class PagerSwipeNode(
             return
         }
         if (!isWheel && !isPan) return
+        if (pointerEvent.changes.any { isGestureExcluded?.invoke(it.position) == true }) return
         var delta = Offset.Zero
         for (change in pointerEvent.changes) {
             if (change.isConsumed) return
@@ -354,7 +363,12 @@ private class PagerSwipeNode(
         return true
     }
 
-    fun update(state: PagerState, onIntercepted: (() -> Unit)?) {
+    fun update(
+        state: PagerState,
+        onIntercepted: (() -> Unit)?,
+        isGestureExcluded: ((Offset) -> Boolean)?,
+    ) {
+        this.isGestureExcluded = isGestureExcluded
         this.onIntercepted = onIntercepted
         if (pagerState != state) {
             finishNonTouchInput()
@@ -407,19 +421,23 @@ class PagerFlingTrackerConnection : NestedScrollConnection {
 /**
  * Requests a child fling halt on touch down and consumes that gesture's horizontal drag.
  * When no child fling is active, leaves horizontal swipes to the native pager.
+ * [isGestureExcluded] 使游戏画面内的触摸不参与惯性拦截。
+ * [isGestureExcluded] leaves touches inside the game frame out of momentum interception.
  */
 fun Modifier.iosStyleMomentumHalt(
     flingTracker: PagerFlingTrackerConnection,
     enabled: Boolean = true,
     onHalted: (() -> Unit)? = null,
+    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = if (!enabled) {
     this
 } else {
-    this.nestedScroll(flingTracker).pointerInput(flingTracker, enabled, onHalted) {
+    this.nestedScroll(flingTracker).pointerInput(flingTracker, enabled, onHalted, isGestureExcluded) {
         val touchSlop = viewConfiguration.touchSlop
 
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (isGestureExcluded?.invoke(down.position) == true) return@awaitEachGesture
             val downPos = down.position
             val hadMomentum = flingTracker.isChildFlinging
             if (!hadMomentum) {
@@ -458,6 +476,8 @@ fun Modifier.iosStyleMomentumHalt(
  *
  * For Cross-Axis mode, configure the pager as documented in [horizontalPagerSwipeOverride].
  * [flingTracker] is required for [PagerInterceptionMode.TapToHalt].
+ * [isGestureExcluded] 用分页局部坐标检查自定义拦截；原生模式保留子控件的事件消费。
+ * [isGestureExcluded] filters custom interception in pager coordinates; native mode respects children.
  */
 fun Modifier.pagerGestureOverride(
     pagerState: PagerState,
@@ -465,11 +485,13 @@ fun Modifier.pagerGestureOverride(
     enabled: Boolean = true,
     flingTracker: PagerFlingTrackerConnection? = null,
     onTriggered: (() -> Unit)? = null,
+    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = when (mode) {
     PagerInterceptionMode.CrossAxisInterceptor -> horizontalPagerSwipeOverride(
         pagerState = pagerState,
         enabled = enabled,
         onIntercepted = onTriggered,
+        isGestureExcluded = isGestureExcluded,
     )
 
     PagerInterceptionMode.TapToHalt -> if (flingTracker != null) {
@@ -477,6 +499,7 @@ fun Modifier.pagerGestureOverride(
             flingTracker = flingTracker,
             enabled = enabled,
             onHalted = onTriggered,
+            isGestureExcluded = isGestureExcluded,
         )
     } else {
         this
@@ -494,12 +517,14 @@ fun Modifier.pagerGestureOverride(
     enabled: Boolean = true,
     flingTracker: PagerFlingTrackerConnection? = null,
     onTriggered: (() -> Unit)? = null,
+    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = pagerGestureOverride(
     pagerState = pagerState,
     mode = PagerInterceptionMode.entries.getOrElse(mode) { PagerInterceptionMode.Native },
     enabled = enabled,
     flingTracker = flingTracker,
     onTriggered = onTriggered,
+    isGestureExcluded = isGestureExcluded,
 )
 
 /**
@@ -512,6 +537,7 @@ fun Modifier.pagerGestureOverride(
     mode: PagerInterceptionMode = PagerInterceptionMode.CrossAxisInterceptor,
     enabled: Boolean = true,
     onTriggered: (() -> Unit)? = null,
+    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier {
     val flingTracker = remember { PagerFlingTrackerConnection() }
     return pagerGestureOverride(
@@ -520,6 +546,7 @@ fun Modifier.pagerGestureOverride(
         enabled = enabled,
         flingTracker = flingTracker,
         onTriggered = onTriggered,
+        isGestureExcluded = isGestureExcluded,
     )
 }
 
@@ -532,9 +559,11 @@ fun Modifier.pagerGestureOverride(
     mode: Int,
     enabled: Boolean = true,
     onTriggered: (() -> Unit)? = null,
+    isGestureExcluded: ((Offset) -> Boolean)? = null,
 ): Modifier = pagerGestureOverride(
     pagerState = pagerState,
     mode = PagerInterceptionMode.entries.getOrElse(mode) { PagerInterceptionMode.Native },
     enabled = enabled,
     onTriggered = onTriggered,
+    isGestureExcluded = isGestureExcluded,
 )

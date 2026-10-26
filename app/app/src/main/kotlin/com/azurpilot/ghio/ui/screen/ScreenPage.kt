@@ -45,6 +45,7 @@ import com.azurpilot.ghio.constant.DefaultDisplayConfig
 import com.azurpilot.ghio.proot.AzurPilotRunController
 import com.azurpilot.ghio.service.HostState
 import com.azurpilot.ghio.theme.AppTokens
+import com.azurpilot.ghio.ui.mainPagerGestureExclusion
 import com.azurpilot.ghio.ui.components.ExpressiveLoadingIndicator
 import com.azurpilot.ghio.ui.components.ToolSlotColumn
 import com.azurpilot.ghio.ui.ksu.AppIcon as Icon
@@ -185,6 +186,7 @@ fun ScreenPage(
                     modifier =
                         Modifier.padding(AppTokens.Spacing.md)
                             .aspectRatio(VIDEO_ASPECT)
+                            .mainPagerGestureExclusion()
                             .clip(MaterialTheme.shapes.medium)
                             // 屏幕自身是黑的：首帧到达前那一层不该透出舞台色
                             .background(Color.Black)
