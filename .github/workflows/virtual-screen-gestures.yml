@@ -26,6 +26,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - uses: android-actions/setup-android@v3
       - name: Install Android SDK
         run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
       - name: Build UI-only gesture test APKs
