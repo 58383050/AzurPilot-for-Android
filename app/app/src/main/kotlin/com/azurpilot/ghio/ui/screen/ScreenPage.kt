@@ -186,7 +186,6 @@ fun ScreenPage(
                     modifier =
                         Modifier.padding(AppTokens.Spacing.md)
                             .aspectRatio(VIDEO_ASPECT)
-                            .mainPagerGestureExclusion()
                             .clip(MaterialTheme.shapes.medium)
                             // 屏幕自身是黑的：首帧到达前那一层不该透出舞台色
                             .background(Color.Black)
@@ -201,7 +200,7 @@ fun ScreenPage(
                     contentAlignment = Alignment.Center,
                 ) {
                     AndroidView(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().mainPagerGestureExclusion(),
                         factory = { context ->
                             android.view.TextureView(context).apply {
                                 // TextureView 属于应用图层，分页位移与裁剪能同步作用到预览。

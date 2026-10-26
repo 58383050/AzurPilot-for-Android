@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
@@ -82,26 +83,27 @@ class VirtualScreenPagerInstrumentedTest {
                             AppNavigationScaffold(main, false, remember { SnackbarHostState() }) { page, _ ->
                                 Box(Modifier.fillMaxSize().testTag("page-$page")) {
                                     if (page == TopDestination.Screen.ordinal) {
-                                        Box(
-                                            Modifier.align(Alignment.Center)
-                                                .size(200.dp, 100.dp)
-                                                .mainPagerGestureExclusion()
-                                                .background(Color.Black)
-                                                .testTag("game")
-                                                .pointerInput(Unit) {
-                                                    awaitPointerEventScope {
-                                                        while (true) {
-                                                            val event = awaitPointerEvent()
-                                                            event.changes.forEach {
-                                                                if (it.pressed && it.position != it.previousPosition) {
-                                                                    gameMoves++
+                                        Box(Modifier.align(Alignment.Center).padding(16.dp)) {
+                                            Box(
+                                                Modifier.size(200.dp, 100.dp)
+                                                    .mainPagerGestureExclusion()
+                                                    .background(Color.Black)
+                                                    .testTag("game")
+                                                    .pointerInput(Unit) {
+                                                        awaitPointerEventScope {
+                                                            while (true) {
+                                                                val event = awaitPointerEvent()
+                                                                event.changes.forEach {
+                                                                    if (it.pressed && it.position != it.previousPosition) {
+                                                                        gameMoves++
+                                                                    }
+                                                                    it.consume()
                                                                 }
-                                                                it.consume()
                                                             }
                                                         }
                                                     }
-                                                }
-                                        )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -163,6 +165,19 @@ class VirtualScreenPagerInstrumentedTest {
             // 起点在侧边留白时，即使横穿游戏区域也保持翻页。
             compose.onNodeWithTag("page-2").performTouchInput {
                 swipe(Offset(width * .05f, height * .5f), Offset(width * .95f, height * .5f))
+            }
+            compose.waitUntil(10000) { main.pagerState.settledPage == TopDestination.AzurPilot.ordinal }
+            compose.onNodeWithTag("page-1").performTouchInput { swipeLeft() }
+            compose.waitUntil(10000) { main.pagerState.settledPage == TopDestination.Screen.ordinal }
+            // 从紧邻画面的 16dp 外边距内起手，也应当正常翻页。
+            val gameBounds = compose.onNodeWithTag("game").fetchSemanticsNode().boundsInRoot
+            val pageBounds = compose.onNodeWithTag("page-2").fetchSemanticsNode().boundsInRoot
+            compose.onNodeWithTag("page-2").performTouchInput {
+                val start = Offset(
+                    gameBounds.left - pageBounds.left - gameBounds.width * .04f,
+                    gameBounds.center.y - pageBounds.top,
+                )
+                swipe(start, Offset(width * .95f, start.y))
             }
             compose.waitUntil(10000) { main.pagerState.settledPage == TopDestination.AzurPilot.ordinal }
             compose.onNodeWithTag("page-1").performTouchInput { swipeLeft() }
